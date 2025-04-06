@@ -1,6 +1,6 @@
 <script setup>
+import AssessmentForm from '@/components/ncp/AssessmentForm.vue'
 import FormatSelector from '@/components/ncp/FormatSelector.vue'
-import PatientAssessmentForm from '@/components/ncp/PatientAssessmentForm.vue'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { ref } from 'vue'
@@ -12,7 +12,14 @@ const handleFormatChange = format => {
 }
 
 const handleAssessmentSubmit = formData => {
-  console.log('Assessment Data:', formData)
+  console.log('Assessment Data:', {
+    format: formData.format,
+    data: {
+      subjective: formData.data.subjective,
+      objective: formData.data.objective,
+    },
+    metadata: formData.metadata,
+  })
   // TODO: Will implement API call to generate NCP here
 }
 </script>
@@ -46,8 +53,21 @@ const handleAssessmentSubmit = formData => {
         </CardContent>
       </Card>
 
-      <!-- Patient Assessment Form -->
-      <PatientAssessmentForm @submit="handleAssessmentSubmit" />
+      <!-- Assessment Form -->
+      <Card>
+        <CardHeader>
+          <h3 class="text-lg font-semibold">Patient Assessment</h3>
+          <p class="text-sm text-muted-foreground">
+            Enter your assessment details to generate an NCP
+          </p>
+        </CardHeader>
+        <CardContent>
+          <AssessmentForm
+            @submit="handleAssessmentSubmit"
+            :selectedFormat="selectedFormat"
+          />
+        </CardContent>
+      </Card>
     </div>
   </DefaultLayout>
 </template>
