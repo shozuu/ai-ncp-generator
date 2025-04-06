@@ -1,7 +1,6 @@
 <script setup>
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
@@ -33,40 +32,40 @@ const manualObjective = ref('')
 // Assistant mode state
 const assistantData = ref({
   subjective: {
-    symptoms: '',
-    otherComplaints: '',
+    primary: '',
+    secondary: '',
   },
   objective: {
-    physicalExam: '',
-    vitalSigns: '',
-    otherFindings: '',
+    exam: '',
+    vitals: '',
+    other: '',
   },
 })
 
-// Computed assessment text for assistant mode
+// Update computed assessment text for assistant mode
 const assistantAssessment = computed(() => {
   const parts = []
   const { subjective, objective } = assistantData.value
 
-  // Subjective section
-  const subjectiveParts = []
-  if (subjective.symptoms) subjectiveParts.push(subjective.symptoms)
-  if (subjective.otherComplaints)
-    subjectiveParts.push(subjective.otherComplaints)
+  // Process subjective data
+  const subjectiveData = [
+    ...textToArray(subjective.primary),
+    ...textToArray(subjective.secondary),
+  ].filter(Boolean)
 
-  if (subjectiveParts.length) {
-    parts.push('Subjective data: ' + subjectiveParts.join('. ') + '.')
+  if (subjectiveData.length) {
+    parts.push('Subjective data: ' + subjectiveData.join('. ') + '.')
   }
 
-  // Objective section
-  const objectiveParts = []
-  if (objective.physicalExam) objectiveParts.push(objective.physicalExam)
-  if (objective.vitalSigns)
-    objectiveParts.push(`Vital signs include ${objective.vitalSigns}`)
-  if (objective.otherFindings) objectiveParts.push(objective.otherFindings)
+  // Process objective data
+  const objectiveData = [
+    ...textToArray(objective.exam),
+    ...textToArray(objective.vitals),
+    ...textToArray(objective.other),
+  ].filter(Boolean)
 
-  if (objectiveParts.length) {
-    parts.push('Objective data: ' + objectiveParts.join('. ') + '.')
+  if (objectiveData.length) {
+    parts.push('Objective data: ' + objectiveData.join('. ') + '.')
   }
 
   return parts.join('\n\n')
@@ -96,49 +95,42 @@ const finalAssessment = computed(() =>
 const validateForm = () => {
   if (isAssistantMode.value) {
     return (
-      assistantData.value.subjective.symptoms.trim() ||
-      assistantData.value.objective.physicalExam.trim() ||
-      assistantData.value.objective.vitalSigns.trim()
+      assistantData.value.subjective.primary.trim() ||
+      assistantData.value.objective.exam.trim() ||
+      assistantData.value.objective.vitals.trim()
     )
   }
   return manualSubjective.value.trim() || manualObjective.value.trim()
 }
 
-// Handle form submission
+// Update handleSubmit
 const emit = defineEmits(['submit'])
 const handleSubmit = () => {
   if (!finalAssessment.value.trim() || !validateForm()) return
+
   const assessment = {
     format: {
       type: isAssistantMode.value ? 'assisted' : 'manual',
       columns: props.selectedFormat,
     },
     data: {
-      subjective: {
-        symptoms: isAssistantMode.value
-          ? {
-              primary: assistantData.value.subjective.symptoms,
-              secondary: assistantData.value.subjective.otherComplaints,
-            }
-          : null,
-        rawText: isAssistantMode.value
-          ? null
-          : textToArray(manualSubjective.value),
-      },
-      objective: {
-        physicalExam: isAssistantMode.value
-          ? assistantData.value.objective.physicalExam
-          : null,
-        vitalSigns: isAssistantMode.value
-          ? assistantData.value.objective.vitalSigns
-          : null,
-        otherFindings: isAssistantMode.value
-          ? assistantData.value.objective.otherFindings
-          : null,
-        rawText: isAssistantMode.value
-          ? null
-          : textToArray(manualObjective.value),
-      },
+      subjective: isAssistantMode.value
+        ? {
+            primary: textToArray(assistantData.value.subjective.primary),
+            secondary: textToArray(assistantData.value.subjective.secondary),
+          }
+        : {
+            rawText: textToArray(manualSubjective.value),
+          },
+      objective: isAssistantMode.value
+        ? {
+            exam: textToArray(assistantData.value.objective.exam),
+            vitals: textToArray(assistantData.value.objective.vitals),
+            other: textToArray(assistantData.value.objective.other),
+          }
+        : {
+            rawText: textToArray(manualObjective.value),
+          },
     },
     metadata: {
       timestamp: new Date().toISOString(),
@@ -236,22 +228,32 @@ Mild distention noted in lower abdomen"
         <h3 class="font-medium text-sm">Subjective Data</h3>
 
         <div class="space-y-1.5">
-          <Label for="symptoms">What symptoms did the patient report?</Label>
-          <Input
+          <Label for="symptoms">Primary Symptoms</Label>
+          <p class="text-xs text-muted-foreground mb-2">
+            Enter each reported symptom on a new line.
+          </p>
+          <Textarea
             id="symptoms"
-            v-model="assistantData.subjective.symptoms"
-            placeholder="Sharp abdominal pain rated 7/10, which worsens with movement"
+            v-model="assistantData.subjective.primary"
+            placeholder="Reports sharp abdominal pain rated 7/10
+Reports pain worsens with movement
+Reports pain started 2 hours ago"
+            class="min-h-[100px] font-mono text-sm"
           />
         </div>
 
         <div class="space-y-1.5">
-          <Label for="other-complaints"
-            >Any other complaints or concerns?</Label
-          >
-          <Input
+          <Label for="other-complaints">Other Complaints</Label>
+          <p class="text-xs text-muted-foreground mb-2">
+            Enter any additional complaints or concerns, one per line.
+          </p>
+          <Textarea
             id="other-complaints"
-            v-model="assistantData.subjective.otherComplaints"
-            placeholder="Reports feeling nauseous and loss of appetite"
+            v-model="assistantData.subjective.secondary"
+            placeholder="Reports feeling nauseous
+Reports loss of appetite
+Reports difficulty sleeping due to pain"
+            class="min-h-[100px] font-mono text-sm"
           />
         </div>
       </div>
@@ -261,29 +263,48 @@ Mild distention noted in lower abdomen"
         <h3 class="font-medium text-sm">Objective Data</h3>
 
         <div class="space-y-1.5">
-          <Label for="physical-exam">Physical examination findings</Label>
-          <Input
+          <Label for="physical-exam">Physical Examination</Label>
+          <p class="text-xs text-muted-foreground mb-2">
+            Enter each physical examination finding on a new line.
+          </p>
+          <Textarea
             id="physical-exam"
-            v-model="assistantData.objective.physicalExam"
-            placeholder="Guarding is observed during palpation of the abdomen"
+            v-model="assistantData.objective.exam"
+            placeholder="Guarding observed during abdominal palpation
+Tenderness in right lower quadrant
+Skin warm and dry to touch"
+            class="min-h-[100px] font-mono text-sm"
           />
         </div>
 
         <div class="space-y-1.5">
-          <Label for="vital-signs">Vital signs</Label>
-          <Input
+          <Label for="vital-signs">Vital Signs</Label>
+          <p class="text-xs text-muted-foreground mb-2">
+            Enter each vital sign measurement on a new line.
+          </p>
+          <Textarea
             id="vital-signs"
-            v-model="assistantData.objective.vitalSigns"
-            placeholder="blood pressure at 130/85 mmHg and heart rate at 98 bpm"
+            v-model="assistantData.objective.vitals"
+            placeholder="Blood pressure 130/85 mmHg
+Heart rate 98 bpm
+Temperature 37.8°C
+Respiratory rate 20/min"
+            class="min-h-[100px] font-mono text-sm"
           />
         </div>
 
         <div class="space-y-1.5">
-          <Label for="other-findings">Other objective findings</Label>
-          <Input
+          <Label for="other-findings">Other Findings</Label>
+          <p class="text-xs text-muted-foreground mb-2">
+            Enter any additional observations on a new line.
+          </p>
+          <Textarea
             id="other-findings"
-            v-model="assistantData.objective.otherFindings"
-            placeholder="Mild distention noted in lower abdomen"
+            v-model="assistantData.objective.other"
+            placeholder="Mild distention noted in lower abdomen
+Bowel sounds diminished
+Patient appears uncomfortable when moving"
+            class="min-h-[100px] font-mono text-sm"
           />
         </div>
       </div>
