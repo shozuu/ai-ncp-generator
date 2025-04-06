@@ -18,10 +18,10 @@ const props = defineProps({
 // Utility function to convert text to array
 const textToArray = text =>
   text
-    .trim()
-    .split('.')
-    .filter(Boolean)
-    .map(s => s.trim())
+    .split(/[.\n]/) // Split by periods or line breaks
+    .filter(line => line.trim()) // Remove empty lines
+    .map(line => line.trim()) // Trim whitespace
+    .filter(line => line.length > 0) // Remove any remaining empty strings
 
 // Form mode state
 const isAssistantMode = ref(false)
@@ -108,7 +108,6 @@ const validateForm = () => {
 const emit = defineEmits(['submit'])
 const handleSubmit = () => {
   if (!finalAssessment.value.trim() || !validateForm()) return
-
   const assessment = {
     format: {
       type: isAssistantMode.value ? 'assisted' : 'manual',
@@ -154,12 +153,37 @@ const handleSubmit = () => {
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-6">
     <!-- Instructions -->
-    <div class="rounded-md bg-muted/50 p-4">
+    <div class="rounded-md bg-muted/50 p-4 space-y-4">
       <p class="text-sm text-muted-foreground">
         Enter your assessment data, clearly separating subjective
         (patient-reported) and objective (observed) findings. This structured
         format will be used to generate your NCP.
       </p>
+
+      <!-- Add format instructions for manual mode -->
+      <div v-if="!isAssistantMode" class="space-y-2 border-t pt-2 border-muted">
+        <p class="text-sm text-muted-foreground font-medium">
+          Formatting Tips:
+        </p>
+        <ul
+          class="list-disc list-inside text-sm text-muted-foreground space-y-1"
+        >
+          <li>Enter each finding on a new line</li>
+          <li>Use clear, concise statements</li>
+          <li>Separate distinct observations</li>
+        </ul>
+        <div class="bg-muted/30 p-2 rounded-md mt-2">
+          <p class="text-xs text-muted-foreground font-medium mb-1">
+            Example Format:
+          </p>
+          <pre class="text-xs text-muted-foreground whitespace-pre-line">
+            Patient reports severe headache
+            Blood pressure is 140/90 mmHg
+            Temperature is 38.5°C
+            Patient complains of nausea
+          </pre>
+        </div>
+      </div>
     </div>
 
     <!-- Mode Toggle -->
@@ -173,22 +197,34 @@ const handleSubmit = () => {
       <!-- Subjective Data -->
       <div class="space-y-1.5">
         <Label for="manual-subjective">Subjective Data</Label>
+        <p class="text-xs text-muted-foreground mb-2">
+          Enter each patient-reported symptom or concern on a new line.
+        </p>
         <Textarea
           id="manual-subjective"
           v-model="manualSubjective"
-          placeholder="The patient reports sharp abdominal pain rated 7/10, which worsens with movement."
-          class="min-h-[100px]"
+          placeholder="Reports sharp abdominal pain rated 7/10
+Reports pain worsens with movement
+Complains of nausea since morning
+Reports loss of appetite"
+          class="min-h-[100px] font-mono text-sm"
         />
       </div>
 
       <!-- Objective Data -->
       <div class="space-y-1.5">
         <Label for="manual-objective">Objective Data</Label>
+        <p class="text-xs text-muted-foreground mb-2">
+          Enter each observation or measurement on a new line.
+        </p>
         <Textarea
           id="manual-objective"
           v-model="manualObjective"
-          placeholder="Guarding is observed during palpation of the abdomen. Vital signs include blood pressure at 130/85 mmHg and heart rate at 98 bpm."
-          class="min-h-[100px]"
+          placeholder="Blood pressure 130/85 mmHg
+Heart rate 98 bpm
+Guarding observed during abdominal palpation
+Mild distention noted in lower abdomen"
+          class="min-h-[100px] font-mono text-sm"
         />
       </div>
     </div>
