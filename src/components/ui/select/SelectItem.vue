@@ -1,13 +1,13 @@
 <script setup>
-import { cn } from '@/lib/utils';
-import { Check } from 'lucide-vue-next';
+import { cn } from '@/lib/utils'
+import { Check } from 'lucide-vue-next'
 import {
   SelectItem,
   SelectItemIndicator,
   SelectItemText,
   useForwardProps,
-} from 'reka-ui';
-import { computed } from 'vue';
+} from 'reka-ui'
+import { computed } from 'vue'
 
 const props = defineProps({
   value: { type: null, required: true },
@@ -16,15 +16,15 @@ const props = defineProps({
   asChild: { type: Boolean, required: false },
   as: { type: null, required: false },
   class: { type: null, required: false },
-});
+})
 
 const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
+  const { class: _, ...delegated } = props
 
-  return delegated;
-});
+  return delegated
+})
 
-const forwardedProps = useForwardProps(delegatedProps);
+const forwardedProps = useForwardProps(delegatedProps)
 </script>
 
 <template>
@@ -33,7 +33,7 @@ const forwardedProps = useForwardProps(delegatedProps);
     :class="
       cn(
         'relative flex w-full cursor-default select-none items-center rounded-sm py-1.5 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-        props.class,
+        props.class
       )
     "
   >
