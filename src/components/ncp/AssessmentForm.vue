@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 
 // Props for format selection
 const props = defineProps({
@@ -51,14 +51,35 @@ const assistantData = ref({
 const showPreview = ref(false)
 
 // Form submission states
-const toast = useToast()
+const { toast } = useToast() // Destructure the toast function from useToast hook
 const errors = ref([])
 const isSubmitting = ref(false)
+
+// Add a new computed property for form validity
+const isFormValid = computed(() => {
+  if (isAssistantMode.value) {
+    // Assistant mode validation
+    const hasSubjective =
+      assistantData.value.subjective.primary.trim() ||
+      assistantData.value.subjective.secondary.trim()
+    const hasObjective =
+      assistantData.value.objective.exam.trim() ||
+      assistantData.value.objective.vitals.trim() ||
+      assistantData.value.objective.other.trim()
+
+    return hasSubjective && hasObjective
+  } else {
+    // Manual mode validation
+    return (
+      manualSubjective.value.trim().length > 0 &&
+      manualObjective.value.trim().length > 0
+    )
+  }
+})
 
 // Validation function
 const validateForm = () => {
   errors.value = []
-  let isValid = true
 
   if (isAssistantMode.value) {
     // Assistant mode validation
@@ -72,25 +93,26 @@ const validateForm = () => {
 
     if (!hasSubjective) {
       errors.value.push('At least one subjective finding is required')
-      isValid = false
     }
     if (!hasObjective) {
       errors.value.push('At least one objective finding is required')
-      isValid = false
     }
+
+    return hasSubjective && hasObjective
   } else {
     // Manual mode validation
-    if (!manualSubjective.value.trim()) {
-      errors.value.push('Subjective data is required')
-      isValid = false
-    }
-    if (!manualObjective.value.trim()) {
-      errors.value.push('Objective data is required')
-      isValid = false
-    }
-  }
+    const hasSubjective = manualSubjective.value.trim().length > 0
+    const hasObjective = manualObjective.value.trim().length > 0
 
-  return isValid
+    if (!hasSubjective) {
+      errors.value.push('Subjective data is required')
+    }
+    if (!hasObjective) {
+      errors.value.push('Objective data is required')
+    }
+
+    return hasSubjective && hasObjective
+  }
 }
 
 // Submit handler
@@ -290,18 +312,6 @@ Reports pain worsens with movement
 Reports pain started 2 hours ago"
               class="min-h-[100px] font-mono text-sm"
             />
-            <div class="absolute bottom-2 right-2 flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p class="text-xs text-muted-foreground">
-                    {{ subjectiveCharCount }} characters
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p class="text-xs">Recommended: 50-200 characters</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
           </div>
         </div>
 
@@ -319,18 +329,6 @@ Reports loss of appetite
 Reports difficulty sleeping due to pain"
               class="min-h-[100px] font-mono text-sm"
             />
-            <div class="absolute bottom-2 right-2 flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p class="text-xs text-muted-foreground">
-                    {{ subjectiveCharCount }} characters
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p class="text-xs">Recommended: 50-200 characters</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
           </div>
         </div>
       </div>
@@ -353,18 +351,6 @@ Tenderness in right lower quadrant
 Skin warm and dry to touch"
               class="min-h-[100px] font-mono text-sm"
             />
-            <div class="absolute bottom-2 right-2 flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p class="text-xs text-muted-foreground">
-                    {{ objectiveCharCount }} characters
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p class="text-xs">Recommended: 50-200 characters</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
           </div>
         </div>
 
@@ -383,18 +369,6 @@ Temperature 37.8°C
 Respiratory rate 20/min"
               class="min-h-[100px] font-mono text-sm"
             />
-            <div class="absolute bottom-2 right-2 flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p class="text-xs text-muted-foreground">
-                    {{ objectiveCharCount }} characters
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p class="text-xs">Recommended: 50-200 characters</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
           </div>
         </div>
 
@@ -412,18 +386,6 @@ Bowel sounds diminished
 Patient appears uncomfortable when moving"
               class="min-h-[100px] font-mono text-sm"
             />
-            <div class="absolute bottom-2 right-2 flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <p class="text-xs text-muted-foreground">
-                    {{ objectiveCharCount }} characters
-                  </p>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p class="text-xs">Recommended: 50-200 characters</p>
-                </TooltipContent>
-              </Tooltip>
-            </div>
           </div>
         </div>
       </div>
@@ -590,7 +552,7 @@ Patient appears uncomfortable when moving"
     <Button
       type="submit"
       class="w-full"
-      :disabled="isSubmitting || !validateForm()"
+      :disabled="isSubmitting || !isFormValid"
     >
       {{ isSubmitting ? 'Generating...' : 'Generate NCP' }}
     </Button>
