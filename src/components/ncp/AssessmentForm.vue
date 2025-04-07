@@ -5,7 +5,8 @@ import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
 import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
-import { computed, ref } from 'vue'
+import { useToast } from '@/components/ui/toast'
+import { ref } from 'vue'
 
 // Props for format selection
 const props = defineProps({
@@ -46,110 +47,112 @@ const assistantData = ref({
   },
 })
 
-// Generated Assessment Preview
-const assistantAssessment = computed(() => {
-  const parts = []
-  const { subjective, objective } = assistantData.value
+// New state for preview visibility
+const showPreview = ref(false)
 
-  // Process subjective data
-  const primarySymptoms = textToArray(subjective.primary)
-  const secondarySymptoms = textToArray(subjective.secondary)
-
-  if (primarySymptoms.length || secondarySymptoms.length) {
-    parts.push('Subjective Data:')
-    if (primarySymptoms.length) {
-      parts.push('Primary Symptoms:')
-      primarySymptoms.forEach(symptom => parts.push(`• ${symptom}`))
-    }
-    if (secondarySymptoms.length) {
-      parts.push('\nOther Complaints:')
-      secondarySymptoms.forEach(symptom => parts.push(`• ${symptom}`))
-    }
-  }
-
-  // Process objective data
-  const examFindings = textToArray(objective.exam)
-  const vitalSigns = textToArray(objective.vitals)
-  const otherFindings = textToArray(objective.other)
-
-  if (examFindings.length || vitalSigns.length || otherFindings.length) {
-    parts.push('\nObjective Data:')
-    if (examFindings.length) {
-      parts.push('Physical Examination:')
-      examFindings.forEach(finding => parts.push(`• ${finding}`))
-    }
-    if (vitalSigns.length) {
-      parts.push('\nVital Signs:')
-      vitalSigns.forEach(vital => parts.push(`• ${vital}`))
-    }
-    if (otherFindings.length) {
-      parts.push('\nOther Findings:')
-      otherFindings.forEach(finding => parts.push(`• ${finding}`))
-    }
-  }
-
-  return parts.join('\n')
-})
-
-// Final assessment value based on mode
-const finalAssessment = computed(() =>
-  isAssistantMode.value
-    ? assistantAssessment.value
-    : manualSubjective.value.trim() || manualObjective.value.trim()
-)
+// Form submission states
+const toast = useToast()
+const errors = ref([])
+const isSubmitting = ref(false)
 
 // Validation function
 const validateForm = () => {
+  errors.value = []
+  let isValid = true
+
   if (isAssistantMode.value) {
-    return (
+    // Assistant mode validation
+    const hasSubjective =
       assistantData.value.subjective.primary.trim() ||
+      assistantData.value.subjective.secondary.trim()
+    const hasObjective =
       assistantData.value.objective.exam.trim() ||
-      assistantData.value.objective.vitals.trim()
-    )
+      assistantData.value.objective.vitals.trim() ||
+      assistantData.value.objective.other.trim()
+
+    if (!hasSubjective) {
+      errors.value.push('At least one subjective finding is required')
+      isValid = false
+    }
+    if (!hasObjective) {
+      errors.value.push('At least one objective finding is required')
+      isValid = false
+    }
+  } else {
+    // Manual mode validation
+    if (!manualSubjective.value.trim()) {
+      errors.value.push('Subjective data is required')
+      isValid = false
+    }
+    if (!manualObjective.value.trim()) {
+      errors.value.push('Objective data is required')
+      isValid = false
+    }
   }
-  return manualSubjective.value.trim() || manualObjective.value.trim()
+
+  return isValid
 }
 
-// Update handleSubmit
+// Submit handler
 const emit = defineEmits(['submit'])
-const handleSubmit = () => {
-  if (!finalAssessment.value.trim() || !validateForm()) return
-
-  const assessment = {
-    format: {
-      type: isAssistantMode.value ? 'assisted' : 'manual',
-      columns: props.selectedFormat,
-    },
-    data: {
-      subjective: isAssistantMode.value
-        ? {
-            primary: textToArray(assistantData.value.subjective.primary),
-            secondary: textToArray(assistantData.value.subjective.secondary),
-          }
-        : {
-            rawText: textToArray(manualSubjective.value),
-          },
-      objective: isAssistantMode.value
-        ? {
-            exam: textToArray(assistantData.value.objective.exam),
-            vitals: textToArray(assistantData.value.objective.vitals),
-            other: textToArray(assistantData.value.objective.other),
-          }
-        : {
-            rawText: textToArray(manualObjective.value),
-          },
-    },
-    metadata: {
-      timestamp: new Date().toISOString(),
-      submissionMode: isAssistantMode.value ? 'assistant' : 'manual',
-    },
+const handleSubmit = async () => {
+  if (!validateForm()) {
+    toast({
+      title: 'Validation Error',
+      description: errors.value.join('\n'),
+      variant: 'destructive',
+    })
+    return
   }
 
-  emit('submit', assessment)
-}
+  isSubmitting.value = true
 
-// Add new state for preview visibility
-const showPreview = ref(false)
+  try {
+    const assessment = {
+      format: {
+        type: isAssistantMode.value ? 'assisted' : 'manual',
+        columns: props.selectedFormat,
+      },
+      data: {
+        subjective: isAssistantMode.value
+          ? {
+              primary: textToArray(assistantData.value.subjective.primary),
+              secondary: textToArray(assistantData.value.subjective.secondary),
+            }
+          : {
+              rawText: textToArray(manualSubjective.value),
+            },
+        objective: isAssistantMode.value
+          ? {
+              exam: textToArray(assistantData.value.objective.exam),
+              vitals: textToArray(assistantData.value.objective.vitals),
+              other: textToArray(assistantData.value.objective.other),
+            }
+          : {
+              rawText: textToArray(manualObjective.value),
+            },
+      },
+      metadata: {
+        timestamp: new Date().toISOString(),
+        submissionMode: isAssistantMode.value ? 'assistant' : 'manual',
+      },
+    }
+
+    emit('submit', assessment)
+    toast({
+      title: 'Success',
+      description: 'Assessment submitted successfully',
+    })
+  } catch (error) {
+    toast({
+      title: 'Error',
+      description: `Failed to submit assessment: ${error.message}`,
+      variant: 'destructive',
+    })
+  } finally {
+    isSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -223,15 +226,23 @@ Facial grimacing noted</pre
         <p class="text-xs text-muted-foreground mb-2">
           Enter each patient-reported symptom or concern on a new line.
         </p>
-        <Textarea
-          id="manual-subjective"
-          v-model="manualSubjective"
-          placeholder="Reports sharp abdominal pain rated 7/10
+        <div class="relative">
+          <Textarea
+            id="manual-subjective"
+            v-model="manualSubjective"
+            :class="{
+              'border-destructive': errors.includes(
+                'Subjective data is required'
+              ),
+              'border-primary': manualSubjective.trim().length > 0,
+            }"
+            placeholder="Reports sharp abdominal pain rated 7/10
 Reports pain worsens with movement
 Complains of nausea since morning
 Reports loss of appetite"
-          class="min-h-[100px] font-mono text-sm"
-        />
+            class="min-h-[100px] font-mono text-sm"
+          />
+        </div>
       </div>
 
       <!-- Objective Data -->
@@ -240,15 +251,17 @@ Reports loss of appetite"
         <p class="text-xs text-muted-foreground mb-2">
           Enter each observation or measurement on a new line.
         </p>
-        <Textarea
-          id="manual-objective"
-          v-model="manualObjective"
-          placeholder="Blood pressure 130/85 mmHg
+        <div class="relative">
+          <Textarea
+            id="manual-objective"
+            v-model="manualObjective"
+            placeholder="Blood pressure 130/85 mmHg
 Heart rate 98 bpm
 Guarding observed during abdominal palpation
 Mild distention noted in lower abdomen"
-          class="min-h-[100px] font-mono text-sm"
-        />
+            class="min-h-[100px] font-mono text-sm"
+          />
+        </div>
       </div>
     </div>
 
@@ -263,14 +276,33 @@ Mild distention noted in lower abdomen"
           <p class="text-xs text-muted-foreground mb-2">
             Enter each reported symptom on a new line.
           </p>
-          <Textarea
-            id="symptoms"
-            v-model="assistantData.subjective.primary"
-            placeholder="Reports sharp abdominal pain rated 7/10
+          <div class="relative">
+            <Textarea
+              id="symptoms"
+              v-model="assistantData.subjective.primary"
+              :class="{
+                'border-destructive': errors.includes(
+                  'At least one subjective finding is required'
+                ),
+              }"
+              placeholder="Reports sharp abdominal pain rated 7/10
 Reports pain worsens with movement
 Reports pain started 2 hours ago"
-            class="min-h-[100px] font-mono text-sm"
-          />
+              class="min-h-[100px] font-mono text-sm"
+            />
+            <div class="absolute bottom-2 right-2 flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p class="text-xs text-muted-foreground">
+                    {{ subjectiveCharCount }} characters
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p class="text-xs">Recommended: 50-200 characters</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-1.5">
@@ -278,14 +310,28 @@ Reports pain started 2 hours ago"
           <p class="text-xs text-muted-foreground mb-2">
             Enter any additional complaints or concerns, one per line.
           </p>
-          <Textarea
-            id="other-complaints"
-            v-model="assistantData.subjective.secondary"
-            placeholder="Reports feeling nauseous
+          <div class="relative">
+            <Textarea
+              id="other-complaints"
+              v-model="assistantData.subjective.secondary"
+              placeholder="Reports feeling nauseous
 Reports loss of appetite
 Reports difficulty sleeping due to pain"
-            class="min-h-[100px] font-mono text-sm"
-          />
+              class="min-h-[100px] font-mono text-sm"
+            />
+            <div class="absolute bottom-2 right-2 flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p class="text-xs text-muted-foreground">
+                    {{ subjectiveCharCount }} characters
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p class="text-xs">Recommended: 50-200 characters</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -298,14 +344,28 @@ Reports difficulty sleeping due to pain"
           <p class="text-xs text-muted-foreground mb-2">
             Enter each physical examination finding on a new line.
           </p>
-          <Textarea
-            id="physical-exam"
-            v-model="assistantData.objective.exam"
-            placeholder="Guarding observed during abdominal palpation
+          <div class="relative">
+            <Textarea
+              id="physical-exam"
+              v-model="assistantData.objective.exam"
+              placeholder="Guarding observed during abdominal palpation
 Tenderness in right lower quadrant
 Skin warm and dry to touch"
-            class="min-h-[100px] font-mono text-sm"
-          />
+              class="min-h-[100px] font-mono text-sm"
+            />
+            <div class="absolute bottom-2 right-2 flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p class="text-xs text-muted-foreground">
+                    {{ objectiveCharCount }} characters
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p class="text-xs">Recommended: 50-200 characters</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-1.5">
@@ -313,15 +373,29 @@ Skin warm and dry to touch"
           <p class="text-xs text-muted-foreground mb-2">
             Enter each vital sign measurement on a new line.
           </p>
-          <Textarea
-            id="vital-signs"
-            v-model="assistantData.objective.vitals"
-            placeholder="Blood pressure 130/85 mmHg
+          <div class="relative">
+            <Textarea
+              id="vital-signs"
+              v-model="assistantData.objective.vitals"
+              placeholder="Blood pressure 130/85 mmHg
 Heart rate 98 bpm
 Temperature 37.8°C
 Respiratory rate 20/min"
-            class="min-h-[100px] font-mono text-sm"
-          />
+              class="min-h-[100px] font-mono text-sm"
+            />
+            <div class="absolute bottom-2 right-2 flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p class="text-xs text-muted-foreground">
+                    {{ objectiveCharCount }} characters
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p class="text-xs">Recommended: 50-200 characters</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </div>
 
         <div class="space-y-1.5">
@@ -329,14 +403,28 @@ Respiratory rate 20/min"
           <p class="text-xs text-muted-foreground mb-2">
             Enter any additional observations on a new line.
           </p>
-          <Textarea
-            id="other-findings"
-            v-model="assistantData.objective.other"
-            placeholder="Mild distention noted in lower abdomen
+          <div class="relative">
+            <Textarea
+              id="other-findings"
+              v-model="assistantData.objective.other"
+              placeholder="Mild distention noted in lower abdomen
 Bowel sounds diminished
 Patient appears uncomfortable when moving"
-            class="min-h-[100px] font-mono text-sm"
-          />
+              class="min-h-[100px] font-mono text-sm"
+            />
+            <div class="absolute bottom-2 right-2 flex items-center gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p class="text-xs text-muted-foreground">
+                    {{ objectiveCharCount }} characters
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p class="text-xs">Recommended: 50-200 characters</p>
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -499,8 +587,25 @@ Patient appears uncomfortable when moving"
     </div>
 
     <!-- Submit Button -->
-    <Button type="submit" class="w-full" :disabled="!finalAssessment">
-      Generate NCP
+    <Button
+      type="submit"
+      class="w-full"
+      :disabled="isSubmitting || !validateForm()"
+    >
+      {{ isSubmitting ? 'Generating...' : 'Generate NCP' }}
     </Button>
+
+    <!-- Add error messages display -->
+    <div v-if="errors.length" class="mt-4">
+      <ul class="space-y-1">
+        <li
+          v-for="(error, index) in errors"
+          :key="index"
+          class="text-sm text-destructive"
+        >
+          {{ error }}
+        </li>
+      </ul>
+    </div>
   </form>
 </template>
