@@ -14,6 +14,7 @@ dist-ssr
 project_context.md
 copilot_rules.md
 form_context.md
+*.env
 
 # Editor directories and files
 .vscode/*

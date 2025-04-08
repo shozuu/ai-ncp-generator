@@ -1,26 +1,43 @@
 <script setup>
 import AssessmentForm from '@/components/ncp/AssessmentForm.vue'
 import FormatSelector from '@/components/ncp/FormatSelector.vue'
+import NCPDisplay from '@/components/ncp/NCPDisplay.vue'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
+import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
+import { useToast } from '@/components/ui/toast'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import { ncpService } from '@/services/api'
 import { ref } from 'vue'
 
 const selectedFormat = ref('4')
+const isLoading = ref(false)
+const generatedNCP = ref(null)
+const { toast } = useToast()
 
 const handleFormatChange = format => {
   selectedFormat.value = format
 }
 
-const handleAssessmentSubmit = formData => {
-  console.log('Assessment Data:', {
-    format: formData.format,
-    data: {
-      subjective: formData.data.subjective,
-      objective: formData.data.objective,
-    },
-    metadata: formData.metadata,
-  })
-  // TODO: Will implement API call to generate NCP here
+const handleAssessmentSubmit = async formData => {
+  isLoading.value = true
+  generatedNCP.value = null
+
+  try {
+    const result = await ncpService.generateNCP(formData)
+    generatedNCP.value = result
+    toast({
+      title: 'Success',
+      description: 'NCP generated successfully',
+    })
+  } catch (error) {
+    toast({
+      title: 'Error',
+      description: error.message,
+      variant: 'destructive',
+    })
+  } finally {
+    isLoading.value = false
+  }
 }
 </script>
 
@@ -38,7 +55,7 @@ const handleAssessmentSubmit = formData => {
       </div>
 
       <!-- Format Selection -->
-      <Card>
+      <Card v-if="!generatedNCP">
         <CardHeader>
           <h3 class="text-lg font-semibold">Format Selection</h3>
           <p class="text-sm text-muted-foreground">
@@ -54,7 +71,7 @@ const handleAssessmentSubmit = formData => {
       </Card>
 
       <!-- Assessment Form -->
-      <Card>
+      <Card v-if="!generatedNCP">
         <CardHeader>
           <h3 class="text-lg font-semibold">Patient Assessment</h3>
           <p class="text-sm text-muted-foreground">
@@ -68,6 +85,20 @@ const handleAssessmentSubmit = formData => {
           />
         </CardContent>
       </Card>
+
+      <!-- Loading State -->
+      <Card v-if="isLoading">
+        <CardContent>
+          <LoadingIndicator text="Generating your nursing care plan..." />
+        </CardContent>
+      </Card>
+
+      <!-- Generated NCP Display -->
+      <NCPDisplay
+        v-if="generatedNCP && !isLoading"
+        :ncp="generatedNCP"
+        :format="selectedFormat"
+      />
     </div>
   </DefaultLayout>
 </template>
