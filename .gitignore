@@ -1,4 +1,4 @@
-# Logs
+
 logs
 *.log
 npm-debug.log*
@@ -16,7 +16,6 @@ copilot_rules.md
 form_context.md
 *.env
 
-# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
@@ -27,3 +26,6 @@ form_context.md
 *.njsproj
 *.sln
 *.sw?
+
+venv/
+__pycache__/
