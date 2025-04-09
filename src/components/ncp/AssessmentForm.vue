@@ -1,573 +1,62 @@
 <script setup>
-import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { Collapsible, CollapsibleContent } from '@/components/ui/collapsible'
-import { Label } from '@/components/ui/label'
-import { Switch } from '@/components/ui/switch'
-import { Textarea } from '@/components/ui/textarea'
+import Switch from '@/components/ui/switch/Switch.vue'
 import { useToast } from '@/components/ui/toast'
-import { computed, ref } from 'vue'
+import { ref, computed } from 'vue'
+import AssistantModeForm from './AssistantModeForm.vue'
+import ManualModeForm from './ManualModeForm.vue'
 
-// Props for format selection
-const props = defineProps({
-  selectedFormat: {
-    type: String,
-    default: '7',
-  },
-})
-
-// Utility function to convert text to array
-const textToArray = text => {
-  if (!text || typeof text !== 'string') return []
-
-  return text
-    .split(/[.\n]/) // Split by periods or line breaks
-    .filter(line => line.trim()) // Remove empty lines
-    .map(line => line.trim()) // Trim whitespace
-    .filter(line => line.length > 0) // Remove any remaining empty strings
-}
-
-// Form mode state
 const isAssistantMode = ref(false)
+const { toast } = useToast()
 
-// Manual mode state
-const manualSubjective = ref('')
-const manualObjective = ref('')
+// Compute the current mode label
+const currentMode = computed(() =>
+  isAssistantMode.value ? 'Assistant Mode' : 'Manual Mode'
+)
 
-// Assistant mode state
-const assistantData = ref({
-  subjective: {
-    primary: '',
-    secondary: '',
-  },
-  objective: {
-    exam: '',
-    vitals: '',
-    other: '',
-  },
-})
-
-// New state for preview visibility
-const showPreview = ref(false)
-
-// Form submission states
-const { toast } = useToast() // Destructure the toast function from useToast hook
-const errors = ref([])
-const isSubmitting = ref(false)
-
-// Add a new computed property for form validity
-const isFormValid = computed(() => {
-  if (isAssistantMode.value) {
-    // Assistant mode validation
-    const hasSubjective =
-      assistantData.value.subjective.primary.trim() ||
-      assistantData.value.subjective.secondary.trim()
-    const hasObjective =
-      assistantData.value.objective.exam.trim() ||
-      assistantData.value.objective.vitals.trim() ||
-      assistantData.value.objective.other.trim()
-
-    return hasSubjective && hasObjective
-  } else {
-    // Manual mode validation
-    return (
-      manualSubjective.value.trim().length > 0 &&
-      manualObjective.value.trim().length > 0
-    )
-  }
-})
-
-// Validation function
-const validateForm = () => {
-  errors.value = []
-
-  if (isAssistantMode.value) {
-    // Assistant mode validation
-    const hasSubjective =
-      assistantData.value.subjective.primary.trim() ||
-      assistantData.value.subjective.secondary.trim()
-    const hasObjective =
-      assistantData.value.objective.exam.trim() ||
-      assistantData.value.objective.vitals.trim() ||
-      assistantData.value.objective.other.trim()
-
-    if (!hasSubjective) {
-      errors.value.push('At least one subjective finding is required')
-    }
-    if (!hasObjective) {
-      errors.value.push('At least one objective finding is required')
-    }
-
-    return hasSubjective && hasObjective
-  } else {
-    // Manual mode validation
-    const hasSubjective = manualSubjective.value.trim().length > 0
-    const hasObjective = manualObjective.value.trim().length > 0
-
-    if (!hasSubjective) {
-      errors.value.push('Subjective data is required')
-    }
-    if (!hasObjective) {
-      errors.value.push('Objective data is required')
-    }
-
-    return hasSubjective && hasObjective
-  }
-}
-
-// Submit handler
-const emit = defineEmits(['submit'])
-const handleSubmit = async () => {
-  if (!validateForm()) {
-    toast({
-      title: 'Validation Error',
-      description: errors.value.join('\n'),
-      variant: 'destructive',
-    })
-    return
-  }
-
-  isSubmitting.value = true
-
-  try {
-    const assessment = {
-      format: {
-        type: isAssistantMode.value ? 'assisted' : 'manual',
-        columns: props.selectedFormat,
-      },
-      data: {
-        subjective: isAssistantMode.value
-          ? {
-              primary: textToArray(assistantData.value.subjective.primary),
-              secondary: textToArray(assistantData.value.subjective.secondary),
-            }
-          : {
-              rawText: textToArray(manualSubjective.value),
-            },
-        objective: isAssistantMode.value
-          ? {
-              exam: textToArray(assistantData.value.objective.exam),
-              vitals: textToArray(assistantData.value.objective.vitals),
-              other: textToArray(assistantData.value.objective.other),
-            }
-          : {
-              rawText: textToArray(manualObjective.value),
-            },
-      },
-      metadata: {
-        timestamp: new Date().toISOString(),
-        submissionMode: isAssistantMode.value ? 'assistant' : 'manual',
-      },
-    }
-
-    emit('submit', assessment)
-    toast({
-      title: 'Success',
-      description: 'Assessment submitted successfully',
-    })
-  } catch (error) {
-    toast({
-      title: 'Error',
-      description: `Failed to submit assessment: ${error.message}`,
-      variant: 'destructive',
-    })
-  } finally {
-    isSubmitting.value = false
-  }
+const handleSubmit = data => {
+  console.log('Submitted Data:', data)
+  toast({
+    title: 'Success',
+    description: 'Assessment submitted successfully',
+  })
 }
 </script>
 
 <template>
-  <form @submit.prevent="handleSubmit" class="space-y-6">
-    <!-- Instructions -->
-    <div class="bg-muted/50 p-4 space-y-4 rounded-md">
-      <p class="text-muted-foreground text-sm">
-        Enter your assessment data, clearly separating subjective
-        (patient-reported) and objective (observed) findings. This structured
-        format will be used to generate your NCP.
-      </p>
-
-      <!-- Update the format instructions for manual mode -->
-      <div v-if="!isAssistantMode" class="border-muted pt-2 space-y-2 border-t">
-        <p class="text-muted-foreground text-sm font-medium">
-          Formatting Tips:
+  <div class="p-6 space-y-6 bg-card rounded-lg shadow-md">
+    <!-- Mode Toggle with Current Mode Indicator -->
+    <div class="flex items-center justify-between border-b border-muted pb-4">
+      <div>
+        <h4 class="text-base font-medium text-foreground">
+          Use Assessment Assistant
+        </h4>
+        <p class="text-sm text-muted-foreground">
+          Toggle to switch between manual and assistant modes
         </p>
-        <ul
-          class="text-muted-foreground space-y-1 text-sm list-disc list-inside"
+      </div>
+      <div class="flex items-center space-x-4">
+        <Switch id="assistant-mode" v-model="isAssistantMode" />
+        <span
+          class="px-3 py-1 text-sm font-medium rounded-full"
+          :class="
+            isAssistantMode
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-secondary text-secondary-foreground'
+          "
         >
-          <li>Enter each finding on a new line</li>
-          <li>Use clear, concise statements</li>
-          <li>Separate distinct observations</li>
-        </ul>
-
-        <div class="bg-muted/30 p-3 mt-2 rounded-md">
-          <p class="text-muted-foreground mb-2 text-xs font-medium">
-            Example Format:
-          </p>
-          <div class="space-y-3">
-            <!-- Subjective Example -->
-            <div class="space-y-1">
-              <p class="text-muted-foreground text-xs font-medium">
-                Subjective Data:
-              </p>
-              <pre class="text-muted-foreground pl-4 text-xs">
-Reports severe headache (8/10 pain scale)
-Reports nausea and dizziness
-Complains of sensitivity to light</pre
-              >
-            </div>
-
-            <!-- Objective Example -->
-            <div class="space-y-1">
-              <p class="text-muted-foreground text-xs font-medium">
-                Objective Data:
-              </p>
-              <pre class="text-muted-foreground pl-4 text-xs">
-Blood pressure 140/90 mmHg
-Temperature 38.5°C
-Pupils equally reactive to light
-Facial grimacing noted</pre
-              >
-            </div>
-          </div>
-        </div>
+          {{ currentMode }}
+        </span>
       </div>
     </div>
 
-    <!-- Mode Toggle -->
-    <div class="flex items-center justify-between">
-      <Label for="assistant-mode">Use Assessment Assistant</Label>
-      <Switch id="assistant-mode" v-model="isAssistantMode" class="ml-4" />
-    </div>
-
-    <!-- Manual Mode -->
-    <div v-if="!isAssistantMode" class="space-y-4">
-      <!-- Subjective Data -->
-      <div class="space-y-1.5">
-        <Label for="manual-subjective">Subjective Data</Label>
-        <p class="text-muted-foreground mb-2 text-xs">
-          Enter each patient-reported symptom or concern on a new line.
-        </p>
-        <div class="relative">
-          <Textarea
-            id="manual-subjective"
-            v-model="manualSubjective"
-            :class="{
-              'border-destructive': errors.includes(
-                'Subjective data is required'
-              ),
-              'border-primary': manualSubjective.trim().length > 0,
-            }"
-            placeholder="Reports sharp abdominal pain rated 7/10
-Reports pain worsens with movement
-Complains of nausea since morning
-Reports loss of appetite"
-            class="min-h-[100px] font-mono text-sm"
-          />
-        </div>
+    <!-- Render Form Based on Mode -->
+    <div class="pt-4">
+      <div v-if="isAssistantMode">
+        <AssistantModeForm @submit="handleSubmit" />
       </div>
-
-      <!-- Objective Data -->
-      <div class="space-y-1.5">
-        <Label for="manual-objective">Objective Data</Label>
-        <p class="text-muted-foreground mb-2 text-xs">
-          Enter each observation or measurement on a new line.
-        </p>
-        <div class="relative">
-          <Textarea
-            id="manual-objective"
-            v-model="manualObjective"
-            placeholder="Blood pressure 130/85 mmHg
-Heart rate 98 bpm
-Guarding observed during abdominal palpation
-Mild distention noted in lower abdomen"
-            class="min-h-[100px] font-mono text-sm"
-          />
-        </div>
+      <div v-else>
+        <ManualModeForm @submit="handleSubmit" />
       </div>
     </div>
-
-    <!-- Assistant Mode -->
-    <div v-else class="space-y-6">
-      <!-- Subjective Section -->
-      <div class="space-y-4">
-        <h3 class="text-sm font-medium">Subjective Data</h3>
-
-        <div class="space-y-1.5">
-          <Label for="symptoms">Primary Symptoms</Label>
-          <p class="text-muted-foreground mb-2 text-xs">
-            Enter each reported symptom on a new line.
-          </p>
-          <div class="relative">
-            <Textarea
-              id="symptoms"
-              v-model="assistantData.subjective.primary"
-              :class="{
-                'border-destructive': errors.includes(
-                  'At least one subjective finding is required'
-                ),
-              }"
-              placeholder="Reports sharp abdominal pain rated 7/10
-Reports pain worsens with movement
-Reports pain started 2 hours ago"
-              class="min-h-[100px] font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <Label for="other-complaints">Other Complaints</Label>
-          <p class="text-muted-foreground mb-2 text-xs">
-            Enter any additional complaints or concerns, one per line.
-          </p>
-          <div class="relative">
-            <Textarea
-              id="other-complaints"
-              v-model="assistantData.subjective.secondary"
-              placeholder="Reports feeling nauseous
-Reports loss of appetite
-Reports difficulty sleeping due to pain"
-              class="min-h-[100px] font-mono text-sm"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Objective Section -->
-      <div class="space-y-4">
-        <h3 class="text-sm font-medium">Objective Data</h3>
-
-        <div class="space-y-1.5">
-          <Label for="physical-exam">Physical Examination</Label>
-          <p class="text-muted-foreground mb-2 text-xs">
-            Enter each physical examination finding on a new line.
-          </p>
-          <div class="relative">
-            <Textarea
-              id="physical-exam"
-              v-model="assistantData.objective.exam"
-              placeholder="Guarding observed during abdominal palpation
-Tenderness in right lower quadrant
-Skin warm and dry to touch"
-              class="min-h-[100px] font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <Label for="vital-signs">Vital Signs</Label>
-          <p class="text-muted-foreground mb-2 text-xs">
-            Enter each vital sign measurement on a new line.
-          </p>
-          <div class="relative">
-            <Textarea
-              id="vital-signs"
-              v-model="assistantData.objective.vitals"
-              placeholder="Blood pressure 130/85 mmHg
-Heart rate 98 bpm
-Temperature 37.8°C
-Respiratory rate 20/min"
-              class="min-h-[100px] font-mono text-sm"
-            />
-          </div>
-        </div>
-
-        <div class="space-y-1.5">
-          <Label for="other-findings">Other Findings</Label>
-          <p class="text-muted-foreground mb-2 text-xs">
-            Enter any additional observations on a new line.
-          </p>
-          <div class="relative">
-            <Textarea
-              id="other-findings"
-              v-model="assistantData.objective.other"
-              placeholder="Mild distention noted in lower abdomen
-Bowel sounds diminished
-Patient appears uncomfortable when moving"
-              class="min-h-[100px] font-mono text-sm"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Assistant Mode Preview section -->
-    <div v-if="isAssistantMode" class="border-muted pt-4 border-t">
-      <div class="flex items-center justify-between mb-4">
-        <div class="flex items-center gap-2">
-          <p class="text-muted-foreground text-sm">
-            Review your assessment before submission
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          type="button"
-          @click="showPreview = !showPreview"
-        >
-          {{ showPreview ? 'Hide' : 'Show' }} Preview
-        </Button>
-      </div>
-
-      <Collapsible :open="showPreview">
-        <CollapsibleContent>
-          <Card class="bg-muted/30">
-            <CardContent class="p-4">
-              <div class="space-y-4">
-                <!-- Subjective Data Section -->
-                <div
-                  v-if="
-                    textToArray(assistantData.subjective.primary).length ||
-                    textToArray(assistantData.subjective.secondary).length
-                  "
-                  class="space-y-2"
-                >
-                  <h4 class="text-primary text-sm font-medium">
-                    Subjective Data
-                  </h4>
-                  <div class="space-y-3">
-                    <div
-                      v-if="
-                        textToArray(assistantData.subjective.primary).length
-                      "
-                    >
-                      <p class="text-muted-foreground mb-1 text-xs font-medium">
-                        Primary Symptoms
-                      </p>
-                      <ul class="pl-2 space-y-1 list-disc list-inside">
-                        <li
-                          v-for="(symptom, i) in textToArray(
-                            assistantData.subjective.primary
-                          )"
-                          :key="`primary-${i}`"
-                          class="text-foreground/90 text-sm"
-                        >
-                          {{ symptom }}
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div
-                      v-if="
-                        textToArray(assistantData.subjective.secondary).length
-                      "
-                    >
-                      <p class="text-muted-foreground mb-1 text-xs font-medium">
-                        Other Complaints
-                      </p>
-                      <ul class="pl-2 space-y-1 list-disc list-inside">
-                        <li
-                          v-for="(symptom, i) in textToArray(
-                            assistantData.subjective.secondary
-                          )"
-                          :key="`secondary-${i}`"
-                          class="text-foreground/90 text-sm"
-                        >
-                          {{ symptom }}
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- Objective Data Section -->
-                <div
-                  v-if="
-                    textToArray(assistantData.objective.exam).length ||
-                    textToArray(assistantData.objective.vitals).length ||
-                    textToArray(assistantData.objective.other).length
-                  "
-                  class="space-y-2"
-                >
-                  <h4 class="text-primary text-sm font-medium">
-                    Objective Data
-                  </h4>
-                  <div class="space-y-3">
-                    <div
-                      v-if="textToArray(assistantData.objective.exam).length"
-                    >
-                      <p class="text-muted-foreground mb-1 text-xs font-medium">
-                        Physical Examination
-                      </p>
-                      <ul class="pl-2 space-y-1 list-disc list-inside">
-                        <li
-                          v-for="(finding, i) in textToArray(
-                            assistantData.objective.exam
-                          )"
-                          :key="`exam-${i}`"
-                          class="text-foreground/90 text-sm"
-                        >
-                          {{ finding }}
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div
-                      v-if="textToArray(assistantData.objective.vitals).length"
-                    >
-                      <p class="text-muted-foreground mb-1 text-xs font-medium">
-                        Vital Signs
-                      </p>
-                      <ul class="pl-2 space-y-1 list-disc list-inside">
-                        <li
-                          v-for="(vital, i) in textToArray(
-                            assistantData.objective.vitals
-                          )"
-                          :key="`vital-${i}`"
-                          class="text-foreground/90 text-sm"
-                        >
-                          {{ vital }}
-                        </li>
-                      </ul>
-                    </div>
-
-                    <div
-                      v-if="textToArray(assistantData.objective.other).length"
-                    >
-                      <p class="text-muted-foreground mb-1 text-xs font-medium">
-                        Other Findings
-                      </p>
-                      <ul class="pl-2 space-y-1 list-disc list-inside">
-                        <li
-                          v-for="(finding, i) in textToArray(
-                            assistantData.objective.other
-                          )"
-                          :key="`other-${i}`"
-                          class="text-foreground/90 text-sm"
-                        >
-                          {{ finding }}
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </CollapsibleContent>
-      </Collapsible>
-    </div>
-
-    <!-- Submit Button -->
-    <Button
-      type="submit"
-      class="w-full"
-      :disabled="isSubmitting || !isFormValid"
-    >
-      {{ isSubmitting ? 'Generating...' : 'Generate NCP' }}
-    </Button>
-
-    <!-- Add error messages display -->
-    <div v-if="errors.length" class="mt-4">
-      <ul class="space-y-1">
-        <li
-          v-for="(error, index) in errors"
-          :key="index"
-          class="text-destructive text-sm"
-        >
-          {{ error }}
-        </li>
-      </ul>
-    </div>
-  </form>
+  </div>
 </template>
