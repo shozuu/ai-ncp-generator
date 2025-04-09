@@ -6,10 +6,10 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import { useToast } from '@/components/ui/toast'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
-import { ncpService } from '@/services/api'
+import { ncpService } from '@/services/ncpService'
 import { ref } from 'vue'
 
-const selectedFormat = ref('4')
+const selectedFormat = ref('7')
 const isLoading = ref(false)
 const generatedNCP = ref(null)
 const { toast } = useToast()
@@ -46,10 +46,10 @@ const handleAssessmentSubmit = async formData => {
   <DefaultLayout>
     <div class="space-y-8">
       <div>
-        <h1 class="text-3xl font-bold font-poppins">
+        <h1 class="font-poppins text-3xl font-bold">
           Generate Nursing Care Plan
         </h1>
-        <p class="mt-2 text-muted-foreground">
+        <p class="text-muted-foreground mt-2">
           Create an AI-generated nursing care plan based on patient data
         </p>
       </div>
@@ -58,7 +58,7 @@ const handleAssessmentSubmit = async formData => {
       <Card v-if="!generatedNCP">
         <CardHeader>
           <h3 class="text-lg font-semibold">Format Selection</h3>
-          <p class="text-sm text-muted-foreground">
+          <p class="text-muted-foreground text-sm">
             Choose how many columns you want to display in your NCP
           </p>
         </CardHeader>
@@ -74,7 +74,7 @@ const handleAssessmentSubmit = async formData => {
       <Card v-if="!generatedNCP">
         <CardHeader>
           <h3 class="text-lg font-semibold">Patient Assessment</h3>
-          <p class="text-sm text-muted-foreground">
+          <p class="text-muted-foreground text-sm">
             Enter your assessment details to generate an NCP
           </p>
         </CardHeader>
