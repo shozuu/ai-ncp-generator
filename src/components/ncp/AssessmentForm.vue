@@ -12,7 +12,7 @@ import { computed, ref } from 'vue'
 const props = defineProps({
   selectedFormat: {
     type: String,
-    default: '4',
+    default: '7',
   },
 })
 
@@ -180,37 +180,37 @@ const handleSubmit = async () => {
 <template>
   <form @submit.prevent="handleSubmit" class="space-y-6">
     <!-- Instructions -->
-    <div class="rounded-md bg-muted/50 p-4 space-y-4">
-      <p class="text-sm text-muted-foreground">
+    <div class="bg-muted/50 p-4 space-y-4 rounded-md">
+      <p class="text-muted-foreground text-sm">
         Enter your assessment data, clearly separating subjective
         (patient-reported) and objective (observed) findings. This structured
         format will be used to generate your NCP.
       </p>
 
       <!-- Update the format instructions for manual mode -->
-      <div v-if="!isAssistantMode" class="space-y-2 border-t pt-2 border-muted">
-        <p class="text-sm text-muted-foreground font-medium">
+      <div v-if="!isAssistantMode" class="border-muted pt-2 space-y-2 border-t">
+        <p class="text-muted-foreground text-sm font-medium">
           Formatting Tips:
         </p>
         <ul
-          class="list-disc list-inside text-sm text-muted-foreground space-y-1"
+          class="text-muted-foreground space-y-1 text-sm list-disc list-inside"
         >
           <li>Enter each finding on a new line</li>
           <li>Use clear, concise statements</li>
           <li>Separate distinct observations</li>
         </ul>
 
-        <div class="bg-muted/30 p-3 rounded-md mt-2">
-          <p class="text-xs font-medium text-muted-foreground mb-2">
+        <div class="bg-muted/30 p-3 mt-2 rounded-md">
+          <p class="text-muted-foreground mb-2 text-xs font-medium">
             Example Format:
           </p>
           <div class="space-y-3">
             <!-- Subjective Example -->
             <div class="space-y-1">
-              <p class="text-xs font-medium text-muted-foreground">
+              <p class="text-muted-foreground text-xs font-medium">
                 Subjective Data:
               </p>
-              <pre class="text-xs text-muted-foreground pl-4">
+              <pre class="text-muted-foreground pl-4 text-xs">
 Reports severe headache (8/10 pain scale)
 Reports nausea and dizziness
 Complains of sensitivity to light</pre
@@ -219,10 +219,10 @@ Complains of sensitivity to light</pre
 
             <!-- Objective Example -->
             <div class="space-y-1">
-              <p class="text-xs font-medium text-muted-foreground">
+              <p class="text-muted-foreground text-xs font-medium">
                 Objective Data:
               </p>
-              <pre class="text-xs text-muted-foreground pl-4">
+              <pre class="text-muted-foreground pl-4 text-xs">
 Blood pressure 140/90 mmHg
 Temperature 38.5°C
 Pupils equally reactive to light
@@ -245,7 +245,7 @@ Facial grimacing noted</pre
       <!-- Subjective Data -->
       <div class="space-y-1.5">
         <Label for="manual-subjective">Subjective Data</Label>
-        <p class="text-xs text-muted-foreground mb-2">
+        <p class="text-muted-foreground mb-2 text-xs">
           Enter each patient-reported symptom or concern on a new line.
         </p>
         <div class="relative">
@@ -270,7 +270,7 @@ Reports loss of appetite"
       <!-- Objective Data -->
       <div class="space-y-1.5">
         <Label for="manual-objective">Objective Data</Label>
-        <p class="text-xs text-muted-foreground mb-2">
+        <p class="text-muted-foreground mb-2 text-xs">
           Enter each observation or measurement on a new line.
         </p>
         <div class="relative">
@@ -291,11 +291,11 @@ Mild distention noted in lower abdomen"
     <div v-else class="space-y-6">
       <!-- Subjective Section -->
       <div class="space-y-4">
-        <h3 class="font-medium text-sm">Subjective Data</h3>
+        <h3 class="text-sm font-medium">Subjective Data</h3>
 
         <div class="space-y-1.5">
           <Label for="symptoms">Primary Symptoms</Label>
-          <p class="text-xs text-muted-foreground mb-2">
+          <p class="text-muted-foreground mb-2 text-xs">
             Enter each reported symptom on a new line.
           </p>
           <div class="relative">
@@ -317,7 +317,7 @@ Reports pain started 2 hours ago"
 
         <div class="space-y-1.5">
           <Label for="other-complaints">Other Complaints</Label>
-          <p class="text-xs text-muted-foreground mb-2">
+          <p class="text-muted-foreground mb-2 text-xs">
             Enter any additional complaints or concerns, one per line.
           </p>
           <div class="relative">
@@ -335,11 +335,11 @@ Reports difficulty sleeping due to pain"
 
       <!-- Objective Section -->
       <div class="space-y-4">
-        <h3 class="font-medium text-sm">Objective Data</h3>
+        <h3 class="text-sm font-medium">Objective Data</h3>
 
         <div class="space-y-1.5">
           <Label for="physical-exam">Physical Examination</Label>
-          <p class="text-xs text-muted-foreground mb-2">
+          <p class="text-muted-foreground mb-2 text-xs">
             Enter each physical examination finding on a new line.
           </p>
           <div class="relative">
@@ -356,7 +356,7 @@ Skin warm and dry to touch"
 
         <div class="space-y-1.5">
           <Label for="vital-signs">Vital Signs</Label>
-          <p class="text-xs text-muted-foreground mb-2">
+          <p class="text-muted-foreground mb-2 text-xs">
             Enter each vital sign measurement on a new line.
           </p>
           <div class="relative">
@@ -374,7 +374,7 @@ Respiratory rate 20/min"
 
         <div class="space-y-1.5">
           <Label for="other-findings">Other Findings</Label>
-          <p class="text-xs text-muted-foreground mb-2">
+          <p class="text-muted-foreground mb-2 text-xs">
             Enter any additional observations on a new line.
           </p>
           <div class="relative">
@@ -392,10 +392,10 @@ Patient appears uncomfortable when moving"
     </div>
 
     <!-- Assistant Mode Preview section -->
-    <div v-if="isAssistantMode" class="border-t border-muted pt-4">
+    <div v-if="isAssistantMode" class="border-muted pt-4 border-t">
       <div class="flex items-center justify-between mb-4">
         <div class="flex items-center gap-2">
-          <p class="text-sm text-muted-foreground">
+          <p class="text-muted-foreground text-sm">
             Review your assessment before submission
           </p>
         </div>
@@ -422,7 +422,7 @@ Patient appears uncomfortable when moving"
                   "
                   class="space-y-2"
                 >
-                  <h4 class="font-medium text-primary text-sm">
+                  <h4 class="text-primary text-sm font-medium">
                     Subjective Data
                   </h4>
                   <div class="space-y-3">
@@ -431,16 +431,16 @@ Patient appears uncomfortable when moving"
                         textToArray(assistantData.subjective.primary).length
                       "
                     >
-                      <p class="text-xs font-medium text-muted-foreground mb-1">
+                      <p class="text-muted-foreground mb-1 text-xs font-medium">
                         Primary Symptoms
                       </p>
-                      <ul class="list-disc list-inside space-y-1 pl-2">
+                      <ul class="pl-2 space-y-1 list-disc list-inside">
                         <li
                           v-for="(symptom, i) in textToArray(
                             assistantData.subjective.primary
                           )"
                           :key="`primary-${i}`"
-                          class="text-sm text-foreground/90"
+                          class="text-foreground/90 text-sm"
                         >
                           {{ symptom }}
                         </li>
@@ -452,16 +452,16 @@ Patient appears uncomfortable when moving"
                         textToArray(assistantData.subjective.secondary).length
                       "
                     >
-                      <p class="text-xs font-medium text-muted-foreground mb-1">
+                      <p class="text-muted-foreground mb-1 text-xs font-medium">
                         Other Complaints
                       </p>
-                      <ul class="list-disc list-inside space-y-1 pl-2">
+                      <ul class="pl-2 space-y-1 list-disc list-inside">
                         <li
                           v-for="(symptom, i) in textToArray(
                             assistantData.subjective.secondary
                           )"
                           :key="`secondary-${i}`"
-                          class="text-sm text-foreground/90"
+                          class="text-foreground/90 text-sm"
                         >
                           {{ symptom }}
                         </li>
@@ -479,23 +479,23 @@ Patient appears uncomfortable when moving"
                   "
                   class="space-y-2"
                 >
-                  <h4 class="font-medium text-primary text-sm">
+                  <h4 class="text-primary text-sm font-medium">
                     Objective Data
                   </h4>
                   <div class="space-y-3">
                     <div
                       v-if="textToArray(assistantData.objective.exam).length"
                     >
-                      <p class="text-xs font-medium text-muted-foreground mb-1">
+                      <p class="text-muted-foreground mb-1 text-xs font-medium">
                         Physical Examination
                       </p>
-                      <ul class="list-disc list-inside space-y-1 pl-2">
+                      <ul class="pl-2 space-y-1 list-disc list-inside">
                         <li
                           v-for="(finding, i) in textToArray(
                             assistantData.objective.exam
                           )"
                           :key="`exam-${i}`"
-                          class="text-sm text-foreground/90"
+                          class="text-foreground/90 text-sm"
                         >
                           {{ finding }}
                         </li>
@@ -505,16 +505,16 @@ Patient appears uncomfortable when moving"
                     <div
                       v-if="textToArray(assistantData.objective.vitals).length"
                     >
-                      <p class="text-xs font-medium text-muted-foreground mb-1">
+                      <p class="text-muted-foreground mb-1 text-xs font-medium">
                         Vital Signs
                       </p>
-                      <ul class="list-disc list-inside space-y-1 pl-2">
+                      <ul class="pl-2 space-y-1 list-disc list-inside">
                         <li
                           v-for="(vital, i) in textToArray(
                             assistantData.objective.vitals
                           )"
                           :key="`vital-${i}`"
-                          class="text-sm text-foreground/90"
+                          class="text-foreground/90 text-sm"
                         >
                           {{ vital }}
                         </li>
@@ -524,16 +524,16 @@ Patient appears uncomfortable when moving"
                     <div
                       v-if="textToArray(assistantData.objective.other).length"
                     >
-                      <p class="text-xs font-medium text-muted-foreground mb-1">
+                      <p class="text-muted-foreground mb-1 text-xs font-medium">
                         Other Findings
                       </p>
-                      <ul class="list-disc list-inside space-y-1 pl-2">
+                      <ul class="pl-2 space-y-1 list-disc list-inside">
                         <li
                           v-for="(finding, i) in textToArray(
                             assistantData.objective.other
                           )"
                           :key="`other-${i}`"
-                          class="text-sm text-foreground/90"
+                          class="text-foreground/90 text-sm"
                         >
                           {{ finding }}
                         </li>
@@ -563,7 +563,7 @@ Patient appears uncomfortable when moving"
         <li
           v-for="(error, index) in errors"
           :key="index"
-          class="text-sm text-destructive"
+          class="text-destructive text-sm"
         >
           {{ error }}
         </li>
