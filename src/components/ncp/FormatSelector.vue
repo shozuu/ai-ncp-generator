@@ -28,7 +28,7 @@ const formats = [
   },
 ]
 
-const selectedFormat = ref('6')
+const selectedFormat = ref('7') // Default format
 
 const emit = defineEmits(['update:format'])
 
@@ -48,7 +48,7 @@ const handleCardClick = value => {
     <Label class="text-base">Select NCP Format</Label>
     <RadioGroup
       v-model="selectedFormat"
-      class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
+      class="sm:grid-cols-2 lg:grid-cols-4 grid gap-4"
       @update:model-value="updateFormat"
     >
       <!-- Radio Group Card -->
@@ -58,10 +58,10 @@ const handleCardClick = value => {
         class="relative flex cursor-pointer rounded-lg border p-4 hover:border-primary [&:has(:checked)]:border-primary"
         @click="handleCardClick(format.value)"
       >
-        <RadioGroupItem :value="format.value" class="absolute right-2 top-2" />
+        <RadioGroupItem :value="format.value" class="right-2 top-2 absolute" />
         <div class="space-y-2">
           <p class="font-medium">{{ format.label }}</p>
-          <p class="text-sm text-muted-foreground">
+          <p class="text-muted-foreground text-sm">
             {{ format.description }}
           </p>
         </div>
