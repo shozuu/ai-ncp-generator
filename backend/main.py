@@ -90,6 +90,8 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
             Follow these rules strictly:
             - Use **only** the specified section headings and format below.
+            - Include all sections: Assessment, Diagnosis, Outcomes, Interventions, Rationale, Implementation, and Evaluation.
+            - If a section is not applicable, explicitly state "Not applicable" under that section.
             - Tailor the NCP to the patient's specific needs and condition.
             - Do **not** include any introductions, explanations, examples, or general information.
             - Maintain a professional, concise, and clinical tone throughout.
