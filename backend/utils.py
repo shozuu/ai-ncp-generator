@@ -1,3 +1,4 @@
+import re
 from typing import Dict
 import logging
 
@@ -53,39 +54,49 @@ def format_data(data) -> str:
         raise ValueError("Invalid data format for assessment data")
 
 def parse_ncp_response(text: str) -> Dict:
-    # Parse the AI response into structured NCP sections.
-    
+    """
+    Parse the AI-generated Nursing Care Plan (NCP) text into structured sections.
+    Handles various formatting styles and ensures all sections are captured.
+    """
+    # Define the expected sections and their default values
     sections = {
-        "assessment": "",
-        "diagnosis": "",
-        "outcomes": "",
-        "interventions": "",
-        "rationale": "",
-        "implementation": "",
-        "evaluation": ""
+        "assessment": "Not applicable",
+        "diagnosis": "Not applicable",
+        "outcomes": "Not applicable",
+        "interventions": "Not applicable",
+        "rationale": "Not applicable",
+        "implementation": "Not applicable",
+        "evaluation": "Not applicable",
     }
-    current_section = None
-    for line in text.split('\n'):
-        line = line.strip()
-        if line.lower().startswith("assessment:"):
-            current_section = "assessment"
-        elif line.lower().startswith("diagnosis:"):
-            current_section = "diagnosis"
-        elif line.lower().startswith("outcomes:"):
-            current_section = "outcomes"
-        elif line.lower().startswith("interventions:"):
-            current_section = "interventions"
-        elif line.lower().startswith("rationale:"):
-            current_section = "rationale"
-        elif line.lower().startswith("implementation:"):
-            current_section = "implementation"
-        elif line.lower().startswith("evaluation:"):
-            current_section = "evaluation"
-        elif current_section:
-            sections[current_section] += f"{line}\n"
 
-    # Clean up sections
-    for key in sections:
-        sections[key] = sections[key].strip()
+    # Define a regex pattern to match section headings
+    # Handles cases like "ASSESSMENT:", "**Diagnosis:**", "➡️ Implementation:", etc.
+    section_pattern = re.compile(
+        r"^\s*(?:\*\*|➡️|[-*]|\d+\.)?\s*(assessment|diagnosis|outcomes|interventions|rationale|implementation|evaluation)\s*[:：]?\s*$",
+        re.IGNORECASE
+    )
+
+    # Track the current section being processed
+    current_section = None
+
+    # Iterate through each line of the text
+    for line in text.splitlines():
+        line = line.strip()  # Remove leading/trailing whitespace
+
+        # Check if the line matches a section heading
+        match = section_pattern.match(line)
+        if match:
+            # Update the current section based on the matched heading
+            current_section = match.group(1).lower()
+            logger.debug(f"Detected section: {current_section}")
+        elif current_section:
+            # Append content to the current section
+            if sections[current_section] == "Not applicable":
+                sections[current_section] = line
+            else:
+                sections[current_section] += f"\n{line}"
+
+    # Log the parsed sections for debugging
+    logger.info(f"Parsed NCP Sections: {sections}")
 
     return sections
