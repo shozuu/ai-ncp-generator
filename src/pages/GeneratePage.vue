@@ -5,7 +5,7 @@ import NCPDisplay from '@/components/ncp/NCPDisplay.vue'
 import Alert from '@/components/ui/alert/Alert.vue'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
-import { useToast } from '@/components/ui/toast'
+import { useToast } from '@/components/ui/toast/use-toast'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { ncpService } from '@/services/ncpService'
 import {
@@ -53,7 +53,13 @@ const handleAssessmentSubmit = async formData => {
 <template>
   <PageHead title="- Generate NCP" />
   <DefaultLayout>
-    <div class="space-y-8">
+    <!-- Full-Page Loading Screen -->
+    <div v-if="isLoading" class="flex items-center justify-center h-screen">
+      <LoadingIndicator text="Generating your nursing care plan..." />
+    </div>
+
+    <!-- Main Content -->
+    <div v-else class="space-y-8">
       <div>
         <h1 class="font-poppins text-3xl font-bold">
           Generate Nursing Care Plan
@@ -174,16 +180,9 @@ const handleAssessmentSubmit = async formData => {
         </CardContent>
       </Card>
 
-      <!-- Loading State -->
-      <Card v-if="isLoading">
-        <CardContent>
-          <LoadingIndicator text="Generating your nursing care plan..." />
-        </CardContent>
-      </Card>
-
       <!-- Generated NCP Display -->
       <NCPDisplay
-        v-if="generatedNCP && !isLoading"
+        v-if="generatedNCP"
         :ncp="generatedNCP"
         :format="selectedFormat"
       />
