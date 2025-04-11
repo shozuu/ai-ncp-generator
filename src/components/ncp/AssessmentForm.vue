@@ -8,12 +8,15 @@ import ManualModeForm from './ManualModeForm.vue'
 const isAssistantMode = ref(false)
 const { toast } = useToast()
 
+const emit = defineEmits(['submit'])
+
 // Compute the current mode label
 const currentMode = computed(() =>
   isAssistantMode.value ? 'Assistant Mode' : 'Manual Mode'
 )
 
 const handleSubmit = data => {
+  emit('submit', data)
   console.log('Submitted Data:', data)
   toast({
     title: 'Success',
