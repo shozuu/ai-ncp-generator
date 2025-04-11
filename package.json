@@ -17,6 +17,7 @@
     "axios": "^1.8.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "lottie-web": "^5.12.2",
     "lucide-vue-next": "^0.485.0",
     "reka-ui": "^2.2.0",
     "tailwind-merge": "^3.0.2",
