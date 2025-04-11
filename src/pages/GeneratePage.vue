@@ -136,9 +136,12 @@ const handleAssessmentSubmit = async formData => {
                   <ul
                     class="text-muted-foreground text-sm list-disc list-inside pl-4"
                   >
-                    <li>Reports severe headache (8/10 pain scale)</li>
-                    <li>Reports nausea and dizziness</li>
-                    <li>Complains of sensitivity to light</li>
+                    <li>
+                      Reports severe headache, described as throbbing (8/10 on
+                      pain scale)
+                    </li>
+                    <li>States nausea and dizziness began this morning</li>
+                    <li>Complains of photophobia (sensitivity to light)</li>
                   </ul>
                 </div>
 
@@ -155,8 +158,8 @@ const handleAssessmentSubmit = async formData => {
                   >
                     <li>Blood pressure: 140/90 mmHg</li>
                     <li>Temperature: 38.5°C</li>
-                    <li>Pupils equally reactive to light</li>
-                    <li>Facial grimacing noted</li>
+                    <li>Pupils equal and reactive to light (PERL)</li>
+                    <li>Facial grimacing observed during head movement</li>
                   </ul>
                 </div>
               </div>
