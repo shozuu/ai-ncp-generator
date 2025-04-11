@@ -1,7 +1,7 @@
 <script setup>
 import Switch from '@/components/ui/switch/Switch.vue'
-import { useToast } from '@/components/ui/toast'
-import { ref, computed } from 'vue'
+import { useToast } from '@/components/ui/toast/use-toast'
+import { computed, ref } from 'vue'
 import AssistantModeForm from './AssistantModeForm.vue'
 import ManualModeForm from './ManualModeForm.vue'
 
