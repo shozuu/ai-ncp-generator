@@ -117,6 +117,27 @@ export default {
         'collapsible-down': 'collapsible-down 0.2s ease-in-out',
         'collapsible-up': 'collapsible-up 0.2s ease-in-out',
       },
+      // Add custom scrollbar styles
+      scrollbar: {
+        DEFAULT: {
+          '&::-webkit-scrollbar': {
+            width: '8px',
+            height: '8px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: 'hsl(var(--primary))',
+            borderRadius: '4px',
+            border: '2px solid hsl(var(--background))',
+          },
+          '&::-webkit-scrollbar-thumb:hover': {
+            backgroundColor: 'hsl(var(--primary-foreground))',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: 'hsl(var(--muted))',
+            borderRadius: '4px',
+          },
+        },
+      },
     },
   },
   plugins: [tailwindcssAnimate],
