@@ -25,6 +25,11 @@ const routes = [
     name: 'explain',
     component: ExplainPage,
   },
+  {
+    path: '/ncp-display',
+    name: 'NCPDisplayPage',
+    component: () => import('@/pages/NCPDisplayPage.vue'),
+  },
 ]
 
 const router = createRouter({
