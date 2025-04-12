@@ -1,15 +1,14 @@
 # AI Nursing Care Plan Generator
 
-A web-based application that uses AI to generate, validate, and explain Nursing Care Plans (NCPs) while adhering to NANDA-I, NIC, and NOC standards.
+A web-based application that uses AI to generate and explain Nursing Care Plans (NCPs) while adhering to NANDA-I, NIC, and NOC standards.
 
 ## Features
 
-- 🤖 **AI-Generated NCPs**: Generate structured nursing care plans using advanced AI models
-- ✅ **NCP Validation**: Validate your NCPs against NANDA-I, NIC, and NOC standards
-- 📚 **Educational Support**: Get detailed explanations for each NCP component
-- 🎨 **Flexible Display**: Choose between 4, 5, 6, or 7-column formats
-- 🌓 **Dark Mode**: Support for light and dark themes
-- 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices
+- 🤖 **AI-Generated NCPs**: Generate structured nursing care plans using advanced AI models that adheres to NNN standards.
+- 📚 **Educational Support**: Get detailed explanations for each NCP component.
+- 🎨 **Flexible Display**: Choose between 4, 5, 6, or 7-column formats.
+- 🌓 **Dark Mode**: Support for light and dark themes.
+- 📱 **Responsive Design**: Works seamlessly on desktop and mobile devices.
 
 ## Tech Stack
 

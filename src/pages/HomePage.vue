@@ -1,8 +1,9 @@
 <script setup>
 import { Button } from '@/components/ui/button'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
-import { Brain, CheckCircle, HelpCircle } from 'lucide-vue-next'
+import { Brain, HelpCircle } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
+
 const features = [
   {
     title: 'AI-Generated NCPs',
@@ -10,12 +11,6 @@ const features = [
       'Create comprehensive nursing care plans using advanced AI models',
     icon: Brain,
     path: '/generate',
-  },
-  {
-    title: 'NCP Validation',
-    description: 'Validate your NCPs against NANDA-I, NIC, and NOC standards',
-    icon: CheckCircle,
-    path: '/validate',
   },
   {
     title: 'NCPs with Explanations',
@@ -34,12 +29,11 @@ const features = [
         AI Nursing Care Plan Generator
       </h1>
       <p class="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-        Generate, validate, and learn about nursing care plans with the help of
-        AI
+        Generate and learn about nursing care plans with the help of AI
       </p>
 
       <div
-        class="mt-16 grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto px-4"
+        class="mt-16 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-7xl mx-auto px-4"
       >
         <!-- Feature Cards -->
         <div

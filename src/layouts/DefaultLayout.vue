@@ -1,14 +1,7 @@
 <script setup>
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { Button } from '@/components/ui/button'
-import {
-  Brain,
-  CheckCircle,
-  HelpCircle,
-  Menu,
-  Stethoscope,
-  X,
-} from 'lucide-vue-next'
+import { Brain, HelpCircle, Menu, Stethoscope, X } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
@@ -20,12 +13,6 @@ const navItems = [
     description: 'Create AI-generated nursing care plans',
     path: '/generate',
     icon: Brain,
-  },
-  {
-    title: 'Validate NCP',
-    description: 'Validate your nursing care plans',
-    path: '/validate',
-    icon: CheckCircle,
   },
   {
     title: 'Explanations',
