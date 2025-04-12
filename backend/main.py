@@ -83,6 +83,55 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         except Exception as format_error:
             logger.error(f"Error formatting data: {str(format_error)}")
             raise ValueError(f"Error formatting assessment data: {str(format_error)}")
+        
+        # Dummy data to return to the frontend
+        dummy_ncp = {
+            'assessment': (
+                '\nSubjective Data:\n'
+                '- Reports severe throbbing headache (8/10).\n'
+                '- Reports nausea and dizziness this morning.\n'
+                '- Complains of photophobia.\n\n'
+                'Objective Data:\n'
+                '- Facial grimacing during head movement.\n'
+                '- BP: 140/90 mmHg.\n'
+                '- Temperature: 38.5°C.\n'
+                '- PERL.\n'
+            ),
+            'diagnosis': (
+                '\nAcute Pain related to physiological factors (possible migraine) as evidenced by reports of severe throbbing headache (8/10), facial grimacing, and elevated blood pressure.\n'
+                'Diagnosis type: Actual.\n'
+            ),
+            'outcomes': (
+                '\nShort-term Goal: Patient will report a decrease in headache pain to a level of 4/10 or less within 2 hours of intervention.\n\n'
+                'Long-term Goal: Patient will verbalize understanding of headache triggers and management strategies and demonstrate adherence to the treatment plan prior to discharge within 3 days.\n'
+            ),
+            'interventions': (
+                "\n1. Administer prescribed analgesic medication.\n"
+                "2. Provide a dark, quiet, and cool environment.\n"
+                "3. Apply a cool compress to the patient's forehead.\n"
+                "4. Monitor vital signs, particularly blood pressure and temperature, every 4 hours.\n"
+            ),
+            'rationale': (
+                "\n1. Analgesics block pain pathways and reduce pain perception.\n"
+                "2. Reducing environmental stimuli minimizes triggers for headache exacerbation and promotes comfort.\n"
+                "3. Cool compresses can constrict blood vessels, potentially reducing throbbing pain associated with headaches.\n"
+                "4. Monitoring vital signs allows for early detection of complications or changes in the patient's condition.\n"
+            ),
+            'implementation': (
+                "\n1. Administer prescribed analgesic (e.g., acetaminophen 650mg PO stat, as per physician order). RN responsible. Document medication administration and patient response.\n"
+                "2. Dim lights, close curtains, and minimize noise in the patient's room. RN responsible.\n"
+                "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
+                "4. Monitor and document blood pressure, heart rate, respiratory rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
+                "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
+                "4. Monitor and document blood pressure, heart rate, respiratory rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
+                "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
+                "4. Monitor and document blood pressure, heart rate, respiratory rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
+            ),
+            'evaluation': (
+                "\nShort-term Goal: Assess the patient's pain level using a pain scale (0-10) every 30 minutes after analgesic administration. If pain remains above 4/10 after 1 hour, notify the physician for further orders.\n\n"
+                "Long-term Goal: Evaluate patient's understanding of headache triggers and management strategies through verbal questioning and observation of self-care behaviors prior to discharge. If the patient does not demonstrate adequate understanding, provide additional education and resources."
+            ),
+        }
 
         # Construct the prompt for the AI model
         prompt = f"""
@@ -95,6 +144,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             - Tailor the NCP to the patient's specific needs and condition.
             - Do **not** include any introductions, explanations, examples, or general information.
             - Maintain a professional, concise, and clinical tone throughout.
+            - Your output should follow the same format and writing style used in academic NCPs like those on NursesLabs.com. Each section must follow clinical best practices.
 
             ---
 
@@ -121,8 +171,9 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             Outcomes:
             - Define both short-term and long-term goals for the patient.
             - Each goal must be SMART (Specific, Measurable, Attainable, Realistic, Time-Oriented).
-            - Include a **specific timeframe** for each goal (e.g., "After 24 hours...", "Within 3 days...").
-            - Align each goal with the diagnosis and patient condition.
+            - Begin each goal with a clear **time-bound phrase** (e.g., "After 24 hours of nursing intervention, the patient will...").
+            - Ensure goals are specific and measurable (e.g., "demonstrate correct breathing techniques," "report pain level less than 3/10").
+            - Align each goal directly with the identified nursing diagnosis and patient assessment.
 
             Interventions:
             - List 3–5 specific nursing interventions.
@@ -137,12 +188,21 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             - Include step-by-step actions and specify responsible healthcare team members.
 
             Evaluation:
-            - Define clear criteria to assess progress toward outcomes.
-            - Recommend adjustments if goals are not met.
+            - Mirror the corresponding outcomes using **past tense**.
+            - Begin each evaluation with the same **time-bound phrase** used in the outcome (e.g., "After 24 hours of nursing intervention, the patient was able to...").
+            - Clearly state whether each goal was:
+            - Achieved
+            - Partially achieved
+            - Not achieved
+            - Support the evaluation with observed evidence (e.g., "as evidenced by normal respiratory rate and O2 saturation").
+            - If goals were not fully met, briefly suggest follow-up actions or modifications.
         """
         
-        logger.info("Calling Gemini API...")
-        response = model.generate_content(prompt)
+        # logger.info("Calling Gemini API...")
+        # response = model.generate_content(prompt)
+
+        logger.info("Returning dummy NCP data to the frontend.") # remove this
+        return dummy_ncp  # Return dummy data instead of querying the Gemini API
 
         # Check for errors in the response
         if hasattr(response, '_error') and response._error:
