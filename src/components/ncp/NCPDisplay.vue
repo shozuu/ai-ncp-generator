@@ -1,5 +1,4 @@
 <script setup>
-import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import { computed } from 'vue'
 
 const props = defineProps({
@@ -30,38 +29,60 @@ const columns = computed(() => {
 </script>
 
 <template>
-  <Card>
-    <CardHeader>
-      <h3 class="text-lg font-semibold">Generated Nursing Care Plan</h3>
-      <p class="text-sm text-muted-foreground">{{ format }}-Column Format</p>
-    </CardHeader>
-    <CardContent>
-      <div class="overflow-x-auto">
-        <table class="w-full border-collapse">
-          <thead>
+  <div class="space-y-6">
+    <!-- Title and Description -->
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="font-poppins text-2xl font-bold">
+          Generated Nursing Care Plan
+        </h1>
+        <p class="text-muted-foreground text-sm">{{ format }}-Column Format</p>
+      </div>
+      <button
+        class="text-primary hover:underline text-sm font-medium"
+        @click="$emit('back')"
+      >
+        ← Back to Form
+      </button>
+    </div>
+
+    <!-- Table -->
+    <div class="overflow-x-auto">
+      <div class="max-h-[700px] overflow-y-auto border border-muted rounded-md">
+        <table class="max-w-[1200px] min-w-full border-collapse">
+          <!-- Table Header -->
+          <thead class="bg-muted sticky top-0 z-10">
             <tr>
               <th
                 v-for="column in columns"
                 :key="column.key"
-                class="border p-2 bg-muted text-left font-medium text-sm"
+                class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-left border min-w-[200px]"
               >
                 {{ column.label }}
               </th>
             </tr>
           </thead>
+
+          <!-- Table Body -->
           <tbody>
-            <tr>
+            <tr
+              v-for="(row, index) in [ncp]"
+              :key="index"
+              :class="index % 2 === 0 ? 'bg-muted/10' : 'bg-white'"
+            >
               <td
                 v-for="column in columns"
                 :key="column.key"
-                class="border p-2 text-sm align-top"
+                class="border-primary/10 group hover:bg-primary/5 p-4 text-sm align-top transition-colors border min-w-[200px]"
               >
-                <div class="whitespace-pre-wrap">{{ ncp[column.key] }}</div>
+                <div class="whitespace-pre-wrap">
+                  {{ row[column.key] }}
+                </div>
               </td>
             </tr>
           </tbody>
         </table>
       </div>
-    </CardContent>
-  </Card>
+    </div>
+  </div>
 </template>
