@@ -75,7 +75,7 @@
   background-color: hsl(
     var(--muted)
   ); /* Primary color for the scrollbar thumb */
-  border-radius: 4px; /* Rounded corners for the thumb */
+  border-radius: 10px; /* Rounded corners for the thumb */
   border: 2px solid hsl(var(--background)); /* Adds padding around the thumb */
 }
 
