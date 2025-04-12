@@ -58,7 +58,7 @@ const navItems = [
             <!-- Right side buttons -->
             <div class="flex items-center space-x-4">
               <ThemeToggle />
-              <Button variant="outline" size="sm">Sign in</Button>
+              <!-- <Button variant="outline" size="sm">Sign in</Button> -->
             </div>
           </div>
 
