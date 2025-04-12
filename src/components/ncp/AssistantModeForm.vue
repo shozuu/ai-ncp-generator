@@ -65,10 +65,12 @@ const onSubmit = form.handleSubmit(values => {
   <form @submit="onSubmit" class="space-y-10">
     <!-- Subjective Data Section -->
     <div class="space-y-6">
-      <h4 class="text-lg font-semibold text-foreground">Subjective Data</h4>
-      <p class="text-sm text-muted-foreground">
-        Provide details about the patient's subjective symptoms.
-      </p>
+      <div>
+        <h4 class="text-lg font-semibold text-foreground">Subjective Data</h4>
+        <p class="text-sm text-muted-foreground">
+          Provide details about the patient's subjective symptoms.
+        </p>
+      </div>
 
       <!-- Primary Symptoms -->
       <FormField
@@ -125,10 +127,12 @@ const onSubmit = form.handleSubmit(values => {
 
     <!-- Objective Data Section -->
     <div class="space-y-6">
-      <h4 class="text-lg font-semibold text-foreground">Objective Data</h4>
-      <p class="text-sm text-muted-foreground">
-        Provide details about the patient's objective findings.
-      </p>
+      <div>
+        <h4 class="text-lg font-semibold text-foreground">Objective Data</h4>
+        <p class="text-sm text-muted-foreground">
+          Provide details about the patient's objective findings.
+        </p>
+      </div>
 
       <!-- Physical Examination -->
       <FormField
