@@ -1,4 +1,5 @@
 <script setup>
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -7,9 +8,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { exportUtils } from '@/utils/exportUtils'
-import { ChevronDown } from 'lucide-vue-next'
+import { ChevronDown, Info } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
-
 
 const emit = defineEmits(['update:format'])
 const props = defineProps({
@@ -82,6 +82,13 @@ const handleExport = async type => {
       break
   }
 }
+
+// Check if "Implementation" or "Evaluation" columns are present in the selected format
+const hasPlaceholderColumns = computed(() =>
+  columns.value.some(column =>
+    ['implementation', 'evaluation'].includes(column.key)
+  )
+)
 </script>
 
 <template>
@@ -96,6 +103,27 @@ const handleExport = async type => {
       </p>
     </div>
 
+    <!-- Alert for Placeholder Data -->
+    <Alert class="flex flex-col space-y-3">
+      <div class="flex items-center space-x-2">
+        <Info class="shrink-0 text-primary w-5 h-5" />
+        <AlertTitle class="mb-0">Important Note</AlertTitle>
+      </div>
+      <AlertDescription>
+        The generated Nursing Care Plan (NCP) uses the reference book
+        <strong
+          >"Nursing Diagnosis Handbook, 12th Edition Revised Reprint with
+          2021–2023 NANDA-I Updates"</strong
+        >.
+        <template v-if="hasPlaceholderColumns">
+          Please note that the <strong>Implementation</strong> and/or
+          <strong>Evaluation</strong> columns contains placeholder data. These
+          values should be verified and updated based on the latest patient
+          assessment.
+        </template>
+      </AlertDescription>
+    </Alert>
+
     <div class="overflow-x-auto">
       <!-- Format and Export Options -->
       <div
@@ -104,9 +132,9 @@ const handleExport = async type => {
         <!-- Format Selector -->
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" class="hover:bg-muted/10">
               Format: {{ selectedFormat }} Columns
-              <ChevronDown class="w-4 h-4" />
+              <ChevronDown class="w-4 h-4 ml-2" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent class="w-40">
@@ -123,9 +151,9 @@ const handleExport = async type => {
         <!-- Export Dropdown -->
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" class="hover:bg-muted/10">
               Export as
-              <ChevronDown class="w-4 h-4" />
+              <ChevronDown class="w-4 h-4 ml-2" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent class="w-40">
