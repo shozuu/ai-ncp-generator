@@ -32,7 +32,7 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => /^[a-zA-Z0-9\s.,:()/%'"°-]+$/.test(line)),
+          .every(line => /^[a-zA-Z0-9\s.,:()/%'"°“”-]+$/.test(line)),
       {
         message:
           'Subjective data must only contain letters, numbers, spaces, and basic punctuation.',
@@ -70,7 +70,7 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => /^[a-zA-Z0-9\s.,:()/%'"°-]+$/.test(line)),
+          .every(line => /^[a-zA-Z0-9\s.,:()/%'"°“”-]+$/.test(line)),
       {
         message:
           'Objective data must only contain letters, numbers, spaces, and basic punctuation.',
