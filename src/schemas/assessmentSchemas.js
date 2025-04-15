@@ -9,10 +9,10 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => line.length >= 15 && line.length <= 100),
+          .every(line => line.length >= 5 && line.length <= 150),
       {
         message:
-          'Each line in subjective data must be between 15 and 100 characters.',
+          'Each line in subjective data must be between 5 and 150 characters.',
       }
     )
     .refine(
@@ -47,10 +47,10 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => line.length >= 15 && line.length <= 100),
+          .every(line => line.length >= 5 && line.length <= 150),
       {
         message:
-          'Each line in objective data must be between 15 and 100 characters.',
+          'Each line in objective data must be between 5 and 150 characters.',
       }
     )
     .refine(
@@ -88,10 +88,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 15 && line.length <= 100),
+            .every(line => line.length >= 5 && line.length <= 150),
         {
           message:
-            'Each line in primary symptoms must be between 15 and 100 characters.',
+            'Each line in primary symptoms must be between 5 and 150 characters.',
         }
       )
       .refine(
@@ -115,10 +115,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 15 && line.length <= 100),
+            .every(line => line.length >= 5 && line.length <= 150),
         {
           message:
-            'Each line in other complaints must be between 15 and 100 characters.',
+            'Each line in other complaints must be between 5 and 150 characters.',
         }
       )
       .refine(
@@ -144,10 +144,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 15 && line.length <= 100),
+            .every(line => line.length >= 5 && line.length <= 150),
         {
           message:
-            'Each line in physical examination must be between 15 and 100 characters.',
+            'Each line in physical examination must be between 5 and 150 characters.',
         }
       )
       .refine(
@@ -172,10 +172,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 15 && line.length <= 100),
+            .every(line => line.length >= 5 && line.length <= 150),
         {
           message:
-            'Each line in vital signs must be between 15 and 100 characters.',
+            'Each line in vital signs must be between 5 and 150 characters.',
         }
       )
       .refine(
@@ -200,10 +200,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 15 && line.length <= 100),
+            .every(line => line.length >= 5 && line.length <= 150),
         {
           message:
-            'Each line in other findings must be between 15 and 100 characters.',
+            'Each line in other findings must be between 5 and 150 characters.',
         }
       )
       .refine(
