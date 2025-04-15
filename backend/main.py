@@ -135,19 +135,9 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
         # Construct the prompt for the AI model
         prompt = f"""
-            You are a nursing expert trained in NANDA-I, NIC, and NOC standards. Based on the following patient assessment data, generate a comprehensive Nursing Care Plan (NCP).
+            You are a nursing educator with deep knowledge of NANDA-I, NIC, and NOC standards, and you are referencing the "Nursing Diagnosis Handbook, 12th Edition Revised Reprint with 2021–2023 NANDA-I Updates" by Ackley, Ladwig, et al. Based on the assessment data I will provide, generate a structured Nursing Care Plan (NCP) that includes the following:
 
-            Follow these rules strictly:
-            - Use **only** the specified section headings and format below.
-            - Include all sections: Assessment, Diagnosis, Outcomes, Interventions, Rationale, Implementation, and Evaluation.
-            - If a section is not applicable, explicitly state "Not applicable" under that section.
-            - Tailor the NCP to the patient's specific needs and condition.
-            - Do **not** include any introductions, explanations, examples, or general information.
-            - Maintain a professional, concise, and clinical tone throughout.
-            - Your output should follow the same format and writing style used in academic NCPs like those on NursesLabs.com. Each section must follow clinical best practices.
-
-            ---
-
+            
             PATIENT ASSESSMENT DATA
 
             Subjective Data:
@@ -160,49 +150,116 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
             Generate a complete Nursing Care Plan using the exact structure below:
 
+            1. Use **only** the specified section headings and format below.
+            2. Include all sections: **Assessment**, **Diagnosis**, **Outcomes**, **Interventions**, **Rationale**, **Implementation**, and **Evaluation**.
+            3. Use headings for each section (e.g., **Assessment:**, **Diagnosis:**).
+            4. Use bullet points (*) for lists and sub-bullet points (-) for nested items.
+            5. Ensure proper spacing and formatting for readability.
+            6. If a section is not applicable, explicitly state "Not applicable" under that section.
+            7. Do **not** include any introductions, explanations, examples, or general information outside the specified sections.
+            8. Maintain a professional, concise, and clinical tone throughout.
+
+            ---
+
             Assessment:
             - Provide a concise, structured summary of key findings.
             - Clearly separate subjective and objective data.
 
             Diagnosis:
-            - State the primary nursing diagnosis using standardized NANDA-I terminology.
-            - Indicate the diagnosis type (actual, risk, or wellness).
+            - Correctly format NANDA-I nursing diagnosis based on the assessment data. Use the format: [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics]. 
+            - Ensure that the diagnosis label matches NANDA-I terminology found in the Ackley & Ladwig textbook.
+            - Ensure the diagnoses are aligned with the patient's assessment data and reflect evidence-based guidelines.
 
             Outcomes:
-            - Define both short-term and long-term goals for the patient.
-            - Each goal must be SMART (Specific, Measurable, Attainable, Realistic, Time-Oriented).
-            - Begin each goal with a clear **time-bound phrase** (e.g., "After 24 hours of nursing intervention, the patient will...").
-            - Ensure goals are specific and measurable (e.g., "demonstrate correct breathing techniques," "report pain level less than 3/10").
+            - Define short-term goal that distinguishes a shift in behavior that can be completed immediately, usually within a few hours or days.
+            - Define long-term goal that indicates an objective to be completed over a longer period, usually weeks or months.
+            - Begin each goal with a clear **time-bound phrase** 
             - Align each goal directly with the identified nursing diagnosis and patient assessment.
+            - Ensure outcomes are measurable, appropriate, and aligned with NOC terminology. 
+            - Ensure they reflect realistic clinical goals.
 
             Interventions:
-            - List 3–5 specific nursing interventions.
-            - Include independent, dependent, and collaborative actions where applicable.
+            - Provide relevant and evidence-based nursing interventions aligned with NIC taxonomy. 
+            - Ensure they are taken from or inspired by the suggested interventions in the Ackley & Ladwig textbook.
+            - List at least 3 specific nursing interventions.
+            - Include and clearly separate independent, dependent, and collaborative actions where applicable.
 
             Rationale:
             - Provide an evidence-based rationale for each intervention.
             - Justify with clinical reasoning, nursing theory, or guidelines.
+            - If applicable, the rationale may include general textbook-based knowledge
 
             Implementation:
-            - Describe how each intervention will be executed.
-            - Include step-by-step actions and specify responsible healthcare team members.
+            - Provide implementation for every intervention.
+            - Include a realistic placeholder result (e.g., “3/10 pain”, “BP 120/80 mmHg”)
+            - Write in **past tense** as if the intervention was already performed.
 
             Evaluation:
             - Mirror the corresponding outcomes using **past tense**.
-            - Begin each evaluation with the same **time-bound phrase** used in the outcome (e.g., "After 24 hours of nursing intervention, the patient was able to...").
-            - Clearly state whether each goal was:
-            - Achieved
-            - Partially achieved
-            - Not achieved
-            - Support the evaluation with observed evidence (e.g., "as evidenced by normal respiratory rate and O2 saturation").
-            - If goals were not fully met, briefly suggest follow-up actions or modifications.
+            - Begin each evaluation with the same **time-bound phrase** used in the outcome 
+            - Include observable data or patient responses that support your evaluation
+            - Support the evaluation with observed evidence.
+
+            ---
+
+            ### Example Format:
+
+            **Assessment:**
+            * Subjective Data:
+            - Example subjective data point 1.
+            - Example subjective data point 2.
+            * Objective Data:
+            - Example objective data point 1.
+            - Example objective data point 2.
+
+            **Diagnosis:**
+            [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics].
+
+            **Outcomes:**
+            Within [Short-term Goal], the patient will be able to demonstrate the following:
+            - Example short-term goal.
+            Within [Long-term Goal], the patient will be able to demonstrate the following:
+            - Example long-term goal.
+
+            **Interventions:**
+            * Independent:
+            - Example independent intervention 1.
+            - Example independent intervention 2.
+            * Dependent:
+            - Example dependent intervention 1.
+            * Collaborative:
+            - Example collaborative intervention 1.
+
+            **Rationale:**
+            * Independent:
+            - Example rationale for independent intervention 1.
+            - Example rationale for independent intervention 2.
+            * Dependent:
+            - Example rationale for dependent intervention 1.
+            * Collaborative:
+            - Example rationale for collaborative intervention 1.
+
+            **Implementation:**
+            * Independent:
+            - Example implementation for independent intervention 1.
+            - Example implementation for independent intervention 2.
+            * Dependent:
+            - Example implementation for dependent intervention 1.
+            * Collaborative:
+            - Example implementation for collaborative intervention 1.
+
+            **Evaluation:**
+            After [Short-term Goal], the patient was be able to demonstrate the following:
+            - Example evaluation for short-term goal.
+            After [Long-term Goal], the patient was be able to demonstrate the following:
+            - Example evaluation for long-term goal.
         """
         
-        # logger.info("Calling Gemini API...")
-        # response = model.generate_content(prompt)
+        logger.info("Calling Gemini API...")
+        response = model.generate_content(prompt)
 
-        logger.info("Returning dummy NCP data to the frontend.") # remove this
-        return dummy_ncp  # Return dummy data instead of querying the Gemini API
+        # logger.info("Returning dummy NCP data to the frontend.") # remove this
+        # return dummy_ncp  # Return dummy data instead of querying the Gemini API
 
         # Check for errors in the response
         if hasattr(response, '_error') and response._error:
