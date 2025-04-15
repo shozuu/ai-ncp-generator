@@ -70,9 +70,9 @@ def parse_ncp_response(text: str) -> Dict:
     }
 
     # Define a regex pattern to match section headings
-    # Handles cases like "ASSESSMENT:", "**Diagnosis:**", "➡️ Implementation:", etc.
+    # Handles cases like "**Assessment:**", "**Diagnosis (NANDA-I):**", etc.
     section_pattern = re.compile(
-        r"^\s*(?:\*\*|➡️|[-*]|\d+\.)?\s*(assessment|diagnosis|outcomes|interventions|rationale|implementation|evaluation)\s*[:：]?\s*$",
+        r"^\s*(?:\*\*|[-*]|\d+\.)?\s*(assessment|diagnosis(?: \(nanda-i\))?|outcomes|interventions|rationale|implementation|evaluation)\s*[:：]?\s*\*\*$",
         re.IGNORECASE
     )
 
@@ -81,22 +81,30 @@ def parse_ncp_response(text: str) -> Dict:
 
     # Iterate through each line of the text
     for line in text.splitlines():
-        line = line.strip()  # Remove leading/trailing whitespace
-
-        # Check if the line matches a section heading
+        line = line.strip()
         match = section_pattern.match(line)
         if match:
-            # Update the current section based on the matched heading
             current_section = match.group(1).lower()
-            logger.debug(f"Detected section: {current_section}")
+            if current_section == "diagnosis (nanda-i)":
+                current_section = "diagnosis"
         elif current_section:
-            # Append content to the current section
             if sections[current_section] == "Not applicable":
                 sections[current_section] = line
             else:
                 sections[current_section] += f"\n{line}"
 
-    # Log the parsed sections for debugging
-    logger.info(f"Parsed NCP Sections: {sections}")
+    # Format sections with HTML for better readability
+    for key, content in sections.items():
+        if content != "Not applicable":
+            lines = content.split("\n")
+            formatted_lines = []
+            for line in lines:
+                if line.startswith("* "):  # Bold subheadings
+                    formatted_lines.append(f"<ul class='custom-ul'><strong>{line[2:].strip()}</strong></ul>")
+                elif line.startswith("- "):  # List items
+                    formatted_lines.append(f"<li>{line[2:].strip()}</li>")
+                else:  # Regular text
+                    formatted_lines.append(f"<p>{line.strip()}</p>")
+            sections[key] = "".join(formatted_lines)
 
     return sections
