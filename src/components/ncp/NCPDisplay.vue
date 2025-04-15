@@ -8,8 +8,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { exportUtils } from '@/utils/exportUtils'
-import { ChevronDown, Info } from 'lucide-vue-next'
-import { computed, ref } from 'vue'
+import { vAutoAnimate } from '@formkit/auto-animate'
+import { ChevronDown, ChevronUp, Info } from 'lucide-vue-next'
+import { computed, onMounted, ref } from 'vue'
 
 const emit = defineEmits(['update:format'])
 const props = defineProps({
@@ -31,6 +32,19 @@ const updateFormat = value => {
   selectedFormat.value = value
   emit('update:format', value)
 }
+
+// State for toggling the alert visibility
+const isAlertCollapsed = ref(false)
+
+// Reference for the alert container to enable animations
+const alertContainer = ref(null)
+
+// Enable auto-animate on the alert container
+onMounted(() => {
+  if (alertContainer.value) {
+    alertContainer.value.__v_auto_animate = true
+  }
+})
 
 // Helper function to format text
 const formatText = text => {
@@ -103,27 +117,46 @@ const hasPlaceholderColumns = computed(() =>
       </p>
     </div>
 
-    <!-- Alert for Placeholder Data -->
-    <Alert class="flex flex-col space-y-3">
-      <div class="flex items-center space-x-2">
-        <Info class="shrink-0 text-primary w-5 h-5" />
-        <AlertTitle class="mb-0">Important Note</AlertTitle>
+    <!-- Collapsible Alert for Placeholder Data -->
+    <Alert class="flex flex-col space-y-3" ref="alertContainer" v-auto-animate>
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <Info class="shrink-0 text-primary w-5 h-5" />
+          <AlertTitle class="mb-0">Important Note</AlertTitle>
+        </div>
+        <button
+          class="text-primary hover:underline flex items-center text-sm font-medium"
+          @click="isAlertCollapsed = !isAlertCollapsed"
+        >
+          <span v-if="isAlertCollapsed">Show</span>
+          <span v-else>Hide</span>
+          <ChevronDown v-if="isAlertCollapsed" class="w-4 h-4 ml-1" />
+          <ChevronUp v-else class="w-4 h-4 ml-1" />
+        </button>
       </div>
-      <AlertDescription>
-        The generated Nursing Care Plan (NCP) uses the reference book
+      <AlertDescription v-if="!isAlertCollapsed">
+        The generated Nursing Care Plan (NCP) is based on the assessment data
+        you provided and the reference book
         <strong
           >"Nursing Diagnosis Handbook, 12th Edition Revised Reprint with
           2021–2023 NANDA-I Updates"</strong
-        >.
+        >. It is intended to assist and guide users in creating Nursing Care
+        Plans and may have other valid interpretations depending on clinical
+        judgment and context.
+        <br />
+        <br />
+        Users are encouraged to review and modify the plan as needed to ensure
+        it aligns with the latest patient assessment and clinical standards.
         <template v-if="hasPlaceholderColumns">
-          Please note that the <strong>Implementation</strong> and/or
-          <strong>Evaluation</strong> columns contains placeholder data. These
-          values should be verified and updated based on the latest patient
-          assessment.
+          <br />
+          Additionally, the <strong>Implementation</strong> and/or
+          <strong>Evaluation</strong> columns contain placeholder data that
+          should be verified and updated based on the latest patient assessment.
         </template>
       </AlertDescription>
     </Alert>
 
+    <!-- Table -->
     <div class="overflow-x-auto">
       <!-- Format and Export Options -->
       <div
@@ -211,3 +244,20 @@ const hasPlaceholderColumns = computed(() =>
     </div>
   </div>
 </template>
+
+<style>
+/* Add spacing and styles for lists */
+ul {
+  padding-left: 20px;
+  margin-top: 0.5rem;
+  margin-bottom: 0.5rem;
+}
+
+li {
+  margin-bottom: 0.25rem;
+}
+
+p {
+  margin-bottom: 0.5rem;
+}
+</style>
