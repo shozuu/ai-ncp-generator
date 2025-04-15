@@ -91,3 +91,9 @@
   ); /* Muted background for the scrollbar track */
   border-radius: 4px; /* Rounded corners for the track */
 }
+
+.custom-ul {
+  padding-left: 0; /* Remove default padding */
+  margin-left: 0; /* Optional: Remove margin if needed */
+  list-style-position: inside; /* Optional: Align bullet points with text */
+}
