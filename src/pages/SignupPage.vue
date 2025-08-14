@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input'
 import { useAuth } from '@/composables/useAuth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const { signUp } = useAuth()
 
 const form = ref({
@@ -55,10 +56,10 @@ const handleSubmit = async () => {
   } else {
     success.value =
       'Account created successfully! Please check your email to verify your account.'
-    // Optionally redirect to login after a delay
     setTimeout(() => {
-      router.push('/login')
-    }, 3000)
+      const redirectTo = route.query.redirect || '/'
+      router.push(redirectTo)
+    }, 2000) 
   }
 
   loading.value = false

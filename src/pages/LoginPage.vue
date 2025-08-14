@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input'
 import { useAuth } from '@/composables/useAuth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
+const route = useRoute()
 const { signIn } = useAuth()
 
 const form = ref({
@@ -31,8 +32,8 @@ const handleSubmit = async () => {
   if (signInError) {
     error.value = signInError.message
   } else {
-    // Redirect to dashboard or generate page
-    router.push('/dashboard')
+    const redirectTo = route.query.redirect || '/'
+    router.push(redirectTo)
   }
 
   loading.value = false
