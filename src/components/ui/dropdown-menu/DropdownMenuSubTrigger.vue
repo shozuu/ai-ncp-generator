@@ -1,8 +1,8 @@
 <script setup>
-import { cn } from '@/lib/utils';
-import { ChevronRight } from 'lucide-vue-next';
-import { DropdownMenuSubTrigger, useForwardProps } from 'reka-ui';
-import { computed } from 'vue';
+import { reactiveOmit } from "@vueuse/core";
+import { ChevronRight } from "lucide-vue-next";
+import { DropdownMenuSubTrigger, useForwardProps } from "reka-ui";
+import { cn } from "@/lib/utils";
 
 const props = defineProps({
   disabled: { type: Boolean, required: false },
@@ -12,11 +12,7 @@ const props = defineProps({
   class: { type: null, required: false },
 });
 
-const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
-
-  return delegated;
-});
+const delegatedProps = reactiveOmit(props, "class");
 
 const forwardedProps = useForwardProps(delegatedProps);
 </script>

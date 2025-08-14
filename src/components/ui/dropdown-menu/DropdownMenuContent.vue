@@ -1,19 +1,21 @@
 <script setup>
-import { cn } from '@/lib/utils';
+import { reactiveOmit } from "@vueuse/core";
 import {
   DropdownMenuContent,
   DropdownMenuPortal,
   useForwardPropsEmits,
-} from 'reka-ui';
-import { computed } from 'vue';
+} from "reka-ui";
+import { cn } from "@/lib/utils";
 
 const props = defineProps({
   forceMount: { type: Boolean, required: false },
   loop: { type: Boolean, required: false },
   side: { type: null, required: false },
   sideOffset: { type: Number, required: false, default: 4 },
+  sideFlip: { type: Boolean, required: false },
   align: { type: null, required: false },
   alignOffset: { type: Number, required: false },
+  alignFlip: { type: Boolean, required: false },
   avoidCollisions: { type: Boolean, required: false },
   collisionBoundary: { type: null, required: false },
   collisionPadding: { type: [Number, Object], required: false },
@@ -30,18 +32,14 @@ const props = defineProps({
   class: { type: null, required: false },
 });
 const emits = defineEmits([
-  'escapeKeyDown',
-  'pointerDownOutside',
-  'focusOutside',
-  'interactOutside',
-  'closeAutoFocus',
+  "escapeKeyDown",
+  "pointerDownOutside",
+  "focusOutside",
+  "interactOutside",
+  "closeAutoFocus",
 ]);
 
-const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
-
-  return delegated;
-});
+const delegatedProps = reactiveOmit(props, "class");
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
 </script>

@@ -1,5 +1,5 @@
 <script setup>
-import { CollapsibleContent } from 'reka-ui';
+import { CollapsibleContent } from "reka-ui";
 
 const props = defineProps({
   forceMount: { type: Boolean, required: false },

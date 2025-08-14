@@ -1,5 +1,5 @@
 <script setup>
-import { CollapsibleRoot, useForwardPropsEmits } from 'reka-ui';
+import { CollapsibleRoot, useForwardPropsEmits } from "reka-ui";
 
 const props = defineProps({
   defaultOpen: { type: Boolean, required: false },
@@ -9,7 +9,7 @@ const props = defineProps({
   asChild: { type: Boolean, required: false },
   as: { type: null, required: false },
 });
-const emits = defineEmits(['update:open']);
+const emits = defineEmits(["update:open"]);
 
 const forwarded = useForwardPropsEmits(props, emits);
 </script>

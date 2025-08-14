@@ -1,7 +1,7 @@
 <script setup>
-import { cn } from '@/lib/utils';
-import { DropdownMenuSeparator } from 'reka-ui';
-import { computed } from 'vue';
+import { reactiveOmit } from "@vueuse/core";
+import { DropdownMenuSeparator } from "reka-ui";
+import { cn } from "@/lib/utils";
 
 const props = defineProps({
   asChild: { type: Boolean, required: false },
@@ -9,11 +9,7 @@ const props = defineProps({
   class: { type: null, required: false },
 });
 
-const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
-
-  return delegated;
-});
+const delegatedProps = reactiveOmit(props, "class");
 </script>
 
 <template>
