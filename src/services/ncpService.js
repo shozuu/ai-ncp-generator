@@ -1,3 +1,4 @@
+import { supabase } from '@/lib/supabase'
 import axios from 'axios'
 
 const API_BASE_URL =
@@ -6,8 +7,9 @@ const API_BASE_URL =
 export const ncpService = {
   async generateNCP(assessmentData) {
     try {
-      console.log('Sending assessment data:', assessmentData) // Debug log
+      console.log('Sending assessment data:', assessmentData) // debug log
 
+      // generate ncp via existing fastapi
       const response = await axios.post(
         `${API_BASE_URL}/api/generate-ncp`,
         assessmentData,
@@ -17,14 +19,77 @@ export const ncpService = {
           },
         }
       )
-      return response.data
+
+      const generatedNCP = response.data
+
+      // save to supabase if user is authenticated
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (user) {
+        await this.saveNCP(generatedNCP, assessmentData)
+      }
+
+      return generatedNCP
     } catch (error) {
-      console.error('NCP Generation Error:', error.response?.data || error) // Debug log
+      console.error('NCP Generation Error:', error.response?.data || error) // debug log
       throw new Error(
         error.response?.data?.detail?.message ||
           error.response?.data?.detail ||
           'Failed to generate NCP'
       )
     }
+  },
+
+  async saveNCP(ncpData, assessmentData, title = null) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const ncpTitle = title || `NCP - ${new Date().toLocaleDateString()}`
+
+    const { data, error } = await supabase
+      .from('ncps')
+      .insert([
+        {
+          user_id: user.id,
+          title: ncpTitle,
+          assessment: ncpData.assessment,
+          diagnosis: ncpData.diagnosis,
+          outcomes: ncpData.outcomes,
+          interventions: ncpData.interventions,
+          rationale: ncpData.rationale,
+          implementation: ncpData.implementation,
+          evaluation: ncpData.evaluation,
+          format_type: assessmentData.format || '7',
+        },
+      ])
+      .select()
+
+    if (error) throw error
+    return data[0]
+  },
+
+  async getUserNCPs() {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    const { data, error } = await supabase
+      .from('ncps')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+
+    if (error) throw error
+    return data
+  },
+
+  async deleteNCP(ncpId) {
+    const { error } = await supabase.from('ncps').delete().eq('id', ncpId)
+
+    if (error) throw error
   },
 }

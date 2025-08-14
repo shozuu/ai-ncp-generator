@@ -1,11 +1,32 @@
 <script setup>
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
-import { Brain, HelpCircle, Menu, Stethoscope, X } from 'lucide-vue-next'
-import { ref } from 'vue'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useAuth } from '@/composables/useAuth'
+import {
+  Brain,
+  HelpCircle,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Settings,
+  Stethoscope,
+  User,
+  UserCircle,
+  X,
+} from 'lucide-vue-next'
+import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 
 const isMenuOpen = ref(false)
+const { user, signOut, isAuthenticated } = useAuth()
 
 const navItems = [
   {
@@ -21,6 +42,26 @@ const navItems = [
     icon: HelpCircle,
   },
 ]
+
+// Get user initials for avatar
+const userInitials = computed(() => {
+  if (!user.value?.email) return 'U'
+  return user.value.email
+    .split('@')[0]
+    .split('.')
+    .map(part => part.charAt(0).toUpperCase())
+    .join('')
+    .slice(0, 2)
+})
+
+const handleSignOut = async () => {
+  await signOut()
+}
+
+// Close mobile menu when clicking a link
+const closeMobileMenu = () => {
+  isMenuOpen.value = false
+}
 </script>
 
 <template>
@@ -58,7 +99,78 @@ const navItems = [
             <!-- Right side buttons -->
             <div class="flex items-center space-x-4">
               <ThemeToggle />
-              <!-- <Button variant="outline" size="sm">Sign in</Button> -->
+
+              <!-- Authentication Section -->
+              <div v-if="isAuthenticated" class="flex items-center space-x-2">
+                <!-- Dashboard Button -->
+                <RouterLink to="/dashboard">
+                  <Button variant="ghost" size="sm" class="hidden sm:flex">
+                    <LayoutDashboard class="w-4 h-4 mr-2" />
+                    Dashboard
+                  </Button>
+                </RouterLink>
+
+                <!-- Profile Dropdown -->
+                <DropdownMenu>
+                  <DropdownMenuTrigger as-child>
+                    <Button
+                      variant="ghost"
+                      class="relative h-8 w-8 rounded-full"
+                    >
+                      <Avatar class="h-8 w-8">
+                        <AvatarFallback class="text-xs">
+                          {{ userInitials }}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent class="w-56" align="end">
+                    <div class="flex items-center justify-start gap-2 p-2">
+                      <div class="flex flex-col space-y-1 leading-none">
+                        <p class="font-medium">{{ user?.email }}</p>
+                        <p
+                          class="w-[200px] truncate text-sm text-muted-foreground"
+                        >
+                          Nurse Practitioner
+                        </p>
+                      </div>
+                    </div>
+                    <DropdownMenuSeparator />
+                    <RouterLink to="/dashboard">
+                      <DropdownMenuItem class="cursor-pointer">
+                        <LayoutDashboard class="mr-2 h-4 w-4" />
+                        <span>Dashboard</span>
+                      </DropdownMenuItem>
+                    </RouterLink>
+                    <DropdownMenuItem class="cursor-pointer" disabled>
+                      <User class="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem class="cursor-pointer" disabled>
+                      <Settings class="mr-2 h-4 w-4" />
+                      <span>Settings</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      class="cursor-pointer"
+                      @click="handleSignOut"
+                    >
+                      <LogOut class="mr-2 h-4 w-4" />
+                      <span>Log out</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+
+              <!-- Not Authenticated - Login/Signup Buttons -->
+              <div v-else class="flex items-center space-x-2">
+                <RouterLink to="/login">
+                  <Button variant="ghost" size="sm"> Log in </Button>
+                </RouterLink>
+                <RouterLink to="/signup">
+                  <Button size="sm"> Sign up </Button>
+                </RouterLink>
+              </div>
             </div>
           </div>
 
@@ -81,11 +193,13 @@ const navItems = [
       <div v-show="isMenuOpen" class="md:hidden border-t">
         <div class="container py-4">
           <nav class="flex flex-col space-y-4">
+            <!-- Navigation Links -->
             <RouterLink
               v-for="item in navItems"
               :key="item.path"
               :to="item.path"
               class="hover:text-foreground/80 flex items-center py-2 space-x-4 text-sm transition-colors"
+              @click="closeMobileMenu"
             >
               <component :is="item.icon" class="w-5 h-5" />
               <div>
@@ -95,6 +209,80 @@ const navItems = [
                 </div>
               </div>
             </RouterLink>
+
+            <!-- Mobile Authentication Section -->
+            <div class="pt-4 border-t border-muted">
+              <div v-if="isAuthenticated" class="space-y-2">
+                <!-- User Info -->
+                <div
+                  class="flex items-center space-x-3 p-2 rounded-lg bg-muted/50"
+                >
+                  <Avatar class="h-8 w-8">
+                    <AvatarFallback class="text-xs">
+                      {{ userInitials }}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium truncate">
+                      {{ user?.email }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      Nurse Practitioner
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Mobile Menu Items -->
+                <RouterLink
+                  to="/dashboard"
+                  class="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                  @click="closeMobileMenu"
+                >
+                  <LayoutDashboard class="w-5 h-5" />
+                  <span>Dashboard</span>
+                </RouterLink>
+
+                <button
+                  class="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors w-full text-left opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <User class="w-5 h-5" />
+                  <span>Profile</span>
+                </button>
+
+                <button
+                  class="flex items-center space-x-3 p-2 rounded-lg hover:bg-muted/50 transition-colors w-full text-left opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <Settings class="w-5 h-5" />
+                  <span>Settings</span>
+                </button>
+
+                <button
+                  @click="handleSignOut"
+                  class="flex items-center space-x-3 p-2 rounded-lg hover:bg-destructive/10 text-destructive transition-colors w-full text-left"
+                >
+                  <LogOut class="w-5 h-5" />
+                  <span>Log out</span>
+                </button>
+              </div>
+
+              <!-- Mobile Not Authenticated -->
+              <div v-else class="space-y-2">
+                <RouterLink to="/login" @click="closeMobileMenu">
+                  <Button variant="ghost" class="w-full justify-start">
+                    <UserCircle class="w-4 h-4 mr-2" />
+                    Log in
+                  </Button>
+                </RouterLink>
+                <RouterLink to="/signup" @click="closeMobileMenu">
+                  <Button class="w-full justify-start">
+                    <UserCircle class="w-4 h-4 mr-2" />
+                    Sign up
+                  </Button>
+                </RouterLink>
+              </div>
+            </div>
           </nav>
         </div>
       </div>
