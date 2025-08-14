@@ -1,6 +1,6 @@
 <script setup>
 import { Button } from '@/components/ui/button'
-import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { Brain, HelpCircle } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 
@@ -23,7 +23,7 @@ const features = [
 
 <template>
   <PageHead title="- Home" />
-  <DefaultLayout>
+  <SidebarLayout>
     <div class="py-12 text-center">
       <h1 class="text-4xl font-bold font-poppins">
         AI Nursing Care Plan Generator
@@ -54,5 +54,5 @@ const features = [
         </div>
       </div>
     </div>
-  </DefaultLayout>
+  </SidebarLayout>
 </template>

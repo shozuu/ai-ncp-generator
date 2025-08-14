@@ -6,7 +6,7 @@ import Alert from '@/components/ui/alert/Alert.vue'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import { useToast } from '@/components/ui/toast/use-toast'
-import DefaultLayout from '@/layouts/DefaultLayout.vue'
+import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { ncpService } from '@/services/ncpService'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import {
@@ -74,7 +74,7 @@ onMounted(() => {
 
 <template>
   <PageHead title="- Generate NCP" />
-  <DefaultLayout>
+  <SidebarLayout>
     <!-- Full-Page Loading Screen -->
     <div v-if="isLoading" class="flex items-center justify-center h-screen">
       <LoadingIndicator
@@ -228,5 +228,5 @@ onMounted(() => {
         </Card>
       </div>
     </div>
-  </DefaultLayout>
+  </SidebarLayout>
 </template>
