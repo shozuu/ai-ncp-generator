@@ -6,7 +6,6 @@ import {
 } from '@/components/ui/collapsible'
 import {
   SidebarGroup,
-  // SidebarGroupLabel,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
@@ -17,9 +16,10 @@ import {
 import { useAuth } from '@/composables/useAuth'
 import { ChevronRight } from 'lucide-vue-next'
 import { computed } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRoute } from 'vue-router'
 
 const { isAuthenticated } = useAuth()
+const route = useRoute()
 
 const props = defineProps({
   items: { type: Array, required: true },
@@ -30,6 +30,15 @@ const mainNavItems = computed(() =>
 )
 
 const authItems = computed(() => props.items.filter(item => item.isAuthItem))
+
+const isRouteActive = url => {
+  return route.path === url
+}
+
+const hasActiveSubItem = items => {
+  if (!items) return false
+  return items.some(subItem => isRouteActive(subItem.url))
+}
 </script>
 
 <template>
@@ -40,7 +49,11 @@ const authItems = computed(() => props.items.filter(item => item.isAuthItem))
         <template v-for="item in mainNavItems" :key="item.title">
           <!-- Non-nested items (simple links) -->
           <SidebarMenuItem v-if="!item.items || item.items.length === 0">
-            <SidebarMenuButton as-child :tooltip="item.title">
+            <SidebarMenuButton
+              as-child
+              :tooltip="item.title"
+              :data-active="isRouteActive(item.url)"
+            >
               <RouterLink :to="item.url">
                 <component :is="item.icon" v-if="item.icon" />
                 <span>{{ item.title }}</span>
@@ -52,12 +65,15 @@ const authItems = computed(() => props.items.filter(item => item.isAuthItem))
           <Collapsible
             v-else
             as-child
-            :default-open="item.isActive"
+            :default-open="item.isActive || hasActiveSubItem(item.items)"
             class="group/collapsible"
           >
             <SidebarMenuItem>
               <CollapsibleTrigger as-child>
-                <SidebarMenuButton :tooltip="item.title">
+                <SidebarMenuButton
+                  :tooltip="item.title"
+                  :data-active="hasActiveSubItem(item.items)"
+                >
                   <component :is="item.icon" v-if="item.icon" />
                   <span>{{ item.title }}</span>
                   <ChevronRight
@@ -71,7 +87,10 @@ const authItems = computed(() => props.items.filter(item => item.isAuthItem))
                     v-for="subItem in item.items"
                     :key="subItem.title"
                   >
-                    <SidebarMenuSubButton as-child>
+                    <SidebarMenuSubButton
+                      as-child
+                      :data-active="isRouteActive(subItem.url)"
+                    >
                       <RouterLink :to="subItem.url">
                         <span>{{ subItem.title }}</span>
                       </RouterLink>
@@ -92,6 +111,7 @@ const authItems = computed(() => props.items.filter(item => item.isAuthItem))
           <SidebarMenuButton
             as-child
             :tooltip="item.title"
+            :data-active="isRouteActive(item.url)"
             :class="{
               'bg-sidebar-primary text-sidebar-primary-foreground hover:bg-sidebar-primary-hover hover:text-sidebar-primary-foreground data-[active=true]:bg-sidebar-primary/90':
                 item.authType === 'login',

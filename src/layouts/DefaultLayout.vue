@@ -1,7 +1,6 @@
 <script setup>
 import ThemeToggle from '@/components/ThemeToggle.vue'
-import { Button } from '@/components/ui/button'
-import { Stethoscope } from 'lucide-vue-next'
+import { Stethoscope, Github  } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 </script>
 
@@ -22,16 +21,6 @@ import { RouterLink } from 'vue-router'
           <!-- Right side - Theme Toggle and Navigation -->
           <div class="flex items-center space-x-4">
             <ThemeToggle />
-
-            <!-- Navigation Links for Auth Pages -->
-            <nav class="hidden sm:flex items-center space-x-2">
-              <RouterLink to="/login">
-                <Button variant="ghost" size="sm">Log in</Button>
-              </RouterLink>
-              <RouterLink to="/signup">
-                <Button size="sm">Sign up</Button>
-              </RouterLink>
-            </nav>
           </div>
         </div>
       </div>
@@ -48,7 +37,15 @@ import { RouterLink } from 'vue-router'
     <footer class="border-t">
       <div class="container py-4">
         <p class="text-muted-foreground text-sm text-center">
-          © 2024 SmartCare. All rights reserved.
+          <a
+            href="https://github.com/shozuu/ai-ncp-generator"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-1 underline hover:text-primary transition-colors"
+          >
+            <Github  class="w-4 h-4" />
+            <span>shozuu/ai-ncp-generator</span>
+          </a>
         </p>
       </div>
     </footer>

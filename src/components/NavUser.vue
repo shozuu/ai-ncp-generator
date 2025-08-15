@@ -1,7 +1,5 @@
 <script setup>
-import { Building2, ChevronsUpDown, LogOut, User } from 'lucide-vue-next'
-import { computed } from 'vue'
-
+import ThemeToggle from '@/components/ThemeToggle.vue'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
@@ -18,6 +16,8 @@ import {
   useSidebar,
 } from '@/components/ui/sidebar'
 import { useAuth } from '@/composables/useAuth'
+import { Building2, ChevronsUpDown, LogOut, User } from 'lucide-vue-next'
+import { computed } from 'vue'
 
 const { user, signOut, isAuthenticated } = useAuth()
 const { isMobile } = useSidebar()
@@ -125,10 +125,11 @@ const handleSignOut = async () => {
                 <span class="truncate font-semibold text-sm">{{
                   displayName
                 }}</span>
-                <span class="truncate text-xs text-muted-foreground">{{
+                <span class="text-xs text-muted-foreground">{{
                   user?.email
                 }}</span>
               </div>
+              <ThemeToggle />
             </div>
           </DropdownMenuLabel>
 
