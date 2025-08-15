@@ -11,30 +11,51 @@ const routes = [
     path: '/',
     name: 'Home',
     component: HomePage,
+    meta: {
+      breadcrumbs: [{ title: 'Home', to: '/', isActive: true }],
+    },
   },
   {
     path: '/login',
     name: 'Login',
     component: LoginPage,
-    meta: { authRequired: false, redirectIfAuth: true },
+    meta: {
+      authRequired: false,
+      redirectIfAuth: true,
+    },
   },
   {
     path: '/signup',
     name: 'Signup',
     component: SignupPage,
-    meta: { authRequired: false, redirectIfAuth: true },
+    meta: {
+      authRequired: false,
+      redirectIfAuth: true,
+    },
   },
   {
     path: '/generate',
     name: 'Generate',
     component: GeneratePage,
-    meta: { authRequired: true },
+    meta: {
+      authRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'Generate NCP', to: '/generate', isActive: true },
+      ],
+    },
   },
   {
     path: '/explain',
     name: 'Explain',
     component: ExplainPage,
-    meta: { authRequired: true },
+    meta: {
+      authRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'NCP Explanations', to: '/explain', isActive: true },
+      ],
+    },
   },
 ]
 
@@ -52,7 +73,7 @@ router.beforeEach(async (to, from, next) => {
   }
 
   const isAuthenticated = !!user.value
-  const authRequired = to.meta?.authRequired !== false
+  const authRequired = to.meta?.authRequired === true
   const redirectIfAuth = to.meta?.redirectIfAuth === true
 
   if (isAuthenticated && redirectIfAuth) {
