@@ -2,7 +2,7 @@
 import AssessmentForm from '@/components/ncp/AssessmentForm.vue'
 import FormatSelector from '@/components/ncp/FormatSelector.vue'
 import NCPDisplay from '@/components/ncp/NCPDisplay.vue'
-import Alert from '@/components/ui/alert/Alert.vue'
+import { Alert, AlertTitle } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import { useToast } from '@/components/ui/toast/use-toast'
@@ -21,8 +21,8 @@ import { onMounted, ref } from 'vue'
 const selectedFormat = ref('7')
 const isLoading = ref(false)
 const generatedNCP = ref(null)
-const showExampleFormat = ref(false) // Toggle state for the example format
-const exampleFormatContainer = ref(null) // Reference for the example format container
+const showExampleFormat = ref(false)
+const exampleFormatContainer = ref(null)
 const { toast } = useToast()
 
 const handleFormatChange = format => {
@@ -64,7 +64,6 @@ const handleBackToForm = () => {
   generatedNCP.value = null
 }
 
-// Enable auto-animate on the example format container
 onMounted(() => {
   if (exampleFormatContainer.value) {
     exampleFormatContainer.value.__v_auto_animate = true
@@ -135,36 +134,50 @@ onMounted(() => {
           </CardHeader>
           <CardContent>
             <div class="space-y-6">
-              <!-- Formatting Tips in Alert -->
-              <Alert class="grid items-start gap-3">
-                <div class="flex items-start space-x-2">
-                  <Info class="shrink-0 w-5 h-5" />
-                  <AlertTitle>Formatting Tips</AlertTitle>
+              <!-- Formatting Tips Alert -->
+              <Alert class="p-4 sm:p-6">
+                <div class="flex items-start space-x-3">
+                  <Info class="shrink-0 w-5 h-5 mt-0.5" />
+                  <AlertTitle class="text-base font-semibold">
+                    Formatting Tips
+                  </AlertTitle>
                 </div>
-                <AlertDescription>
-                  <ul
-                    class="text-muted-foreground space-y-1 text-sm list-disc list-inside"
-                  >
-                    <li>Enter each finding on a new line.</li>
-                    <li>Use clear and concise statements.</li>
-                    <li>Separate distinct observations for better clarity.</li>
+                <div >
+                  <ul class="text-muted-foreground space-y-2 text-sm list-none">
+                    <li class="flex items-start space-x-2">
+                      <span class="text-primary font-medium">•</span>
+                      <span>Enter each finding on a new line.</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                      <span class="text-primary font-medium">•</span>
+                      <span>Use clear and concise statements.</span>
+                    </li>
+                    <li class="flex items-start space-x-2">
+                      <span class="text-primary font-medium">•</span>
+                      <span
+                        >Separate distinct observations for better
+                        clarity.</span
+                      >
+                    </li>
                   </ul>
-                </AlertDescription>
+                </div>
               </Alert>
 
-              <!-- Example Format in Alert -->
+              <!-- Example Format Alert -->
               <Alert
-                class="flex flex-col space-y-3"
+                class="p-4 sm:p-6"
                 ref="exampleFormatContainer"
                 v-auto-animate
               >
-                <div class="flex items-center justify-between">
-                  <div class="flex items-start space-x-2">
-                    <CheckCircle class="shrink-0 w-5 h-5" />
-                    <AlertTitle>Example Format</AlertTitle>
+                <div class="flex items-start justify-between">
+                  <div class="flex items-start space-x-3 flex-1 min-w-0">
+                    <CheckCircle class="shrink-0 w-5 h-5 mt-0.5" />
+                    <AlertTitle class="text-base font-semibold">
+                      Example Format
+                    </AlertTitle>
                   </div>
                   <button
-                    class="text-primary hover:underline flex items-center text-sm font-medium"
+                    class="text-primary hover:underline flex items-center text-sm font-medium ml-4 flex-shrink-0"
                     @click="showExampleFormat = !showExampleFormat"
                   >
                     <span v-if="showExampleFormat">Hide</span>
@@ -177,48 +190,88 @@ onMounted(() => {
                   </button>
                 </div>
 
-                <div v-if="showExampleFormat" class="space-y-4">
+                <div v-if="showExampleFormat" class="mt-4 space-y-6">
                   <!-- Subjective Example -->
-                  <div>
-                    <p
-                      class="text-muted-foreground flex items-center space-x-2 text-sm font-semibold"
-                    >
-                      <ClipboardMinus class="w-4 h-4" />
-                      <span>Subjective Data:</span>
-                    </p>
-                    <ul
-                      class="text-muted-foreground pl-4 text-sm list-disc list-inside"
-                    >
-                      <li>
-                        Reports severe headache, described as throbbing (8/10 on
-                        pain scale)
-                      </li>
-                      <li>States nausea and dizziness began this morning</li>
-                      <li>Complains of photophobia (sensitivity to light)</li>
-                    </ul>
+                  <div class="space-y-3">
+                    <div class="flex items-center space-x-2">
+                      <ClipboardMinus
+                        class="w-4 h-4 text-primary flex-shrink-0"
+                      />
+                      <span class="text-sm font-semibold text-foreground">
+                        Subjective Data:
+                      </span>
+                    </div>
+                    <div class="pl-6 space-y-2">
+                      <div
+                        class="flex items-start space-x-2 text-sm text-muted-foreground"
+                      >
+                        <span class="text-primary font-medium mt-1">•</span>
+                        <span
+                          >Reports severe headache, described as throbbing (8/10
+                          on pain scale)</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-start space-x-2 text-sm text-muted-foreground"
+                      >
+                        <span class="text-primary font-medium mt-1">•</span>
+                        <span
+                          >States nausea and dizziness began this morning</span
+                        >
+                      </div>
+                      <div
+                        class="flex items-start space-x-2 text-sm text-muted-foreground"
+                      >
+                        <span class="text-primary font-medium mt-1">•</span>
+                        <span
+                          >Complains of photophobia (sensitivity to light)</span
+                        >
+                      </div>
+                    </div>
                   </div>
 
                   <!-- Objective Example -->
-                  <div>
-                    <p
-                      class="text-muted-foreground flex items-center space-x-2 text-sm font-semibold"
-                    >
-                      <ClipboardMinus class="w-4 h-4" />
-                      <span>Objective Data:</span>
-                    </p>
-                    <ul
-                      class="text-muted-foreground pl-4 text-sm list-disc list-inside"
-                    >
-                      <li>Blood pressure: 140/90 mmHg</li>
-                      <li>Temperature: 38.5°C</li>
-                      <li>Pupils equal and reactive to light (PERL)</li>
-                      <li>Facial grimacing observed during head movement</li>
-                    </ul>
+                  <div class="space-y-3">
+                    <div class="flex items-center space-x-2">
+                      <ClipboardMinus
+                        class="w-4 h-4 text-primary flex-shrink-0"
+                      />
+                      <span class="text-sm font-semibold text-foreground">
+                        Objective Data:
+                      </span>
+                    </div>
+                    <div class="pl-6 space-y-2">
+                      <div
+                        class="flex items-start space-x-2 text-sm text-muted-foreground"
+                      >
+                        <span class="text-primary font-medium mt-1">•</span>
+                        <span>Blood pressure: 140/90 mmHg</span>
+                      </div>
+                      <div
+                        class="flex items-start space-x-2 text-sm text-muted-foreground"
+                      >
+                        <span class="text-primary font-medium mt-1">•</span>
+                        <span>Temperature: 38.5°C</span>
+                      </div>
+                      <div
+                        class="flex items-start space-x-2 text-sm text-muted-foreground"
+                      >
+                        <span class="text-primary font-medium mt-1">•</span>
+                        <span>Pupils equal and reactive to light (PERL)</span>
+                      </div>
+                      <div
+                        class="flex items-start space-x-2 text-sm text-muted-foreground"
+                      >
+                        <span class="text-primary font-medium mt-1">•</span>
+                        <span
+                          >Facial grimacing observed during head movement</span
+                        >
+                      </div>
+                    </div>
                   </div>
                 </div>
               </Alert>
 
-              <!-- Assessment Form -->
               <AssessmentForm
                 @submit="handleAssessmentSubmit"
                 :selectedFormat="selectedFormat"
