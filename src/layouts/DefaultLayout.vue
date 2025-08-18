@@ -1,115 +1,51 @@
 <script setup>
 import ThemeToggle from '@/components/ThemeToggle.vue'
-import { Button } from '@/components/ui/button'
-import { Brain, HelpCircle, Menu, Stethoscope, X } from 'lucide-vue-next'
-import { ref } from 'vue'
+import { Stethoscope, Github  } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
-
-const isMenuOpen = ref(false)
-
-const navItems = [
-  {
-    title: 'Generate NCP',
-    description: 'Create AI-generated nursing care plans',
-    path: '/generate',
-    icon: Brain,
-  },
-  {
-    title: 'Explanations',
-    description: 'Learn about NCP components',
-    path: '/explain',
-    icon: HelpCircle,
-  },
-]
 </script>
 
 <template>
   <div class="flex flex-col min-h-screen">
-    <!-- Header -->
+    <!-- Simplified Header for Auth Pages -->
     <header
       class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     >
       <div class="container">
-        <div class="h-14 flex items-center py-2">
+        <div class="h-14 flex items-center justify-between py-2">
           <!-- Logo -->
-          <div class="flex mr-4">
-            <RouterLink to="/" class="flex items-center mr-6 space-x-2">
-              <Stethoscope class="w-6 h-6" />
-              <span class="font-poppins font-bold">SmartCare</span>
-            </RouterLink>
+          <RouterLink to="/" class="flex items-center space-x-2">
+            <Stethoscope class="w-6 h-6" />
+            <span class="font-poppins font-bold">SmartCare</span>
+          </RouterLink>
+
+          <!-- Right side - Theme Toggle and Navigation -->
+          <div class="flex items-center space-x-4">
+            <ThemeToggle />
           </div>
-
-          <!-- Desktop Navigation -->
-          <div
-            class="md:flex md:flex-1 md:items-center md:justify-between hidden"
-          >
-            <nav class="flex items-center space-x-6 text-sm font-medium">
-              <RouterLink
-                v-for="item in navItems"
-                :key="item.path"
-                :to="item.path"
-                class="hover:text-foreground/80 flex items-center space-x-2 transition-colors"
-              >
-                <component :is="item.icon" class="w-4 h-4" />
-                <span>{{ item.title }}</span>
-              </RouterLink>
-            </nav>
-
-            <!-- Right side buttons -->
-            <div class="flex items-center space-x-4">
-              <ThemeToggle />
-              <!-- <Button variant="outline" size="sm">Sign in</Button> -->
-            </div>
-          </div>
-
-          <!-- Mobile menu button -->
-          <div class="md:hidden flex items-center justify-end flex-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              @click="isMenuOpen = !isMenuOpen"
-            >
-              <span class="sr-only">Toggle menu</span>
-              <Menu v-if="!isMenuOpen" class="w-5 h-5" />
-              <X v-else class="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mobile menu container -->
-      <div v-show="isMenuOpen" class="md:hidden border-t">
-        <div class="container py-4">
-          <nav class="flex flex-col space-y-4">
-            <RouterLink
-              v-for="item in navItems"
-              :key="item.path"
-              :to="item.path"
-              class="hover:text-foreground/80 flex items-center py-2 space-x-4 text-sm transition-colors"
-            >
-              <component :is="item.icon" class="w-5 h-5" />
-              <div>
-                <div class="text-base font-medium">{{ item.title }}</div>
-                <div class="text-muted-foreground text-sm">
-                  {{ item.description }}
-                </div>
-              </div>
-            </RouterLink>
-          </nav>
         </div>
       </div>
     </header>
 
     <!-- Main Content -->
-    <main class="container flex-1 py-8">
-      <slot />
+    <main class="flex-1 flex items-center justify-center py-8">
+      <div class="container max-w-lg">
+        <slot />
+      </div>
     </main>
 
-    <!-- Footer -->
+    <!-- Simplified Footer -->
     <footer class="border-t">
       <div class="container py-4">
         <p class="text-muted-foreground text-sm text-center">
-          © 2024 AI NCP Generator. All rights reserved.
+          <a
+            href="https://github.com/shozuu/ai-ncp-generator"
+            target="_blank"
+            rel="noopener"
+            class="inline-flex items-center gap-1 underline hover:text-primary transition-colors"
+          >
+            <Github  class="w-4 h-4" />
+            <span>shozuu/ai-ncp-generator</span>
+          </a>
         </p>
       </div>
     </footer>

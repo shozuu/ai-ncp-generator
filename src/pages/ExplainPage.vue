@@ -7,7 +7,7 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import DefaultLayout from "@/layouts/DefaultLayout.vue";
+import SidebarLayout from "@/layouts/SidebarLayout.vue";
 import { exportUtils } from "@/utils/exportUtils";
 import {
 	ClipboardCheck,
@@ -147,7 +147,7 @@ const handleExport = async (type) => {
 
 <template>
 	<PageHead title="- NCP Explanations" />
-	<DefaultLayout>
+	<SidebarLayout>
 		<div class="space-y-8">
 			<!-- Header -->
 			<div class="flex justify-between items-center">
@@ -265,5 +265,5 @@ const handleExport = async (type) => {
 				</Card>
 			</div>
 		</div>
-	</DefaultLayout>
+	</SidebarLayout>
 </template>

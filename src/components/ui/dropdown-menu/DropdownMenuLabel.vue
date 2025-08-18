@@ -1,7 +1,7 @@
 <script setup>
-import { cn } from '@/lib/utils';
-import { DropdownMenuLabel, useForwardProps } from 'reka-ui';
-import { computed } from 'vue';
+import { reactiveOmit } from "@vueuse/core";
+import { DropdownMenuLabel, useForwardProps } from "reka-ui";
+import { cn } from "@/lib/utils";
 
 const props = defineProps({
   asChild: { type: Boolean, required: false },
@@ -10,11 +10,7 @@ const props = defineProps({
   inset: { type: Boolean, required: false },
 });
 
-const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
-
-  return delegated;
-});
+const delegatedProps = reactiveOmit(props, "class");
 
 const forwardedProps = useForwardProps(delegatedProps);
 </script>

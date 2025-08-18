@@ -1,13 +1,15 @@
 <script setup>
-import { cn } from '@/lib/utils';
-import { DropdownMenuSubContent, useForwardPropsEmits } from 'reka-ui';
-import { computed } from 'vue';
+import { reactiveOmit } from "@vueuse/core";
+import { DropdownMenuSubContent, useForwardPropsEmits } from "reka-ui";
+import { cn } from "@/lib/utils";
 
 const props = defineProps({
   forceMount: { type: Boolean, required: false },
   loop: { type: Boolean, required: false },
   sideOffset: { type: Number, required: false },
+  sideFlip: { type: Boolean, required: false },
   alignOffset: { type: Number, required: false },
+  alignFlip: { type: Boolean, required: false },
   avoidCollisions: { type: Boolean, required: false },
   collisionBoundary: { type: null, required: false },
   collisionPadding: { type: [Number, Object], required: false },
@@ -24,20 +26,16 @@ const props = defineProps({
   class: { type: null, required: false },
 });
 const emits = defineEmits([
-  'escapeKeyDown',
-  'pointerDownOutside',
-  'focusOutside',
-  'interactOutside',
-  'entryFocus',
-  'openAutoFocus',
-  'closeAutoFocus',
+  "escapeKeyDown",
+  "pointerDownOutside",
+  "focusOutside",
+  "interactOutside",
+  "entryFocus",
+  "openAutoFocus",
+  "closeAutoFocus",
 ]);
 
-const delegatedProps = computed(() => {
-  const { class: _, ...delegated } = props;
-
-  return delegated;
-});
+const delegatedProps = reactiveOmit(props, "class");
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits);
 </script>
