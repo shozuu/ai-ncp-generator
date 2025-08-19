@@ -107,7 +107,7 @@ onMounted(() => {
       />
     </div>
 
-    <div v-else class="w-full py-8 px-4 space-y-10">
+    <div v-else>
       <div v-if="generatedNCP" class="space-y-6">
         <NCPDisplay
           :ncp="generatedNCP"
@@ -126,22 +126,17 @@ onMounted(() => {
         </p>
 
         <!-- Format & Assessment Section -->
-        <div class="mb-4">
-          <h2 class="text-lg font-semibold mb-1">Format & Assessment</h2>
-          <p class="text-muted-foreground text-sm mb-4">
-            Choose your preferred NCP format and enter assessment details.
-          </p>
+        <div class="mb-10">
           <FormatSelector
             :format="selectedFormat"
             @update:format="handleFormatChange"
           />
         </div>
 
-        <!-- Separator -->
-        <Separator class="my-6" />
+        <Separator class="my-8" />
 
-        <!-- Guidance Section -->
-        <div class="w-full mb-8">
+        <div class="mb-10">
+          <!-- Guidance Section -->
           <Alert class="p-4 w-full" ref="exampleFormatContainer" v-auto-animate>
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-3 flex-1 min-w-0">
@@ -181,7 +176,7 @@ onMounted(() => {
                 <div
                   v-for="(section, idx) in exampleFormat"
                   :key="idx"
-                  class="space-y-3"
+                  class="space-y-3 mt-2"
                 >
                   <div class="flex items-center space-x-2">
                     <component
@@ -208,12 +203,9 @@ onMounted(() => {
           </Alert>
         </div>
 
-        <!-- Assessment Form -->
-        <div class="w-full">
-          <h3 class="text-lg font-semibold mb-2">Patient Assessment</h3>
-          <p class="text-muted-foreground text-sm mb-4">
-            Enter your assessment details to generate an NCP.
-          </p>
+        <Separator class="my-8" />
+
+        <div class="mb-10">
           <AssessmentForm
             @submit="handleAssessmentSubmit"
             :selectedFormat="selectedFormat"
