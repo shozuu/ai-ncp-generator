@@ -90,11 +90,11 @@ const data = {
 <template>
   <Sidebar v-bind="props">
     <SidebarHeader>
-      <RouterLink to="/" class="flex items-center gap-2">
+      <RouterLink to="/" class="flex items-center gap-2 mt-1">
         <div
-          class="flex aspect-square size-8 items-center justify-center rounded-lg text-primary"
+          class="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground"
         >
-          <Stethoscope class="size-6" />
+          <Stethoscope class="size-4" />
         </div>
         <span class="truncate font-semibold">SmartCare</span>
       </RouterLink>

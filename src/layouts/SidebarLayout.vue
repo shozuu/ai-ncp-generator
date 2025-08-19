@@ -100,7 +100,7 @@ const breadcrumbItems = computed(() => {
           </Breadcrumb>
         </div>
       </header>
-      <div class="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <div class="w-full py-8 pt-4 px-4 lg:px-6 space-y-10">
         <slot />
       </div>
     </SidebarInset>
