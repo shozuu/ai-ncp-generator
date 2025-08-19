@@ -29,7 +29,7 @@ const formats = [
   },
 ]
 
-const selectedFormat = ref('7') // Default format
+const selectedFormat = ref('7')
 
 const emit = defineEmits(['update:format'])
 
