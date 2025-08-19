@@ -1,5 +1,4 @@
 <script setup>
-import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Check } from 'lucide-vue-next'
 import { ref } from 'vue'
@@ -46,7 +45,7 @@ const handleCardClick = value => {
 
 <template>
   <div class="space-y-4">
-    <Label class="text-base">Select NCP Format</Label>
+    <h2 class="text-lg font-bold">Select NCP Format</h2>
     <RadioGroup
       v-model="selectedFormat"
       class="sm:grid-cols-2 lg:grid-cols-4 grid gap-4"

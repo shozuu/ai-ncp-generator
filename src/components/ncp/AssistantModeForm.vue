@@ -22,19 +22,18 @@ const form = useForm({
 })
 
 const onSubmit = form.handleSubmit(values => {
-  // Format subjective and objective data into arrays
   const formattedData = {
     subjective: {
       primary: values.subjective.primary
-        .split('\n') // Split by new lines
-        .map(line => line.trim()) // Trim whitespace
-        .filter(line => line !== ''), // Remove empty lines
+        .split('\n')
+        .map(line => line.trim())
+        .filter(line => line !== ''),
       other: values.subjective.other
         ? values.subjective.other
             .split('\n')
             .map(line => line.trim())
             .filter(line => line !== '')
-        : [], // Handle optional field
+        : [],
     },
     objective: {
       exam: values.objective.exam
@@ -46,23 +45,21 @@ const onSubmit = form.handleSubmit(values => {
             .split('\n')
             .map(line => line.trim())
             .filter(line => line !== '')
-        : [], // Handle optional field
+        : [],
       other: values.objective.other
         ? values.objective.other
             .split('\n')
             .map(line => line.trim())
             .filter(line => line !== '')
-        : [], // Handle optional field
+        : [],
     },
   }
-
-  console.log('Formatted Assistant Mode Data:', formattedData)
   emit('submit', formattedData)
 })
 </script>
 
 <template>
-  <form @submit="onSubmit" class="space-y-10">
+  <form @submit="onSubmit" class="space-y-8">
     <!-- Subjective Data Section -->
     <div class="space-y-6">
       <div>
@@ -71,7 +68,6 @@ const onSubmit = form.handleSubmit(values => {
           Provide details about the patient's subjective symptoms.
         </p>
       </div>
-
       <!-- Primary Symptoms -->
       <FormField
         name="subjective.primary"
@@ -89,15 +85,14 @@ const onSubmit = form.handleSubmit(values => {
               class="bg-background text-foreground border-muted focus:ring-primary focus:border-primary rounded-md p-3 min-h-28"
             />
           </FormControl>
-          <FormDescription class="text-muted-foreground">
+          <FormDescription>
             Enter each primary symptom or concern on a new line.
           </FormDescription>
-          <FormMessage v-if="errorMessage" class="text-destructive">
-            {{ errorMessage }}
-          </FormMessage>
+          <FormMessage v-if="errorMessage" class="text-destructive">{{
+            errorMessage
+          }}</FormMessage>
         </FormItem>
       </FormField>
-
       <!-- Other Complaints -->
       <FormField
         name="subjective.other"
@@ -115,12 +110,12 @@ const onSubmit = form.handleSubmit(values => {
               class="bg-background text-foreground border-muted focus:ring-primary focus:border-primary rounded-md p-3 min-h-28"
             />
           </FormControl>
-          <FormDescription class="text-muted-foreground">
+          <FormDescription>
             Enter additional complaints, if any, on a new line.
           </FormDescription>
-          <FormMessage v-if="errorMessage" class="text-destructive">
-            {{ errorMessage }}
-          </FormMessage>
+          <FormMessage v-if="errorMessage" class="text-destructive">{{
+            errorMessage
+          }}</FormMessage>
         </FormItem>
       </FormField>
     </div>
@@ -133,7 +128,6 @@ const onSubmit = form.handleSubmit(values => {
           Provide details about the patient's objective findings.
         </p>
       </div>
-
       <!-- Physical Examination -->
       <FormField
         name="objective.exam"
@@ -151,15 +145,14 @@ const onSubmit = form.handleSubmit(values => {
               class="bg-background text-foreground border-muted focus:ring-primary focus:border-primary rounded-md p-3 min-h-28"
             />
           </FormControl>
-          <FormDescription class="text-muted-foreground">
+          <FormDescription>
             Enter each physical examination finding on a new line.
           </FormDescription>
-          <FormMessage v-if="errorMessage" class="text-destructive">
-            {{ errorMessage }}
-          </FormMessage>
+          <FormMessage v-if="errorMessage" class="text-destructive">{{
+            errorMessage
+          }}</FormMessage>
         </FormItem>
       </FormField>
-
       <!-- Vital Signs -->
       <FormField
         name="objective.vitals"
@@ -177,15 +170,14 @@ const onSubmit = form.handleSubmit(values => {
               class="bg-background text-foreground border-muted focus:ring-primary focus:border-primary rounded-md p-3 min-h-28"
             />
           </FormControl>
-          <FormDescription class="text-muted-foreground">
+          <FormDescription>
             Enter each vital sign on a new line.
           </FormDescription>
-          <FormMessage v-if="errorMessage" class="text-destructive">
-            {{ errorMessage }}
-          </FormMessage>
+          <FormMessage v-if="errorMessage" class="text-destructive">{{
+            errorMessage
+          }}</FormMessage>
         </FormItem>
       </FormField>
-
       <!-- Other Findings -->
       <FormField
         name="objective.other"
@@ -203,12 +195,12 @@ const onSubmit = form.handleSubmit(values => {
               class="bg-background text-foreground border-muted focus:ring-primary focus:border-primary rounded-md p-3 min-h-28"
             />
           </FormControl>
-          <FormDescription class="text-muted-foreground">
+          <FormDescription>
             Enter additional findings, if any, on a new line.
           </FormDescription>
-          <FormMessage v-if="errorMessage" class="text-destructive">
-            {{ errorMessage }}
-          </FormMessage>
+          <FormMessage v-if="errorMessage" class="text-destructive">{{
+            errorMessage
+          }}</FormMessage>
         </FormItem>
       </FormField>
     </div>

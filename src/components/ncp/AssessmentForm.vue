@@ -16,7 +16,6 @@ const currentMode = computed(() =>
 
 const handleSubmit = data => {
   emit('submit', data)
-  console.log('Submitted Data:', data)
   toast({
     title: 'Success',
     description: 'Assessment submitted successfully',
@@ -25,21 +24,19 @@ const handleSubmit = data => {
 </script>
 
 <template>
-  <div class="p-6 space-y-6 bg-card rounded-lg shadow-md">
+  <section class="space-y-8 w-full">
+    <!-- Assistant Toggle Section -->
     <div
-      class="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-muted pb-4 space-y-4 sm:space-y-0"
+      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-muted"
     >
-      <div class="flex-1 min-w-0">
-        <h4 class="text-base font-medium text-foreground">
-          Use Assessment Assistant
-        </h4>
-        <p class="text-sm text-muted-foreground mt-1">
-          Toggle to switch between manual and assistant modes
+      <div>
+        <h2 class="text-lg font-bold">Patient Assessment</h2>
+        <p class="text-muted-foreground text-sm mb-4">
+          Enter your assessment details to generate an NCP.
         </p>
       </div>
-      <div
-        class="flex items-center justify-between sm:justify-end space-x-4 flex-shrink-0"
-      >
+
+      <div class="flex items-center gap-2">
         <Switch id="assistant-mode" v-model="isAssistantMode" />
         <span
           class="px-3 py-1 text-sm font-medium rounded-full whitespace-nowrap"
@@ -54,13 +51,10 @@ const handleSubmit = data => {
       </div>
     </div>
 
-    <div class="pt-4">
-      <div v-if="isAssistantMode">
-        <AssistantModeForm @submit="handleSubmit" />
-      </div>
-      <div v-else>
-        <ManualModeForm @submit="handleSubmit" />
-      </div>
+    <!-- Form Section -->
+    <div>
+      <AssistantModeForm v-if="isAssistantMode" @submit="handleSubmit" />
+      <ManualModeForm v-else @submit="handleSubmit" />
     </div>
-  </div>
+  </section>
 </template>

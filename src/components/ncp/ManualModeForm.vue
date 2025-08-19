@@ -22,25 +22,22 @@ const form = useForm({
 })
 
 const onSubmit = form.handleSubmit(values => {
-  // Format subjective and objective data into arrays
   const formattedData = {
     subjective: values.subjective
-      .split('\n') // Split by new lines
-      .map(line => line.trim()) // Trim whitespace
-      .filter(line => line !== ''), // Remove empty lines
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line !== ''),
     objective: values.objective
       .split('\n')
       .map(line => line.trim())
       .filter(line => line !== ''),
   }
-
-  console.log('Formatted Manual Mode Data:', formattedData)
   emit('submit', formattedData)
 })
 </script>
 
 <template>
-  <form @submit="onSubmit" class="space-y-10">
+  <form @submit="onSubmit" class="space-y-8">
     <!-- Subjective Data Section -->
     <div class="space-y-6">
       <div>
@@ -49,7 +46,6 @@ const onSubmit = form.handleSubmit(values => {
           Provide details about the patient's subjective symptoms.
         </p>
       </div>
-
       <FormField name="subjective" v-slot="{ componentField, errorMessage }">
         <FormItem v-auto-animate>
           <FormLabel class="flex items-center space-x-2">
@@ -63,12 +59,12 @@ const onSubmit = form.handleSubmit(values => {
               class="bg-background text-foreground border-muted focus:ring-primary focus:border-primary rounded-md p-3 min-h-28"
             />
           </FormControl>
-          <FormDescription class="text-muted-foreground">
+          <FormDescription>
             Enter each patient-reported symptom or concern on a new line.
           </FormDescription>
-          <FormMessage v-if="errorMessage" class="text-destructive">
-            {{ errorMessage }}
-          </FormMessage>
+          <FormMessage v-if="errorMessage" class="text-destructive">{{
+            errorMessage
+          }}</FormMessage>
         </FormItem>
       </FormField>
     </div>
@@ -81,7 +77,6 @@ const onSubmit = form.handleSubmit(values => {
           Provide details about the patient's objective findings.
         </p>
       </div>
-
       <FormField name="objective" v-slot="{ componentField, errorMessage }">
         <FormItem v-auto-animate>
           <FormLabel class="flex items-center space-x-2">
@@ -95,12 +90,12 @@ const onSubmit = form.handleSubmit(values => {
               class="bg-background text-foreground border-muted focus:ring-primary focus:border-primary rounded-md p-3 min-h-28"
             />
           </FormControl>
-          <FormDescription class="text-muted-foreground">
+          <FormDescription>
             Enter each observation or measurement on a new line.
           </FormDescription>
-          <FormMessage v-if="errorMessage" class="text-destructive">
-            {{ errorMessage }}
-          </FormMessage>
+          <FormMessage v-if="errorMessage" class="text-destructive">{{
+            errorMessage
+          }}</FormMessage>
         </FormItem>
       </FormField>
     </div>
