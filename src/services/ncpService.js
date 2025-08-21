@@ -14,15 +14,13 @@ export const ncpService = {
         `${API_BASE_URL}/api/generate-ncp`,
         assessmentData,
         {
-          headers: {
-            'Content-Type': 'application/json',
-          },
+          headers: { 'Content-Type': 'application/json' },
         }
       )
 
       const generatedNCP = response.data
 
-      // save to supabase if user is authenticated
+      // save to supabase
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -87,9 +85,17 @@ export const ncpService = {
     return data
   },
 
-  async deleteNCP(ncpId) {
-    const { error } = await supabase.from('ncps').delete().eq('id', ncpId)
+  async renameNCP(ncpId, newTitle) {
+    const { error } = await supabase
+      .from('ncps')
+      .update({ title: newTitle })
+      .eq('id', ncpId)
+    if (error) throw error
+  },
 
+  async deleteNCP(ncpId) {
+    // trigger the soft delete 
+    const { error } = await supabase.from('ncps').delete().eq('id', ncpId)
     if (error) throw error
   },
 }
