@@ -42,6 +42,11 @@ const data = {
       url: '/explain',
       icon: HelpCircle,
     },
+    {
+      title: 'My NCPs',
+      url: '/ncps',
+      icon: Brain,
+    },
 
     // login and signup
     {

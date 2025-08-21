@@ -3,6 +3,8 @@ import ExplainPage from '@/pages/ExplainPage.vue'
 import GeneratePage from '@/pages/GeneratePage.vue'
 import HomePage from '@/pages/HomePage.vue'
 import LoginPage from '@/pages/LoginPage.vue'
+import NCPDisplayPage from '@/pages/NCPDisplayPage.vue'
+import NCPHistoryPage from '@/pages/NCPHistoryPage.vue'
 import SignupPage from '@/pages/SignupPage.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -54,6 +56,31 @@ const routes = [
       breadcrumbs: [
         { title: 'Home', to: '/' },
         { title: 'NCP Explanations', to: '/explain', isActive: true },
+      ],
+    },
+  },
+  {
+    path: '/ncps',
+    name: 'My NCPs',
+    component: NCPHistoryPage,
+    meta: {
+      authRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'My NCPs', to: '/ncps', isActive: true },
+      ],
+    },
+  },
+  {
+    path: '/ncps/:id',
+    name: 'NCPDisplay',
+    component: NCPDisplayPage,
+    meta: {
+      authRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'My NCPs', to: '/ncps' },
+        { title: 'NCP Details', to: '', isActive: true },
       ],
     },
   },
