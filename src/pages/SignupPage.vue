@@ -46,7 +46,7 @@ const handleSubmit = async () => {
     success.value =
       'Account created successfully! Please check your email to verify your account.'
     setTimeout(() => {
-      const redirectTo = route.query.redirect || '/'
+      const redirectTo = route.query.redirect || '/login'
       router.push(redirectTo)
     }, 2000)
   }
