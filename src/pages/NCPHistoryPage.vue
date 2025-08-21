@@ -1,18 +1,51 @@
 <script setup>
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { useToast } from '@/components/ui/toast/use-toast'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@/components/ui/tooltip'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { ncpService } from '@/services/ncpService'
-import { LayoutGrid, List } from 'lucide-vue-next'
+import { LayoutGrid, List, Pencil, Trash2 } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { useToast } from '@/components/ui/toast/use-toast'
 
 const ncps = ref([])
 const router = useRouter()
 const viewMode = ref('list')
 const isLoading = ref(true)
-const { toast } = useToast() 
+const { toast } = useToast()
+
+const renamingId = ref(null)
+const newTitle = ref('')
+const showRenameDialog = ref(false)
+const showDeleteDialog = ref(false)
+const ncpToDelete = ref(null)
 
 onMounted(async () => {
+  await fetchNCPs()
+})
+
+const fetchNCPs = async () => {
+  isLoading.value = true
   try {
     ncps.value = await ncpService.getUserNCPs()
   } catch {
@@ -24,58 +57,104 @@ onMounted(async () => {
   } finally {
     isLoading.value = false
   }
-})
+}
 
 const viewNCP = id => {
   router.push(`/ncps/${id}`)
+}
+
+const openRenameDialog = ncp => {
+  renamingId.value = ncp.id
+  newTitle.value = ncp.title
+  showRenameDialog.value = true
+}
+
+const closeRenameDialog = () => {
+  renamingId.value = null
+  newTitle.value = ''
+  showRenameDialog.value = false
+}
+
+const confirmRename = async () => {
+  try {
+    await ncpService.renameNCP(renamingId.value, newTitle.value)
+    toast({ title: 'Renamed', description: 'NCP title updated.' })
+    await fetchNCPs()
+    closeRenameDialog()
+  } catch {
+    toast({
+      title: 'Error',
+      description: 'Failed to rename NCP.',
+      variant: 'destructive',
+    })
+  }
+}
+
+const openDeleteDialog = ncp => {
+  ncpToDelete.value = ncp
+  showDeleteDialog.value = true
+}
+
+const closeDeleteDialog = () => {
+  ncpToDelete.value = null
+  showDeleteDialog.value = false
+}
+
+const confirmDelete = async () => {
+  try {
+    await ncpService.deleteNCP(ncpToDelete.value.id)
+    toast({ title: 'Deleted', description: 'NCP deleted.' })
+    await fetchNCPs()
+    closeDeleteDialog()
+  } catch {
+    toast({
+      title: 'Error',
+      description: 'Failed to delete NCP.',
+      variant: 'destructive',
+    })
+  }
 }
 </script>
 
 <template>
   <PageHead title="- My NCPs" />
   <SidebarLayout>
-    <div class="flex items-center justify-between mb-8">
+    <div
+      class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4"
+    >
       <div>
         <h1 class="font-poppins text-3xl font-bold mb-2">
           My Nursing Care Plans
         </h1>
         <p class="text-muted-foreground mb-0">
-          Monitor your created nursing care plans
+          Monitor and manage your created nursing care plans.
         </p>
       </div>
       <div class="flex space-x-2">
-        <button
-          :class="[
-            'p-2 rounded transition',
-            viewMode === 'list'
-              ? 'bg-primary/10 text-primary'
-              : 'hover:bg-muted',
-          ]"
+        <Button
+          :variant="viewMode === 'list' ? 'default' : 'outline'"
+          size="icon"
           @click="viewMode = 'list'"
           aria-label="List View"
         >
           <List class="w-5 h-5" />
-        </button>
-        <button
-          :class="[
-            'p-2 rounded transition',
-            viewMode === 'grid'
-              ? 'bg-primary/10 text-primary'
-              : 'hover:bg-muted',
-          ]"
+        </Button>
+        <Button
+          :variant="viewMode === 'grid' ? 'default' : 'outline'"
+          size="icon"
           @click="viewMode = 'grid'"
           aria-label="Grid View"
         >
           <LayoutGrid class="w-5 h-5" />
-        </button>
+        </Button>
       </div>
     </div>
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex items-center justify-center py-16">
-      <span class="animate-pulse text-muted-foreground text-lg">
-        Loading your nursing care plans...
-      </span>
+      <span class="animate-pulse text-muted-foreground text-lg"
+        >Loading your nursing care plans...</span
+      >
     </div>
 
     <!-- Empty State -->
@@ -86,28 +165,54 @@ const viewNCP = id => {
       No NCPs found.
     </div>
 
-    <!-- List/Grid Views -->
     <div v-else>
       <!-- List View -->
       <div v-if="viewMode === 'list'" class="flex flex-col gap-4">
-        <div
+        <Card
           v-for="ncp in ncps"
           :key="ncp.id"
-          class="p-4 rounded-lg border bg-card cursor-pointer hover:shadow-lg hover:border-primary transition"
-          @click="viewNCP(ncp.id)"
+          class="group border bg-card rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between hover:shadow-lg hover:border-primary transition"
         >
-          <div class="flex flex-col">
-            <span class="font-semibold text-lg hover:text-primary transition">
+          <CardHeader class="p-0 flex-1 min-w-0">
+            <CardTitle
+              class="font-semibold text-lg hover:text-primary cursor-pointer transition block truncate"
+              @click="viewNCP(ncp.id)"
+            >
               {{ ncp.title }}
-            </span>
-            <span class="text-xs text-muted-foreground mt-1">
-              {{ ncp.created_at }}
-            </span>
-            <span class="text-sm text-muted-foreground mt-2">
+            </CardTitle>
+            <CardDescription class="text-sm text-muted-foreground mt-1">
               Format: {{ ncp.format_type }} Columns
-            </span>
-          </div>
-        </div>
+            </CardDescription>
+          </CardHeader>
+          <CardFooter class="flex gap-2 mt-4 sm:mt-0 sm:ml-4 p-0">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  @click="openRenameDialog(ncp)"
+                  aria-label="Rename"
+                >
+                  <Pencil class="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rename</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  @click="openDeleteDialog(ncp)"
+                  aria-label="Delete"
+                >
+                  <Trash2 class="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+          </CardFooter>
+        </Card>
       </div>
 
       <!-- Grid View -->
@@ -115,25 +220,122 @@ const viewNCP = id => {
         v-else
         class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
       >
-        <div
+        <Card
           v-for="ncp in ncps"
           :key="ncp.id"
-          class="p-5 rounded-xl border bg-card cursor-pointer hover:shadow-xl hover:border-primary transition flex flex-col justify-between"
-          @click="viewNCP(ncp.id)"
+          class="group border bg-card rounded-xl p-5 flex flex-col justify-between hover:shadow-xl hover:border-primary transition"
         >
-          <span
-            class="font-semibold text-lg mb-2 hover:text-primary transition"
-          >
-            {{ ncp.title }}
-          </span>
-          <span class="text-xs text-muted-foreground mb-2">
-            {{ ncp.created_at }}
-          </span>
-          <span class="text-sm text-muted-foreground">
-            Format: {{ ncp.format_type }} Columns
-          </span>
-        </div>
+          <CardHeader class="p-0">
+            <CardTitle
+              class="font-semibold text-lg mb-2 hover:text-primary cursor-pointer transition block truncate"
+              @click="viewNCP(ncp.id)"
+            >
+              {{ ncp.title }}
+            </CardTitle>
+            <CardDescription class="text-sm text-muted-foreground">
+              Format: {{ ncp.format_type }} Columns
+            </CardDescription>
+          </CardHeader>
+          <CardFooter class="flex gap-2 mt-4 p-0">
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  @click="openRenameDialog(ncp)"
+                  aria-label="Rename"
+                >
+                  <Pencil class="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Rename</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger as-child>
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  @click="openDeleteDialog(ncp)"
+                  aria-label="Delete"
+                >
+                  <Trash2 class="w-4 h-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Delete</TooltipContent>
+            </Tooltip>
+          </CardFooter>
+        </Card>
       </div>
     </div>
+
+    <!-- Rename Dialog -->
+    <Dialog v-model:open="showRenameDialog">
+      <DialogContent
+        class="w-[calc(100vw-2rem)] max-w-md sm:max-w-lg rounded-lg px-4 py-6 sm:px-8 sm:py-8"
+        style="max-width: 95vw"
+      >
+        <DialogHeader>
+          <DialogTitle class="text-lg sm:text-xl">Rename NCP</DialogTitle>
+          <DialogDescription class="text-sm sm:text-base">
+            Enter a new title for your nursing care plan.
+          </DialogDescription>
+        </DialogHeader>
+        <Input
+          v-model="newTitle"
+          maxlength="255"
+          placeholder="New title"
+          class="mt-4"
+        />
+        <DialogFooter class="mt-6 flex flex-col gap-2 sm:flex-row justify-end">
+          <DialogClose as-child>
+            <Button
+              variant="ghost"
+              class="w-full sm:w-auto"
+              @click="closeRenameDialog"
+              >Cancel</Button
+            >
+          </DialogClose>
+          <Button
+            variant="default"
+            class="w-full sm:w-auto"
+            @click="confirmRename"
+            >Save</Button
+          >
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <!-- Delete Dialog -->
+    <Dialog v-model:open="showDeleteDialog">
+      <DialogContent
+        class="w-[calc(100vw-2rem)] max-w-md sm:max-w-lg rounded-lg px-4 py-6 sm:px-8 sm:py-8"
+        style="max-width: 95vw"
+      >
+        <DialogHeader>
+          <DialogTitle class="text-lg sm:text-xl">Delete NCP</DialogTitle>
+          <DialogDescription class="text-sm sm:text-base">
+            Are you sure you want to delete
+            <span class="font-semibold">{{ ncpToDelete?.title }}</span
+            >? This action cannot be undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter class="mt-6 flex flex-col gap-2 sm:flex-row justify-end">
+          <DialogClose as-child>
+            <Button
+              variant="ghost"
+              class="w-full sm:w-auto"
+              @click="closeDeleteDialog"
+              >Cancel</Button
+            >
+          </DialogClose>
+          <Button
+            variant="destructive"
+            class="w-full sm:w-auto"
+            @click="confirmDelete"
+            >Delete</Button
+          >
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   </SidebarLayout>
 </template>
