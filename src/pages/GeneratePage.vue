@@ -1,7 +1,6 @@
 <script setup>
 import AssessmentForm from '@/components/ncp/AssessmentForm.vue'
 import FormatSelector from '@/components/ncp/FormatSelector.vue'
-import NCPDisplay from '@/components/ncp/NCPDisplay.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import Separator from '@/components/ui/separator/Separator.vue'
@@ -11,13 +10,14 @@ import { ncpService } from '@/services/ncpService'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { ChevronDown, ChevronUp, ClipboardMinus, Info } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 
 const selectedFormat = ref('7')
 const isLoading = ref(false)
-const generatedNCP = ref(null)
 const showGuidance = ref(false)
 const exampleFormatContainer = ref(null)
 const { toast } = useToast()
+const router = useRouter()
 
 const formattingTips = [
   'Enter each finding on a new line.',
@@ -53,37 +53,32 @@ const handleFormatChange = format => {
 
 const handleAssessmentSubmit = async formData => {
   isLoading.value = true
-  generatedNCP.value = null
-
   try {
-    const result = await ncpService.generateNCP(formData)
-    generatedNCP.value = result
+    await ncpService.generateNCP(formData)
+    const ncps = await ncpService.getUserNCPs()
+    const latestNCP = ncps[0]
     toast({
       title: 'Success',
       description: 'NCP generated successfully',
     })
+    router.push(`/ncps/${latestNCP.id}`)
   } catch (error) {
-    toast({
-      title: 'Error',
-      description: error.message,
-      variant: 'destructive',
-    })
+    if (error.name === 'CancelledError' || error.message === 'cancelled') {
+      toast({
+        title: 'Cancelled',
+        description: 'NCP generation was cancelled.',
+        variant: 'default',
+      })
+    } else {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      })
+    }
   } finally {
     isLoading.value = false
   }
-}
-
-const handleCancel = () => {
-  isLoading.value = false
-  toast({
-    title: 'Cancelled',
-    description: 'NCP generation was cancelled.',
-    variant: 'default',
-  })
-}
-
-const handleBackToForm = () => {
-  generatedNCP.value = null
 }
 
 onMounted(() => {
@@ -103,114 +98,103 @@ onMounted(() => {
           'Analyzing patient data...',
           'Generating recommendations...',
         ]"
-        @cancel="handleCancel"
       />
     </div>
 
     <div v-else>
-      <div v-if="generatedNCP" class="space-y-6">
-        <NCPDisplay
-          :ncp="generatedNCP"
+      <!-- Page Title -->
+      <h1 class="font-poppins text-3xl font-bold mb-2">
+        Generate Nursing Care Plan
+      </h1>
+      <p class="text-muted-foreground mb-8">
+        Create an AI-generated nursing care plan based on patient data
+      </p>
+
+      <!-- Format & Assessment Section -->
+      <div class="mb-10">
+        <FormatSelector
           :format="selectedFormat"
-          @back="handleBackToForm"
+          @update:format="handleFormatChange"
         />
       </div>
 
-      <div v-else>
-        <!-- Page Title -->
-        <h1 class="font-poppins text-3xl font-bold mb-2">
-          Generate Nursing Care Plan
-        </h1>
-        <p class="text-muted-foreground mb-8">
-          Create an AI-generated nursing care plan based on patient data.
-        </p>
+      <Separator class="my-8" />
 
-        <!-- Format & Assessment Section -->
-        <div class="mb-10">
-          <FormatSelector
-            :format="selectedFormat"
-            @update:format="handleFormatChange"
-          />
-        </div>
-
-        <Separator class="my-8" />
-
-        <div class="mb-10">
-          <!-- Guidance Section -->
-          <Alert class="p-4 w-full" ref="exampleFormatContainer" v-auto-animate>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-3 flex-1 min-w-0">
-                <Info class="shrink-0 w-5 h-5" />
-                <AlertTitle class="text-base font-semibold mb-0">
-                  Formatting Tips & Example
-                </AlertTitle>
-              </div>
-              <button
-                class="text-primary hover:underline flex items-center text-sm font-medium ml-4 flex-shrink-0"
-                @click="showGuidance = !showGuidance"
-              >
-                <span v-if="showGuidance">Hide</span>
-                <span v-else>Show</span>
-                <ChevronDown v-if="!showGuidance" class="w-4 h-4 ml-1" />
-                <ChevronUp v-if="showGuidance" class="w-4 h-4 ml-1" />
-              </button>
+      <div class="mb-10">
+        <!-- Guidance Section -->
+        <Alert class="p-4 w-full" ref="exampleFormatContainer" v-auto-animate>
+          <div class="flex items-center justify-between">
+            <div class="flex items-center space-x-3 flex-1 min-w-0">
+              <Info class="shrink-0 w-5 h-5" />
+              <AlertTitle class="text-base font-semibold mb-0">
+                Formatting Tips & Example
+              </AlertTitle>
             </div>
-            <div v-if="showGuidance" class="mt-4 space-y-6">
-              <!-- Formatting Tips -->
-              <div>
-                <h4 class="font-semibold text-sm mb-2">Formatting Tips</h4>
-                <ul class="text-muted-foreground space-y-2 text-sm">
-                  <li
-                    v-for="(tip, idx) in formattingTips"
-                    :key="idx"
-                    class="flex items-start space-x-2"
-                  >
-                    <span class="text-primary font-medium">•</span>
-                    <span>{{ tip }}</span>
-                  </li>
-                </ul>
-              </div>
-              <!-- Example Format -->
-              <div>
-                <h4 class="font-semibold text-sm mb-2">Example Format</h4>
-                <div
-                  v-for="(section, idx) in exampleFormat"
+            <button
+              class="text-primary hover:underline flex items-center text-sm font-medium ml-4 flex-shrink-0"
+              @click="showGuidance = !showGuidance"
+            >
+              <span v-if="showGuidance">Hide</span>
+              <span v-else>Show</span>
+              <ChevronDown v-if="!showGuidance" class="w-4 h-4 ml-1" />
+              <ChevronUp v-if="showGuidance" class="w-4 h-4 ml-1" />
+            </button>
+          </div>
+          <div v-if="showGuidance" class="mt-4 space-y-6">
+            <!-- Formatting Tips -->
+            <div>
+              <h4 class="font-semibold text-sm mb-2">Formatting Tips</h4>
+              <ul class="text-muted-foreground space-y-2 text-sm">
+                <li
+                  v-for="(tip, idx) in formattingTips"
                   :key="idx"
-                  class="space-y-3 mt-2"
+                  class="flex items-start space-x-2"
                 >
-                  <div class="flex items-center space-x-2">
-                    <component
-                      :is="section.icon"
-                      class="w-4 h-4 text-primary flex-shrink-0"
-                    />
-                    <span class="text-sm font-semibold text-foreground">
-                      {{ section.label }}
-                    </span>
-                  </div>
-                  <div class="pl-6 space-y-2">
-                    <div
-                      v-for="(item, i) in section.items"
-                      :key="i"
-                      class="flex items-start space-x-2 text-sm text-muted-foreground"
-                    >
-                      <span class="text-primary font-medium mt-1">•</span>
-                      <span>{{ item }}</span>
-                    </div>
+                  <span class="text-primary font-medium">•</span>
+                  <span>{{ tip }}</span>
+                </li>
+              </ul>
+            </div>
+            <!-- Example Format -->
+            <div>
+              <h4 class="font-semibold text-sm mb-2">Example Format</h4>
+              <div
+                v-for="(section, idx) in exampleFormat"
+                :key="idx"
+                class="space-y-3 mt-2"
+              >
+                <div class="flex items-center space-x-2">
+                  <component
+                    :is="section.icon"
+                    class="w-4 h-4 text-primary flex-shrink-0"
+                  />
+                  <span class="text-sm font-semibold text-foreground">
+                    {{ section.label }}
+                  </span>
+                </div>
+                <div class="pl-6 space-y-2">
+                  <div
+                    v-for="(item, i) in section.items"
+                    :key="i"
+                    class="flex items-start space-x-2 text-sm text-muted-foreground"
+                  >
+                    <span class="text-primary font-medium mt-1">•</span>
+                    <span>{{ item }}</span>
                   </div>
                 </div>
               </div>
             </div>
-          </Alert>
-        </div>
+          </div>
+        </Alert>
+      </div>
 
-        <Separator class="my-8" />
+      <Separator class="my-8" />
 
-        <div class="mb-10">
-          <AssessmentForm
-            @submit="handleAssessmentSubmit"
-            :selectedFormat="selectedFormat"
-          />
-        </div>
+      <div class="mb-10">
+        <AssessmentForm
+          @submit="handleAssessmentSubmit"
+          :selectedFormat="selectedFormat"
+        />
       </div>
     </div>
   </SidebarLayout>
