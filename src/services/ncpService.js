@@ -85,6 +85,16 @@ export const ncpService = {
     return data
   },
 
+  async getNCPById(ncpId) {
+    const { data, error } = await supabase
+      .from('ncps')
+      .select('*')
+      .eq('id', ncpId)
+      .single()
+    if (error) throw error
+    return data
+  },
+
   async renameNCP(ncpId, newTitle) {
     const { error } = await supabase
       .from('ncps')
@@ -94,7 +104,7 @@ export const ncpService = {
   },
 
   async deleteNCP(ncpId) {
-    // trigger the soft delete 
+    // trigger the soft delete
     const { error } = await supabase.from('ncps').delete().eq('id', ncpId)
     if (error) throw error
   },
