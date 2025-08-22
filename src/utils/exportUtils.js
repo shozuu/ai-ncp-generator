@@ -206,7 +206,7 @@ export const exportUtils = {
                   !isCurrentBullet &&
                   (isNextNumbered || isNextBullet))
               ) {
-                return line + '<br><br>' // Add double line break for spacing
+                return line + '<br><br>'
               }
             }
             return line
@@ -217,19 +217,23 @@ export const exportUtils = {
       }
     }
 
+    // Calculate dynamic column width based on number of columns
+    const columnWidth = Math.floor(100 / columns.length)
+
     const tableHeader = columns
       .map(
         col =>
           `<th style="
-            border: 1px solid #e2e8f0; 
-            padding: 18px 14px; 
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-            color: #f8fafc; 
-            font-weight: 600; 
+            border: 1pt solid #4a5568; 
+            padding: 8pt 6pt; 
+            background-color: #2d3748;
+            color: #ffffff; 
+            font-weight: bold; 
             text-align: center;
-            font-size: 12px;
-            font-family: system-ui, -apple-system, sans-serif;
-            letter-spacing: 0.025em;
+            font-size: 10pt;
+            font-family: 'Calibri', 'Arial', sans-serif;
+            width: ${columnWidth}%;
+            vertical-align: middle;
           ">${col}</th>`
       )
       .join('')
@@ -238,88 +242,218 @@ export const exportUtils = {
       .map((value, index) => {
         const cellContent = processTextForWord(value)
         return `<td style="
-          border: 1px solid #e2e8f0; 
-          padding: 20px 16px; 
+          border: 0.5pt solid #cbd5e0; 
+          padding: 8pt 6pt; 
           vertical-align: top;
-          font-size: 11px;
-          line-height: 1.8;
-          font-family: system-ui, -apple-system, sans-serif;
-          background-color: ${index % 2 === 0 ? '#f8fafc' : '#ffffff'};
+          font-size: 9pt;
+          line-height: 1.4;
+          font-family: 'Calibri', 'Arial', sans-serif;
+          background-color: ${index % 2 === 0 ? '#f7fafc' : '#ffffff'};
+          width: ${columnWidth}%;
         ">${cellContent}</td>`
       })
       .join('')
 
     const content = `
-      <html>
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
         <head>
           <meta charset="utf-8">
+          <meta name="ProgId" content="Word.Document">
+          <meta name="Generator" content="Microsoft Word 15">
+          <meta name="Originator" content="Microsoft Word 15">
           <title>Nursing Care Plan</title>
+          <!--[if gte mso 9]>
+          <xml>
+            <w:WordDocument>
+              <w:View>Print</w:View>
+              <w:Zoom>100</w:Zoom>
+              <w:DoNotPromptForConvert/>
+              <w:DoNotShowInsertionsAndDeletions/>
+            </w:WordDocument>
+          </xml>
+          <![endif]-->
           <style>
+            @page {
+              size: 11.0in 8.5in;
+              margin: 0.5in 0.5in 0.5in 0.5in;
+              mso-page-orientation: landscape;
+              mso-header-margin: 0.5in;
+              mso-footer-margin: 0.5in;
+            }
+            
+            @page Section1 {
+              size: 11.0in 8.5in;
+              margin: 0.5in 0.5in 0.5in 0.5in;
+              mso-page-orientation: landscape;
+              mso-header-margin: 0.5in;
+              mso-footer-margin: 0.5in;
+            }
+            
+            div.Section1 {
+              page: Section1;
+            }
+            
             body { 
-              font-family: system-ui, -apple-system, sans-serif; 
-              margin: 40px; 
+              font-family: 'Calibri', 'Arial', sans-serif; 
+              margin: 0;
+              padding: 0;
               background-color: #ffffff;
-              line-height: 1.8;
-              color: #334155;
+              color: #2d3748;
+              font-size: 9pt;
+              line-height: 1.4;
             }
+            
             h1 { 
-              color: #1e293b; 
-              margin-bottom: 40px; 
+              color: #2d3748; 
+              margin: 0 0 12pt 0; 
               text-align: center;
-              font-size: 28px;
-              font-weight: 700;
-              border-bottom: 3px solid #3b82f6;
-              padding-bottom: 16px;
-              letter-spacing: -0.025em;
+              font-size: 16pt;
+              font-weight: bold;
+              font-family: 'Calibri', 'Arial', sans-serif;
+              border-bottom: 2pt solid #4299e1;
+              padding-bottom: 6pt;
+              page-break-after: avoid;
+              page-break-inside: avoid;
+              keep-with-next: always;
             }
+            
+            .header-table-container {
+              page-break-inside: avoid;
+              page-break-after: avoid;
+              keep-together: always;
+            }
+            
             table { 
               width: 100%; 
               border-collapse: collapse;
-              margin-top: 20px;
-              box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-              border: 2px solid #e2e8f0;
+              margin: 0;
+              table-layout: fixed;
+              border: 1pt solid #4a5568;
+              font-family: 'Calibri', 'Arial', sans-serif;
+              page-break-inside: auto;
+              page-break-after: auto;
             }
-            th, td {
-              border: 1px solid #e2e8f0;
+            
+            thead {
+              display: table-header-group;
+              page-break-inside: avoid;
+              page-break-after: avoid;
             }
-            br {
-              margin-bottom: 8px;
-              display: block;
-              content: "";
+            
+            tbody {
+              display: table-row-group;
+              page-break-inside: auto;
             }
-            .footer {
-              margin-top: 40px;
+            
+            th {
+              border: 1pt solid #4a5568;
+              background-color: #2d3748;
+              color: #ffffff;
+              font-weight: bold;
               text-align: center;
-              font-size: 10px;
-              color: #64748b;
-              border-top: 1px solid #e2e8f0;
-              padding-top: 16px;
-              font-weight: 500;
+              vertical-align: middle;
+              padding: 8pt 6pt;
+              font-size: 10pt;
+              page-break-inside: avoid;
+              page-break-after: avoid;
+            }
+            
+            td {
+              border: 0.5pt solid #cbd5e0;
+              vertical-align: top;
+              padding: 8pt 6pt;
+              font-size: 9pt;
+              line-height: 1.4;
+              page-break-inside: auto;
+            }
+            
+            tr {
+              page-break-inside: avoid;
+            }
+            
+            .footer {
+              margin-top: 16pt;
+              text-align: center;
+              font-size: 8pt;
+              color: #718096;
+              border-top: 0.5pt solid #e2e8f0;
+              padding-top: 8pt;
+              font-family: 'Calibri', 'Arial', sans-serif;
+              page-break-inside: avoid;
+            }
+            
+            /* Word-specific styles */
+            p {
+              margin: 0;
+              padding: 0;
+              line-height: 1.4;
+            }
+            
+            /* Force content to stay together */
+            .content-wrapper {
+              page-break-inside: avoid;
+            }
+            
+            /* Microsoft Word compatibility */
+            @media print {
+              @page {
+                size: 11.0in 8.5in;
+                margin: 0.5in;
+                orientation: landscape;
+              }
+              
+              h1 {
+                page-break-after: avoid;
+                keep-with-next: always;
+              }
+              
+              thead {
+                display: table-header-group;
+              }
+              
+              .header-table-container {
+                page-break-inside: avoid;
+              }
+            }
+            
+            /* Additional Word-specific page break controls */
+            .no-break {
+              page-break-inside: avoid;
+              page-break-before: avoid;
+              page-break-after: avoid;
             }
           </style>
         </head>
         <body>
-          <h1>Nursing Care Plan</h1>
-          <table>
-            <thead>
-              <tr>${tableHeader}</tr>
-            </thead>
-            <tbody>
-              <tr>${tableData}</tr>
-            </tbody>
-          </table>
-          <div class="footer">
-            Generated on ${new Date().toLocaleDateString('en-US', {
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric',
-            })} | AI-NCP Generator
+          <div class="Section1">
+            <div class="content-wrapper">
+              <h1 class="no-break">Nursing Care Plan</h1>
+              <div class="header-table-container no-break">
+                <table>
+                  <thead class="no-break">
+                    <tr class="no-break">${tableHeader}</tr>
+                  </thead>
+                  <tbody>
+                    <tr>${tableData}</tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div class="footer">
+              Generated on ${new Date().toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+              })} | AI-NCP Generator
+            </div>
           </div>
         </body>
       </html>
     `
 
-    const blob = new Blob([content], { type: 'application/msword' })
+    const blob = new Blob(['\ufeff', content], {
+      type: 'application/vnd.ms-word',
+    })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
     link.download = 'nursing-care-plan.doc'
