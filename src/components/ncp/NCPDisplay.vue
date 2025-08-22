@@ -21,16 +21,16 @@ const props = defineProps({
 const selectedFormat = ref(props.format)
 const isAlertCollapsed = ref(false)
 const alertContainer = ref(null)
-
-// Add width monitoring
 const elementWidth = ref(0)
 
-// Monitor the alert container width
 useResizeObserver(alertContainer, entries => {
   const entry = entries[0]
   if (entry) {
-    elementWidth.value = entry.contentRect.width
-    console.log(`Alert width: ${elementWidth.value}px`)
+    // Use borderBoxSize for total width including padding and borders
+    const totalWidth =
+      entry.borderBoxSize?.[0]?.inlineSize || entry.contentRect.width
+    elementWidth.value = totalWidth
+    // use 99% of elementWidth's value to serve as max-width to bypass layout problem
   }
 })
 
@@ -153,7 +153,7 @@ const hasPlaceholderColumns = computed(() =>
     <!-- Table Container -->
     <div
       class="max-h-[70vh] overflow-x-auto border border-muted rounded-b-md mx-auto"
-      :style="{ maxWidth: elementWidth + 'px' }"
+      :style="{ maxWidth: elementWidth * 0.99 + 'px' }"
     >
       <table class="min-w-full border-collapse">
         <thead class="bg-muted sticky top-0 z-10">
