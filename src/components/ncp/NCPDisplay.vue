@@ -7,9 +7,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { useToast } from '@/components/ui/toast/use-toast'
+import { exportUtils } from '@/utils/exportUtils'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { useResizeObserver } from '@vueuse/core'
-import { ChevronDown, ChevronUp, Info, Settings } from 'lucide-vue-next'
+import {
+  ChevronDown,
+  ChevronUp,
+  Download,
+  Info,
+  Settings,
+} from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const emit = defineEmits(['update:format'])
@@ -24,6 +32,7 @@ const props = defineProps({
   },
 })
 
+const { toast } = useToast()
 const selectedFormat = ref(props.format)
 const isAlertCollapsed = ref(false)
 const alertContainer = ref(null)
@@ -54,6 +63,29 @@ const formatOptions = computed(() => {
   return options
 })
 
+const exportOptions = [
+  {
+    value: 'pdf',
+    label: 'Export as PDF',
+    description: 'Portable Document Format',
+  },
+  {
+    value: 'csv',
+    label: 'Export as CSV',
+    description: 'Comma-separated values',
+  },
+  {
+    value: 'word',
+    label: 'Export as Word',
+    description: 'Microsoft Word document',
+  },
+  {
+    value: 'png',
+    label: 'Export as PNG',
+    description: 'Portable Network Graphics image',
+  },
+]
+
 watch(
   () => props.format,
   newFormat => {
@@ -79,6 +111,49 @@ const updateFormat = value => {
 
 const handleFormatChange = format => {
   updateFormat(format)
+}
+
+const handleExport = async exportType => {
+  try {
+    const filteredFormattedNCP = {}
+    const currentColumns = allColumns.slice(0, parseInt(selectedFormat.value))
+    const columnLabels = currentColumns.map(col => col.label)
+
+    currentColumns.forEach(column => {
+      if (formattedNCP.value[column.key]) {
+        filteredFormattedNCP[column.key] = formattedNCP.value[column.key]
+      }
+    })
+
+    switch (exportType) {
+      case 'pdf':
+        await exportUtils.toPDF(filteredFormattedNCP, columnLabels, true)
+        break
+      case 'csv':
+        exportUtils.toCSV(filteredFormattedNCP, columnLabels, true)
+        break
+      case 'word':
+        exportUtils.toWord(filteredFormattedNCP, columnLabels, true)
+        break
+      case 'png':
+        await exportUtils.toPNG(filteredFormattedNCP, columnLabels, true)
+        break
+      default:
+        throw new Error('Unsupported export format')
+    }
+
+    toast({
+      title: 'Export Successful',
+      description: `NCP exported as ${exportType.toUpperCase()} successfully.`,
+    })
+  } catch (error) {
+    console.error('Export failed:', error)
+    toast({
+      title: 'Export Failed',
+      description: `Failed to export NCP as ${exportType.toUpperCase()}. Please try again.`,
+      variant: 'destructive',
+    })
+  }
 }
 
 onMounted(() => {
@@ -120,7 +195,7 @@ const currentFormatOption = computed(() =>
 
 <template>
   <div class="space-y-6">
-    <!-- Title and Format Selector -->
+    <!-- Title and Action Buttons -->
     <div
       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
     >
@@ -133,36 +208,67 @@ const currentFormatOption = computed(() =>
         </p>
       </div>
 
-      <!-- Format Dropdown -->
-      <DropdownMenu>
-        <DropdownMenuTrigger as-child>
-          <Button
-            variant="outline"
-            size="sm"
-            class="hover:bg-muted/10 min-w-fit"
-          >
-            <Settings class="w-4 h-4 mr-2" />
-            {{ currentFormatOption?.label || `${selectedFormat} Columns` }}
-            <ChevronDown class="w-4 h-4 ml-2" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent class="w-[calc(100vw-2rem)] md:w-80" align="end">
-          <DropdownMenuItem
-            v-for="format in formatOptions"
-            :key="format.value"
-            @click="handleFormatChange(format.value)"
-            class="flex flex-col items-start p-3 cursor-pointer"
-            :class="{
-              'bg-primary/10 text-primary': selectedFormat === format.value,
-            }"
-          >
-            <div class="font-medium">{{ format.label }}</div>
-            <div class="text-xs text-muted-foreground mt-1">
-              {{ format.description }}
-            </div>
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <!-- Action Buttons -->
+      <div class="flex gap-2">
+        <!-- Format Dropdown -->
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              variant="outline"
+              size="sm"
+              class="hover:bg-muted/10 min-w-fit"
+            >
+              <Settings class="w-4 h-4 mr-2" />
+              {{ currentFormatOption?.label || `${selectedFormat} Columns` }}
+              <ChevronDown class="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent class="w-[calc(100vw-2rem)] md:w-80" align="end">
+            <DropdownMenuItem
+              v-for="format in formatOptions"
+              :key="format.value"
+              @click="handleFormatChange(format.value)"
+              class="flex flex-col items-start p-3 cursor-pointer"
+              :class="{
+                'bg-primary/10 text-primary': selectedFormat === format.value,
+              }"
+            >
+              <div class="font-medium">{{ format.label }}</div>
+              <div class="text-xs text-muted-foreground mt-1">
+                {{ format.description }}
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
+        <!-- Export Dropdown -->
+        <DropdownMenu>
+          <DropdownMenuTrigger as-child>
+            <Button
+              variant="outline"
+              size="sm"
+              class="hover:bg-muted/10 min-w-fit"
+            >
+              <Download class="w-4 h-4 mr-2" />
+              Export
+              <ChevronDown class="w-4 h-4 ml-2" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent class="w-[calc(100vw-2rem)] md:w-60" align="end">
+            <DropdownMenuItem
+              v-for="option in exportOptions"
+              :key="option.value"
+              @click="handleExport(option.value)"
+              class="flex flex-col items-start p-3 cursor-pointer hover:bg-muted/50"
+            >
+              <div class="font-medium">{{ option.label }}</div>
+              <div class="text-xs text-muted-foreground mt-1">
+                {{ option.description }}
+              </div>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
     </div>
 
     <!-- Alert Container -->
@@ -234,11 +340,20 @@ const currentFormatOption = computed(() =>
               :key="column.key"
               class="border-primary/10 group hover:bg-primary/5 p-4 text-sm align-top border min-w-[200px]"
             >
-              <div class="space-y-2">
+              <div class="space-y-3">
                 <div
                   v-for="(line, lineIndex) in row[column.key]"
                   :key="lineIndex"
-                  class="mb-2"
+                  class="leading-relaxed"
+                  :class="{
+                    'mb-3': lineIndex < row[column.key].length - 1,
+                    'mb-4':
+                      line.match(/^\d+\./) &&
+                      lineIndex < row[column.key].length - 1,
+                    'mb-3':
+                      line.startsWith('-') &&
+                      lineIndex < row[column.key].length - 1,
+                  }"
                 >
                   {{ line }}
                 </div>
