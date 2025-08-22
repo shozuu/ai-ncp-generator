@@ -1,10 +1,16 @@
 <script setup>
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { exportUtils } from '@/utils/exportUtils'
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { useResizeObserver } from '@vueuse/core'
-import { ChevronDown, ChevronUp, Info } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { ChevronDown, ChevronUp, Info, Settings } from 'lucide-vue-next'
+import { computed, onMounted, ref, watch } from 'vue'
 
 const emit = defineEmits(['update:format'])
 const props = defineProps({
@@ -23,6 +29,38 @@ const isAlertCollapsed = ref(false)
 const alertContainer = ref(null)
 const elementWidth = ref(0)
 
+const allColumns = [
+  { key: 'assessment', label: 'Assessment' },
+  { key: 'diagnosis', label: 'Diagnosis' },
+  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'interventions', label: 'Interventions' },
+  { key: 'rationale', label: 'Rationale' },
+  { key: 'implementation', label: 'Implementation' },
+  { key: 'evaluation', label: 'Evaluation' },
+]
+
+const formatOptions = computed(() => {
+  const options = []
+  for (let i = 4; i <= allColumns.length; i++) {
+    options.push({
+      value: i.toString(),
+      label: `${i} Columns`,
+      description: allColumns
+        .slice(0, i)
+        .map(col => col.label)
+        .join(', '),
+    })
+  }
+  return options
+})
+
+watch(
+  () => props.format,
+  newFormat => {
+    selectedFormat.value = newFormat
+  }
+)
+
 useResizeObserver(alertContainer, entries => {
   const entry = entries[0]
   if (entry) {
@@ -39,21 +77,8 @@ const updateFormat = value => {
   emit('update:format', value)
 }
 
-const handleExport = async type => {
-  switch (type) {
-    case 'pdf':
-      await exportUtils.toPDF(props.ncp)
-      break
-    case 'csv':
-      exportUtils.toCSV(props.ncp)
-      break
-    case 'word':
-      exportUtils.toWord(props.ncp)
-      break
-    case 'png':
-      exportUtils.toPNG(props.ncp)
-      break
-  }
+const handleFormatChange = format => {
+  updateFormat(format)
 }
 
 onMounted(() => {
@@ -79,16 +104,6 @@ const formattedNCP = computed(() => {
 })
 
 const columns = computed(() => {
-  const allColumns = [
-    { key: 'assessment', label: 'Assessment' },
-    { key: 'diagnosis', label: 'Diagnosis' },
-    { key: 'outcomes', label: 'Outcomes' },
-    { key: 'interventions', label: 'Interventions' },
-    { key: 'rationale', label: 'Rationale' },
-    { key: 'implementation', label: 'Implementation' },
-    { key: 'evaluation', label: 'Evaluation' },
-  ]
-
   return allColumns.slice(0, parseInt(selectedFormat.value))
 })
 
@@ -97,18 +112,57 @@ const hasPlaceholderColumns = computed(() =>
     ['implementation', 'evaluation'].includes(column.key)
   )
 )
+
+const currentFormatOption = computed(() =>
+  formatOptions.value.find(option => option.value === selectedFormat.value)
+)
 </script>
 
 <template>
   <div class="space-y-6">
-    <!-- Title -->
-    <div>
-      <h1 class="font-poppins text-2xl font-bold">
-        Generated Nursing Care Plan
-      </h1>
-      <p class="text-muted-foreground text-sm">
-        {{ selectedFormat }}-Column Format
-      </p>
+    <!-- Title and Format Selector -->
+    <div
+      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+    >
+      <div>
+        <h1 class="font-poppins text-2xl font-bold">
+          Generated Nursing Care Plan
+        </h1>
+        <p class="text-muted-foreground text-sm">
+          {{ selectedFormat }}-Column Format
+        </p>
+      </div>
+
+      <!-- Format Dropdown -->
+      <DropdownMenu>
+        <DropdownMenuTrigger as-child>
+          <Button
+            variant="outline"
+            size="sm"
+            class="hover:bg-muted/10 min-w-fit"
+          >
+            <Settings class="w-4 h-4 mr-2" />
+            {{ currentFormatOption?.label || `${selectedFormat} Columns` }}
+            <ChevronDown class="w-4 h-4 ml-2" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent class="w-[calc(100vw-2rem)] md:w-80" align="end">
+          <DropdownMenuItem
+            v-for="format in formatOptions"
+            :key="format.value"
+            @click="handleFormatChange(format.value)"
+            class="flex flex-col items-start p-3 cursor-pointer"
+            :class="{
+              'bg-primary/10 text-primary': selectedFormat === format.value,
+            }"
+          >
+            <div class="font-medium">{{ format.label }}</div>
+            <div class="text-xs text-muted-foreground mt-1">
+              {{ format.description }}
+            </div>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
 
     <!-- Alert Container -->
@@ -178,7 +232,7 @@ const hasPlaceholderColumns = computed(() =>
             <td
               v-for="column in columns"
               :key="column.key"
-              class="border-primary/10 group hover:bg-primary/5 p-4 text-sm align-top transition-colors border min-w-[200px]"
+              class="border-primary/10 group hover:bg-primary/5 p-4 text-sm align-top border min-w-[200px]"
             >
               <div class="space-y-2">
                 <div
