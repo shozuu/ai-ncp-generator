@@ -4,7 +4,12 @@ import autoTable from 'jspdf-autotable'
 
 export const exportUtils = {
   async toPDF(ncp, columnLabels = null, isFormatted = false) {
-    const doc = new jsPDF('landscape')
+    // Create PDF with landscape orientation and Letter size (8.5" x 11")
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'in',
+      format: [8.5, 11], // Letter size in landscape (width x height)
+    })
 
     const columns =
       columnLabels ||
@@ -56,63 +61,81 @@ export const exportUtils = {
       Object.values(ncp).map(value => processTextForTable(value)),
     ]
 
-    // Add title
-    doc.setFontSize(20)
+    // Add title with consistent styling to Word export
+    doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
-    doc.setTextColor(46, 46, 56)
-    doc.text('Nursing Care Plan', doc.internal.pageSize.width / 2, 20, {
+    doc.setTextColor(45, 55, 72) // #2d3748
+    doc.text('Nursing Care Plan', doc.internal.pageSize.width / 2, 0.75, {
       align: 'center',
     })
 
-    // Create table with enhanced styling
+    // Add title underline similar to Word export
+    doc.setDrawColor(66, 153, 225) // #4299e1
+    doc.setLineWidth(0.02)
+    doc.line(2, 0.9, doc.internal.pageSize.width - 2, 0.9)
+
+    // Calculate dynamic column width based on number of columns
+    const pageWidth = doc.internal.pageSize.width
+    const marginLeft = 0.5
+    const marginRight = 0.5
+    const tableWidth = pageWidth - marginLeft - marginRight
+    const columnWidth = tableWidth / columns.length
+
+    // Create table with enhanced styling matching Word export
     autoTable(doc, {
       head: [columns],
       body: tableData,
-      startY: 30,
+      startY: 1.2, // Start after title and spacing
       theme: 'grid',
       styles: {
         fontSize: 9,
-        cellPadding: { top: 6, right: 5, bottom: 6, left: 5 }, // Increased padding
+        cellPadding: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 }, // Convert 8pt 6pt to inches
         valign: 'top',
         halign: 'left',
-        lineColor: [226, 232, 240],
-        lineWidth: 0.5,
-        textColor: [51, 65, 85],
+        lineColor: [203, 213, 224], // #cbd5e0 - matching Word
+        lineWidth: 0.007, // ~0.5pt converted to inches
+        textColor: [45, 55, 72], // #2d3748 - matching Word
         fontStyle: 'normal',
         font: 'helvetica',
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        lineHeight: 1.6, // Increased line height for better spacing
+        lineHeight: 1.4, // Matching Word line height
       },
       headStyles: {
-        fillColor: [30, 41, 59],
-        textColor: [248, 250, 252],
+        fillColor: [45, 55, 72], // #2d3748 - matching Word header
+        textColor: [255, 255, 255], // White text
         fontStyle: 'bold',
         fontSize: 10,
         halign: 'center',
-        cellPadding: { top: 8, right: 6, bottom: 8, left: 6 },
+        valign: 'middle',
+        cellPadding: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 },
       },
       bodyStyles: {
-        fillColor: [255, 255, 255],
-        minCellHeight: 20,
-        cellPadding: { top: 6, right: 5, bottom: 6, left: 5 },
+        fillColor: [255, 255, 255], // White background
+        minCellHeight: 0.25, // Minimum cell height
+        cellPadding: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 },
       },
       alternateRowStyles: {
-        fillColor: [248, 250, 252],
+        fillColor: [247, 250, 252], // #f7fafc - matching Word alternating rows
       },
       columnStyles: {
         ...Object.fromEntries(
           columns.map((_, index) => [
             index,
             {
-              cellWidth: 'auto',
-              minCellWidth: 35,
-              maxCellWidth: 55,
+              cellWidth: columnWidth,
+              minCellWidth: columnWidth * 0.8,
+              maxCellWidth: columnWidth * 1.2,
             },
           ])
         ),
       },
-      margin: { top: 30, right: 12, bottom: 20, left: 12 },
+      margin: {
+        top: 1.2,
+        right: marginRight,
+        bottom: 0.5,
+        left: marginLeft,
+      }, // 0.5" margins matching Word
       tableWidth: 'auto',
       showHead: 'everyPage',
       pageBreak: 'auto',
@@ -121,9 +144,10 @@ export const exportUtils = {
       didDrawPage: function (data) {
         const pageSize = doc.internal.pageSize
 
+        // Add footer similar to Word export
         doc.setFontSize(8)
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(148, 163, 184)
+        doc.setTextColor(113, 128, 150) // #718096 - matching Word footer color
 
         // Use doc.internal.getNumberOfPages() as fallback if data.pageCount is undefined
         const totalPages = data.pageCount || doc.internal.getNumberOfPages()
@@ -131,46 +155,53 @@ export const exportUtils = {
         const pageTextWidth = doc.getTextWidth(pageText)
         doc.text(
           pageText,
-          pageSize.width - pageTextWidth - 12,
-          pageSize.height - 12
+          pageSize.width - pageTextWidth - marginRight,
+          pageSize.height - 0.3
         )
 
         const date = new Date().toLocaleDateString('en-US', {
           year: 'numeric',
-          month: 'short',
+          month: 'long',
           day: 'numeric',
         })
-        doc.text(`Generated: ${date}`, 12, pageSize.height - 12)
+        const footerText = `Generated on ${date} | AI-NCP Generator`
+        doc.text(footerText, marginLeft, pageSize.height - 0.3)
 
-        doc.setDrawColor(226, 232, 240)
-        doc.setLineWidth(0.3)
+        // Add footer line similar to Word export
+        doc.setDrawColor(226, 232, 240) // #e2e8f0
+        doc.setLineWidth(0.007)
         doc.line(
-          12,
-          pageSize.height - 18,
-          pageSize.width - 12,
-          pageSize.height - 18
+          marginLeft,
+          pageSize.height - 0.45,
+          pageSize.width - marginRight,
+          pageSize.height - 0.45
         )
       },
 
       didParseCell: function (data) {
-        if (data.section === 'body') {
+        if (data.section === 'head') {
+          // Header cell styling to match Word export
+          data.cell.styles.lineColor = [74, 85, 104] // #4a5568 - matching Word header border
+          data.cell.styles.lineWidth = 0.014 // ~1pt converted to inches
+        } else if (data.section === 'body') {
+          // Body cell styling adjustments for longer content
           if (typeof data.cell.raw === 'string' && data.cell.raw.length > 50) {
             data.cell.styles.cellPadding = {
-              top: 8,
-              right: 6,
-              bottom: 8,
-              left: 6,
+              top: 0.11,
+              right: 0.08,
+              bottom: 0.11,
+              left: 0.08,
             }
             data.cell.styles.fontSize = 8.5
             data.cell.styles.lineHeight = 1.7
           } else {
             data.cell.styles.cellPadding = {
-              top: 6,
-              right: 5,
-              bottom: 6,
-              left: 5,
+              top: 0.08,
+              right: 0.06,
+              bottom: 0.08,
+              left: 0.06,
             }
-            data.cell.styles.lineHeight = 1.6
+            data.cell.styles.lineHeight = 1.4
           }
         }
       },
