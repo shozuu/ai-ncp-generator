@@ -62,18 +62,18 @@ onMounted(() => {
   }
 })
 
-const formatText = text => {
-  if (!text) return ''
+const formatTextToLines = text => {
+  if (!text) return []
   return text
     .split('\n')
-    .map(line => `<div class="mb-2">${line.trim()}</div>`)
-    .join('')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
 }
 
 const formattedNCP = computed(() => {
   const formatted = {}
   for (const key in props.ncp) {
-    formatted[key] = formatText(props.ncp[key])
+    formatted[key] = formatTextToLines(props.ncp[key])
   }
   return formatted
 })
@@ -111,7 +111,7 @@ const hasPlaceholderColumns = computed(() =>
       </p>
     </div>
 
-    <!-- Collapsible Alert for Placeholder Data -->
+    <!-- Alert Container -->
     <Alert class="flex flex-col space-y-3" ref="alertContainer" v-auto-animate>
       <div class="flex items-center justify-between">
         <div class="flex items-center space-x-2">
@@ -152,54 +152,47 @@ const hasPlaceholderColumns = computed(() =>
 
     <!-- Table Container -->
     <div
-      class="max-h-[70vh] overflow-x-auto border border-muted rounded-b-md mx-auto"
+      class="max-h-[70vh] overflow-x-auto border border-muted rounded-md mx-auto"
       :style="{ maxWidth: elementWidth * 0.99 + 'px' }"
     >
-      <table class="min-w-full border-collapse">
+      <table class="min-w-full border-collapse bg-card text-card-foreground">
         <thead class="bg-muted sticky top-0 z-10">
-          <tr>
+          <tr class="border-b">
             <th
               v-for="column in columns"
               :key="column.key"
-              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-left border min-w-[200px]"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-left border min-w-[200px] h-auto"
             >
               {{ column.label }}
             </th>
           </tr>
         </thead>
 
+        <!-- Table Body -->
         <tbody>
           <tr
             v-for="(row, index) in [formattedNCP]"
             :key="index"
-            :class="index % 2 === 0 ? 'bg-muted/10' : 'bg-white'"
+            class="hover:bg-muted/20 border-b"
           >
             <td
               v-for="column in columns"
               :key="column.key"
               class="border-primary/10 group hover:bg-primary/5 p-4 text-sm align-top transition-colors border min-w-[200px]"
-              v-html="row[column.key]"
-            ></td>
+            >
+              <div class="space-y-2">
+                <div
+                  v-for="(line, lineIndex) in row[column.key]"
+                  :key="lineIndex"
+                  class="mb-2"
+                >
+                  {{ line }}
+                </div>
+              </div>
+            </td>
           </tr>
         </tbody>
       </table>
     </div>
   </div>
 </template>
-
-<style>
-/* Add spacing and styles for lists */
-ul {
-  padding-left: 20px;
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-}
-
-li {
-  margin-bottom: 0.25rem;
-}
-
-p {
-  margin-bottom: 0.5rem;
-}
-</style>
