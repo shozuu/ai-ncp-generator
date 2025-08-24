@@ -1,9 +1,13 @@
+import { userService } from '@/services/userService'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 
 export const exportUtils = {
   async toPDF(ncp, columnLabels = null, isFormatted = false) {
+    // Get user details for accountability
+    const userDetails = await userService.getUserProfile()
+
     // Create PDF with landscape orientation and Letter size (8.5" x 11")
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -133,7 +137,7 @@ export const exportUtils = {
       margin: {
         top: 1.2,
         right: marginRight,
-        bottom: 0.5,
+        bottom: 0.6, // Increased bottom margin for user details
         left: marginLeft,
       }, // 0.5" margins matching Word
       tableWidth: 'auto',
@@ -144,7 +148,7 @@ export const exportUtils = {
       didDrawPage: function (data) {
         const pageSize = doc.internal.pageSize
 
-        // Add footer similar to Word export
+        // Add footer with user details and accountability info
         doc.setFontSize(8)
         doc.setFont('helvetica', 'normal')
         doc.setTextColor(113, 128, 150) // #718096 - matching Word footer color
@@ -156,7 +160,7 @@ export const exportUtils = {
         doc.text(
           pageText,
           pageSize.width - pageTextWidth - marginRight,
-          pageSize.height - 0.3
+          pageSize.height - 0.4
         )
 
         const date = new Date().toLocaleDateString('en-US', {
@@ -164,17 +168,22 @@ export const exportUtils = {
           month: 'long',
           day: 'numeric',
         })
+
+        // Enhanced footer with user accountability details
         const footerText = `Generated on ${date} | AI-NCP Generator`
-        doc.text(footerText, marginLeft, pageSize.height - 0.3)
+        const userAccountabilityText = `Created by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}`
+
+        doc.text(footerText, marginLeft, pageSize.height - 0.4)
+        doc.text(userAccountabilityText, marginLeft, pageSize.height - 0.25)
 
         // Add footer line similar to Word export
         doc.setDrawColor(226, 232, 240) // #e2e8f0
         doc.setLineWidth(0.007)
         doc.line(
           marginLeft,
-          pageSize.height - 0.45,
+          pageSize.height - 0.55,
           pageSize.width - marginRight,
-          pageSize.height - 0.45
+          pageSize.height - 0.55
         )
       },
 
@@ -210,7 +219,10 @@ export const exportUtils = {
     doc.save('nursing-care-plan.pdf')
   },
 
-  toWord(ncp, columnLabels = null, isFormatted = false) {
+  async toWord(ncp, columnLabels = null, isFormatted = false) {
+    // Get user details for accountability
+    const userDetails = await userService.getUserProfile()
+
     const columns =
       columnLabels ||
       Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
@@ -413,6 +425,15 @@ export const exportUtils = {
               page-break-inside: avoid;
             }
             
+            .user-accountability {
+              margin-top: 8pt;
+              text-align: center;
+              font-size: 7pt;
+              color: #4a5568;
+              font-family: 'Calibri', 'Arial', sans-serif;
+              font-weight: 500;
+            }
+            
             /* Word-specific styles */
             p {
               margin: 0;
@@ -477,6 +498,9 @@ export const exportUtils = {
                 day: 'numeric',
               })} | AI-NCP Generator
             </div>
+            <div class="user-accountability">
+              Created by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}
+            </div>
           </div>
         </body>
       </html>
@@ -492,6 +516,9 @@ export const exportUtils = {
   },
 
   async toPNG(ncp, columnLabels = null, isFormatted = false) {
+    // Get user details for accountability
+    const userDetails = await userService.getUserProfile()
+
     const columns =
       columnLabels ||
       Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
@@ -609,15 +636,21 @@ export const exportUtils = {
     table.appendChild(tbody)
     container.appendChild(table)
 
+    // Enhanced footer with user accountability
     const footer = document.createElement('div')
-    footer.textContent = `Generated on ${new Date().toLocaleDateString(
-      'en-US',
-      {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      }
-    )} | AI-NCP Generator`
+    footer.innerHTML = `
+      <div style="margin-bottom: 8px;">Generated on ${new Date().toLocaleDateString(
+        'en-US',
+        {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }
+      )} | AI-NCP Generator</div>
+      <div style="font-size: 10px; color: #4a5568; font-weight: 600;">
+        Created by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}
+      </div>
+    `
     footer.style.cssText = `
       margin-top: 30px;
       text-align: center;
@@ -649,7 +682,10 @@ export const exportUtils = {
     }
   },
 
-  toCSV(ncp, columnLabels = null, isFormatted = false) {
+  async toCSV(ncp, columnLabels = null, isFormatted = false) {
+    // Get user details for accountability
+    const userDetails = await userService.getUserProfile()
+
     const columns =
       columnLabels ||
       Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
@@ -668,7 +704,23 @@ export const exportUtils = {
       })
       .join(',')
 
-    const csvContent = `${headers}\n${values}`
+    const date = new Date().toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    })
+
+    // Add metadata rows with user accountability
+    const metadataRows = [
+      `"Generated on","${date}"`,
+      `"AI-NCP Generator","AI-Generated Nursing Care Plan"`,
+      `"Created by","${userDetails.full_name}"`,
+      `"Role","${userDetails.role}"`,
+      `"Organization","${userDetails.organization}"`,
+      `""`, // Empty row for separation
+    ]
+
+    const csvContent = [...metadataRows, headers, values].join('\n')
 
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
