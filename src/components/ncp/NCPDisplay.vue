@@ -70,9 +70,9 @@ const exportOptions = [
     description: 'Portable Document Format',
   },
   {
-    value: 'csv',
-    label: 'Export as CSV',
-    description: 'Comma-separated values',
+    value: 'xlsx',
+    label: 'Export as Excel',
+    description: 'Microsoft Excel spreadsheet',
   },
   {
     value: 'word',
@@ -129,11 +129,11 @@ const handleExport = async exportType => {
       case 'pdf':
         await exportUtils.toPDF(filteredFormattedNCP, columnLabels, true)
         break
-      case 'csv':
-        exportUtils.toCSV(filteredFormattedNCP, columnLabels, true)
+      case 'xlsx':
+        await exportUtils.toXLSX(filteredFormattedNCP, columnLabels, true)
         break
       case 'word':
-        exportUtils.toWord(filteredFormattedNCP, columnLabels, true)
+        await exportUtils.toWord(filteredFormattedNCP, columnLabels, true)
         break
       case 'png':
         await exportUtils.toPNG(filteredFormattedNCP, columnLabels, true)

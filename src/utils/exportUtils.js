@@ -2,6 +2,7 @@ import { userService } from '@/services/userService'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import * as XLSX from 'xlsx'
 
 export const exportUtils = {
   async toPDF(ncp, columnLabels = null, isFormatted = false) {
@@ -682,50 +683,335 @@ export const exportUtils = {
     }
   },
 
-  async toCSV(ncp, columnLabels = null, isFormatted = false) {
-    // Get user details for accountability
+  async toXLSX(ncp, columnLabels = null, isFormatted = false) {
     const userDetails = await userService.getUserProfile()
 
     const columns =
       columnLabels ||
       Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
 
-    const headers = columns.map(col => `"${col}"`).join(',')
-    const values = Object.values(ncp)
-      .map(value => {
-        let cleanValue
-        if (isFormatted && Array.isArray(value)) {
-          cleanValue = value.join(' | ') // Join array items with separator
-        } else {
-          cleanValue = (value || '').toString().replace(/\n/g, ' | ')
+    const processTextForExcel = data => {
+      if (isFormatted && Array.isArray(data)) {
+        return data
+          .map((line, index) => {
+            if (index < data.length - 1) {
+              const currentLine = line.trim()
+              const nextLine = data[index + 1]?.trim()
+
+              const isCurrentNumbered = currentLine.match(/^\d+\./)
+              const isCurrentBullet = currentLine.startsWith('-')
+              const isNextNumbered = nextLine?.match(/^\d+\./)
+              const isNextBullet = nextLine?.startsWith('-')
+
+              // Add extra spacing between different content types
+              if (
+                (isCurrentNumbered && !isNextNumbered) ||
+                (isCurrentBullet && !isNextBullet) ||
+                (!isCurrentNumbered &&
+                  !isCurrentBullet &&
+                  (isNextNumbered || isNextBullet))
+              ) {
+                return line + '\n'
+              }
+            }
+            return line
+          })
+          .join('\n')
+      } else {
+        return (data || '').toString()
+      }
+    }
+
+    const workbook = XLSX.utils.book_new()
+    workbook.Props = {
+      Title: 'Nursing Care Plan',
+      Subject: 'AI-Generated Nursing Care Plan',
+      Author: userDetails.full_name,
+      CreatedDate: new Date(),
+    }
+
+    const ncpData = [
+      columns,
+      Object.values(ncp).map(value => processTextForExcel(value)),
+    ]
+
+    const ncpWorksheet = XLSX.utils.aoa_to_sheet(ncpData)
+
+    const columnWidths = columns.map(() => ({ wch: 40 }))
+    ncpWorksheet['!cols'] = columnWidths
+
+    const headerStyle = {
+      fill: {
+        fgColor: { rgb: 'FF2D3748' },
+      },
+      font: {
+        bold: true,
+        color: { rgb: 'FFFFFFFF' },
+        sz: 12,
+        name: 'Calibri',
+      },
+      alignment: {
+        horizontal: 'center',
+        vertical: 'center',
+        wrapText: true,
+      },
+      border: {
+        top: { style: 'medium', color: { rgb: 'FF4A5568' } },
+        bottom: { style: 'medium', color: { rgb: 'FF4A5568' } },
+        left: { style: 'medium', color: { rgb: 'FF4A5568' } },
+        right: { style: 'medium', color: { rgb: 'FF4A5568' } },
+      },
+    }
+
+    const contentStyle = {
+      alignment: {
+        vertical: 'top',
+        horizontal: 'left',
+        wrapText: true,
+        shrinkToFit: false,
+        textRotation: 0,
+      },
+      font: {
+        sz: 10,
+        name: 'Calibri',
+        color: { rgb: 'FF000000' },
+      },
+      border: {
+        top: { style: 'thin', color: { rgb: 'FFCBD5E0' } },
+        bottom: { style: 'thin', color: { rgb: 'FFCBD5E0' } },
+        left: { style: 'thin', color: { rgb: 'FFCBD5E0' } },
+        right: { style: 'thin', color: { rgb: 'FFCBD5E0' } },
+      },
+    }
+
+    const headerRange = XLSX.utils.decode_range(ncpWorksheet['!ref'])
+
+    // Style header row (row 0)
+    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
+      if (!ncpWorksheet[cellAddress]) continue
+
+      // Ensure cell is marked as string type
+      ncpWorksheet[cellAddress].t = 's'
+      ncpWorksheet[cellAddress].s = { ...headerStyle }
+    }
+
+    // Style content rows (row 1 and below) with alternating colors
+    for (let row = 1; row <= headerRange.e.r; row++) {
+      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+        if (!ncpWorksheet[cellAddress]) continue
+
+        // Ensure cell is marked as string type for proper text wrapping
+        ncpWorksheet[cellAddress].t = 's'
+
+        // Create style with alternating background colors
+        const cellStyle = {
+          ...contentStyle,
+          fill: {
+            fgColor: { rgb: col % 2 === 0 ? 'FFF7FAFC' : 'FFFFFFFF' },
+          },
         }
 
-        return `"${cleanValue.replace(/"/g, '""').trim()}`
-      })
-      .join(',')
+        ncpWorksheet[cellAddress].s = cellStyle
+      }
+    }
 
+    // Calculate and set row heights more precisely
+    const rowHeights = []
+    for (let i = 0; i <= headerRange.e.r; i++) {
+      if (i === 0) {
+        // Header row height
+        rowHeights.push({ hpx: 50 })
+      } else {
+        // Calculate height based on content with better estimation
+        const rowContent = Object.values(ncp).map(value =>
+          processTextForExcel(value)
+        )
+
+        // Calculate the maximum lines needed for any cell in this row
+        const maxLines = Math.max(
+          ...rowContent.map(content => {
+            // Count explicit line breaks
+            const explicitLines = (content.match(/\n/g) || []).length + 1
+
+            // Estimate wrapped lines (40 characters per line for 40-width column)
+            const estimatedWrappedLines = Math.ceil(content.length / 40)
+
+            // Use the maximum of explicit lines and estimated wrapped lines
+            return Math.max(explicitLines, estimatedWrappedLines)
+          })
+        )
+
+        // Set row height: 18px per line with minimum of 100px and maximum of 400px
+        const calculatedHeight = Math.max(100, Math.min(400, maxLines * 18))
+        rowHeights.push({ hpx: calculatedHeight })
+      }
+    }
+    ncpWorksheet['!rows'] = rowHeights
+
+    // Add worksheet-level settings to force proper display
+    if (!ncpWorksheet['!ws']) ncpWorksheet['!ws'] = {}
+    ncpWorksheet['!ws']['!views'] = [
+      {
+        showGridLines: true,
+        showRowColHeaders: true,
+        showZeros: true,
+        rightToLeft: false,
+        tabSelected: true,
+        showRuler: true,
+        showOutlineSymbols: true,
+        defaultGridColor: true,
+        view: 'normal',
+        topLeftCell: 'A1',
+      },
+    ]
+
+    // Set print settings for landscape orientation
+    ncpWorksheet['!margins'] = {
+      left: 0.7,
+      right: 0.7,
+      top: 0.75,
+      bottom: 0.75,
+      header: 0.3,
+      footer: 0.3,
+    }
+
+    ncpWorksheet['!printSettings'] = {
+      orientation: 'landscape',
+      scale: 100,
+      fitToWidth: 1,
+      fitToHeight: 0,
+      paperSize: 1, // Letter size
+      blackAndWhite: false,
+      draft: false,
+      cellComments: 'None',
+      useFirstPageNumber: true,
+      horizontalDpi: 300,
+      verticalDpi: 300,
+      copies: 1,
+    }
+
+    // Add the NCP sheet to workbook
+    XLSX.utils.book_append_sheet(workbook, ncpWorksheet, 'Nursing Care Plan')
+
+    // Create metadata sheet with improved formatting
     const date = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric',
     })
 
-    // Add metadata rows with user accountability
-    const metadataRows = [
-      `"Generated on","${date}"`,
-      `"AI-NCP Generator","AI-Generated Nursing Care Plan"`,
-      `"Created by","${userDetails.full_name}"`,
-      `"Role","${userDetails.role}"`,
-      `"Organization","${userDetails.organization}"`,
-      `""`, // Empty row for separation
+    const metadataData = [
+      ['Document Information', ''],
+      ['Generated on', date],
+      ['Generator', 'AI-NCP Generator'],
+      ['', ''],
+      ['Creator Information', ''],
+      ['Created by', userDetails.full_name],
+      ['Role', userDetails.role],
+      ['Organization', userDetails.organization],
+      ['', ''],
+      ['Notes', ''],
+      [
+        'AI-Generated Content',
+        'This nursing care plan was generated using AI and should be reviewed by qualified healthcare professionals.',
+      ],
+      ['Reference', 'Based on NANDA-I, NIC, and NOC standards'],
+      [
+        'Disclaimer',
+        'Users should verify and modify the plan based on current patient assessment and clinical standards.',
+      ],
     ]
 
-    const csvContent = [...metadataRows, headers, values].join('\n')
+    const metadataWorksheet = XLSX.utils.aoa_to_sheet(metadataData)
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = 'nursing-care-plan.csv'
-    link.click()
+    // Set metadata column widths
+    metadataWorksheet['!cols'] = [{ wch: 25 }, { wch: 65 }]
+
+    // Style metadata sheet with proper formatting
+    const metadataRange = XLSX.utils.decode_range(metadataWorksheet['!ref'])
+    const sectionHeaderCells = ['A1', 'A5', 'A10']
+
+    for (let row = 0; row <= metadataRange.e.r; row++) {
+      for (let col = 0; col <= metadataRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+        if (!metadataWorksheet[cellAddress]) continue
+
+        // Mark as string type
+        metadataWorksheet[cellAddress].t = 's'
+
+        if (sectionHeaderCells.includes(cellAddress)) {
+          // Section header styling
+          metadataWorksheet[cellAddress].s = {
+            font: {
+              bold: true,
+              sz: 12,
+              color: { rgb: 'FF2D3748' },
+              name: 'Calibri',
+            },
+            fill: {
+              fgColor: { rgb: 'FFE2E8F0' },
+            },
+            alignment: {
+              vertical: 'center',
+              horizontal: 'left',
+              wrapText: true,
+            },
+          }
+        } else {
+          // Regular content styling
+          metadataWorksheet[cellAddress].s = {
+            alignment: {
+              vertical: 'top',
+              horizontal: 'left',
+              wrapText: true,
+            },
+            font: {
+              sz: 10,
+              name: 'Calibri',
+              color: { rgb: 'FF000000' },
+            },
+          }
+        }
+      }
+    }
+
+    // Set row heights for metadata based on content
+    const metadataRowHeights = metadataData.map((row, index) => {
+      if (sectionHeaderCells.some(cell => cell.startsWith(`A${index + 1}`))) {
+        return { hpx: 35 } // Section headers
+      }
+
+      // Calculate height based on content length for long text
+      const maxContentLength = Math.max(
+        ...row.map(cell => (cell || '').toString().length)
+      )
+      if (maxContentLength > 50) {
+        const lines = Math.ceil(maxContentLength / 60) // 60 chars per line in metadata
+        return { hpx: Math.max(30, Math.min(120, lines * 20)) }
+      }
+
+      return { hpx: 25 } // Default height
+    })
+
+    metadataWorksheet['!rows'] = metadataRowHeights
+
+    // Add metadata sheet to workbook
+    XLSX.utils.book_append_sheet(workbook, metadataWorksheet, 'Document Info')
+
+    // Write file with enhanced options for better Excel compatibility
+    XLSX.writeFile(workbook, 'nursing-care-plan.xlsx', {
+      bookType: 'xlsx',
+      type: 'binary',
+      cellStyles: true,
+      compression: true,
+      Props: {
+        Title: 'Nursing Care Plan',
+        Subject: 'AI-Generated Nursing Care Plan',
+        Author: userDetails.full_name,
+        CreatedDate: new Date(),
+      },
+    })
   },
 }
