@@ -557,6 +557,7 @@ export const exportUtils = {
     }
 
     const container = document.createElement('div')
+    // Force light theme styles regardless of website theme
     container.style.cssText = `
       padding: 40px;
       background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
@@ -564,14 +565,21 @@ export const exportUtils = {
       font-family: system-ui, -apple-system, sans-serif;
       box-shadow: 0 25px 50px rgba(0, 0, 0, 0.15);
       border-radius: 16px;
+      color: #1e293b !important;
+      color-scheme: light !important;
+      forced-color-adjust: none !important;
     `
+
+    // Force light theme on container and all descendants
+    container.setAttribute('data-theme', 'light')
+    container.classList.add('light-theme-export')
 
     const title = document.createElement('h1')
     title.textContent = 'Nursing Care Plan'
     title.style.cssText = `
       margin: 0 0 40px 0;
       font-size: 32px;
-      color: #1e293b;
+      color: #1e293b !important;
       text-align: center;
       font-weight: 700;
       letter-spacing: -0.025em;
@@ -579,7 +587,7 @@ export const exportUtils = {
     `
     container.appendChild(title)
 
-    // Create table with enhanced styling
+    // Create table with enhanced styling and forced light theme
     const table = document.createElement('table')
     table.style.cssText = `
       width: 100%;
@@ -588,8 +596,9 @@ export const exportUtils = {
       box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
       border-radius: 12px;
       overflow: hidden;
-      background: white;
+      background: white !important;
       border: 1px solid #e2e8f0;
+      color: #1e293b !important;
     `
 
     // Create header
@@ -601,8 +610,8 @@ export const exportUtils = {
       th.style.cssText = `
         border: none;
         padding: 20px 16px;
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-        color: #f8fafc;
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+        color: #f8fafc !important;
         font-weight: 600;
         text-align: center;
         font-size: 13px;
@@ -629,7 +638,8 @@ export const exportUtils = {
         vertical-align: top;
         font-size: 11px;
         line-height: 1.8;
-        background-color: ${index % 2 === 0 ? '#f8fafc' : '#ffffff'};
+        background-color: ${index % 2 === 0 ? '#f8fafc' : '#ffffff'} !important;
+        color: #1e293b !important;
       `
       dataRow.appendChild(td)
     })
@@ -637,10 +647,10 @@ export const exportUtils = {
     table.appendChild(tbody)
     container.appendChild(table)
 
-    // Enhanced footer with user accountability
+    // Enhanced footer with user accountability and forced light theme
     const footer = document.createElement('div')
     footer.innerHTML = `
-      <div style="margin-bottom: 8px;">Generated on ${new Date().toLocaleDateString(
+      <div style="margin-bottom: 8px; color: #64748b !important;">Generated on ${new Date().toLocaleDateString(
         'en-US',
         {
           year: 'numeric',
@@ -648,7 +658,7 @@ export const exportUtils = {
           day: 'numeric',
         }
       )} | AI-NCP Generator</div>
-      <div style="font-size: 10px; color: #4a5568; font-weight: 600;">
+      <div style="font-size: 10px; color: #4a5568 !important; font-weight: 600;">
         Created by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}
       </div>
     `
@@ -656,22 +666,103 @@ export const exportUtils = {
       margin-top: 30px;
       text-align: center;
       font-size: 11px;
-      color: #64748b;
+      color: #64748b !important;
       font-weight: 500;
       letter-spacing: 0.025em;
     `
     container.appendChild(footer)
 
+    // Add CSS to force light theme styles
+    const style = document.createElement('style')
+    style.textContent = `
+      .light-theme-export,
+      .light-theme-export * {
+        color-scheme: light !important;
+        forced-color-adjust: none !important;
+      }
+      
+      .light-theme-export {
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%) !important;
+        color: #1e293b !important;
+      }
+      
+      .light-theme-export table {
+        background: white !important;
+        color: #1e293b !important;
+      }
+      
+      .light-theme-export th {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+        color: #f8fafc !important;
+      }
+      
+      .light-theme-export td {
+        color: #1e293b !important;
+      }
+      
+      .light-theme-export .footer,
+      .light-theme-export .footer * {
+        color: #64748b !important;
+      }
+      
+      /* Override any dark mode styles */
+      .dark .light-theme-export,
+      .dark .light-theme-export *,
+      [data-theme="dark"] .light-theme-export,
+      [data-theme="dark"] .light-theme-export * {
+        color: #1e293b !important;
+        background-color: transparent !important;
+      }
+      
+      .dark .light-theme-export table,
+      [data-theme="dark"] .light-theme-export table {
+        background: white !important;
+      }
+      
+      .dark .light-theme-export th,
+      [data-theme="dark"] .light-theme-export th {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+        color: #f8fafc !important;
+      }
+    `
+
+    document.head.appendChild(style)
     document.body.appendChild(container)
 
     try {
       const canvas = await html2canvas(container, {
-        backgroundColor: 'transparent',
+        backgroundColor: '#ffffff', // Force white background
         scale: 2.5,
         useCORS: true,
         allowTaint: true,
         width: 1500,
         height: container.offsetHeight,
+        ignoreElements: element => {
+          // Ignore any dark mode specific elements
+          return element.classList.contains('dark-mode-only')
+        },
+        onclone: clonedDoc => {
+          // Force light theme on the cloned document
+          const clonedContainer = clonedDoc.querySelector('.light-theme-export')
+          if (clonedContainer) {
+            clonedContainer.setAttribute('data-theme', 'light')
+            clonedDoc.documentElement.setAttribute('data-theme', 'light')
+            clonedDoc.body.setAttribute('data-theme', 'light')
+
+            // Remove any dark mode classes
+            clonedDoc.documentElement.classList.remove('dark')
+            clonedDoc.body.classList.remove('dark')
+
+            // Force all text to be dark
+            const allElements = clonedContainer.querySelectorAll('*')
+            allElements.forEach(el => {
+              if (el.tagName !== 'TH') {
+                // Don't change header text color
+                el.style.color = '#1e293b !important'
+              }
+            })
+          }
+        },
       })
 
       const link = document.createElement('a')
@@ -680,6 +771,7 @@ export const exportUtils = {
       link.click()
     } finally {
       document.body.removeChild(container)
+      document.head.removeChild(style)
     }
   },
 
