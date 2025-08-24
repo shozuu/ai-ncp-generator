@@ -61,7 +61,7 @@ const userRole = computed(() => {
     nurse: 'Registered Nurse',
     nursing_student: 'Nursing Student',
     nursing_educator: 'Nursing Educator',
-    other: 'Healthcare Professional',
+    other: 'Other',
   }
 
   return roleMap[role] || role
