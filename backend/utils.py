@@ -55,28 +55,21 @@ def format_data(data) -> str:
 
 def parse_ncp_response(text: str) -> Dict:
     """
-    Parse the AI-generated Nursing Care Plan (NCP) text into structured sections.
-    Handles various formatting styles and ensures all sections are captured.
+    Parse the AI response into structured sections.
+    Returns clean text without HTML formatting.
     """
-    # Define the expected sections and their default values
     sections = {
         "assessment": "Not applicable",
-        "diagnosis": "Not applicable",
+        "diagnosis": "Not applicable", 
         "outcomes": "Not applicable",
         "interventions": "Not applicable",
         "rationale": "Not applicable",
         "implementation": "Not applicable",
-        "evaluation": "Not applicable",
+        "evaluation": "Not applicable"
     }
-
-    # Define a regex pattern to match section headings
-    # Handles cases like "**Assessment:**", "**Diagnosis (NANDA-I):**", etc.
-    section_pattern = re.compile(
-        r"^\s*(?:\*\*|[-*]|\d+\.)?\s*(assessment|diagnosis(?: \(nanda-i\))?|outcomes|interventions|rationale|implementation|evaluation)\s*[:：]?\s*\*\*$",
-        re.IGNORECASE
-    )
-
-    # Track the current section being processed
+    
+    # Define regex pattern to match section headers
+    section_pattern = re.compile(r'\*\*(.*?):\*\*', re.IGNORECASE)
     current_section = None
 
     # Iterate through each line of the text
@@ -93,18 +86,6 @@ def parse_ncp_response(text: str) -> Dict:
             else:
                 sections[current_section] += f"\n{line}"
 
-    # Format sections with HTML for better readability
-    for key, content in sections.items():
-        if content != "Not applicable":
-            lines = content.split("\n")
-            formatted_lines = []
-            for line in lines:
-                if line.startswith("* "):  # Bold subheadings
-                    formatted_lines.append(f"<ul class='custom-ul'><strong>{line[2:].strip()}</strong></ul>")
-                elif line.startswith("- "):  # List items
-                    formatted_lines.append(f"<li>{line[2:].strip()}</li>")
-                else:  # Regular text
-                    formatted_lines.append(f"<p>{line.strip()}</p>")
-            sections[key] = "".join(formatted_lines)
-
+    # Return clean text without HTML formatting
+    # The frontend will handle formatting during display
     return sections
