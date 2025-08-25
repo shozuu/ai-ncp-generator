@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/sidebar'
 import {
   Brain,
+  FileClock,
   HelpCircle,
   Home,
   KeyRound,
@@ -45,7 +46,7 @@ const data = {
     {
       title: 'My NCPs',
       url: '/ncps',
-      icon: Brain,
+      icon: FileClock,
     },
 
     // login and signup
