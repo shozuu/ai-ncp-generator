@@ -54,7 +54,11 @@ const handleFormatChange = format => {
 const handleAssessmentSubmit = async formData => {
   isLoading.value = true
   try {
-    await ncpService.generateNCP(formData)
+    const assessmentData = {
+      ...formData,
+      format: selectedFormat.value,
+    }
+    await ncpService.generateNCP(assessmentData)
     const ncps = await ncpService.getUserNCPs()
     const latestNCP = ncps[0]
     toast({

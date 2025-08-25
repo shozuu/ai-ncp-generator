@@ -52,17 +52,6 @@ const sectionTitles = {
   evaluation: 'Evaluation',
 }
 
-// Dynamic breadcrumbs that include the NCP title
-const breadcrumbs = computed(() => [
-  { title: 'Home', to: '/' },
-  { title: 'NCP Explanations', to: '/explain' },
-  {
-    title: ncp.value?.title || 'Explanation Details',
-    to: '',
-    isActive: true,
-  },
-])
-
 onMounted(async () => {
   await loadNCPAndExplanation()
 })
@@ -139,7 +128,7 @@ const availableSections = computed(() => {
 
 <template>
   <PageHead :title="`- ${ncp?.title || 'NCP Explanation'}`" />
-  <SidebarLayout :breadcrumbs="breadcrumbs">
+  <SidebarLayout>
     <div class="space-y-6">
       <!-- Header -->
       <div class="flex-1 min-w-0">

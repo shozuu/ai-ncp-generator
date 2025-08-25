@@ -20,7 +20,7 @@ export const ncpService = {
 
       const generatedNCP = response.data
 
-      // save to supabase
+      // save to supabase with the user's preferred format
       const {
         data: { user },
       } = await supabase.auth.getUser()
