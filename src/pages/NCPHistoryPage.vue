@@ -183,7 +183,7 @@ const confirmDelete = async () => {
               <TooltipTrigger as-child>
                 <Button
                   size="icon"
-                  variant="ghost"
+                  variant="outline"
                   @click="openRenameDialog(ncp)"
                   aria-label="Rename"
                 >
@@ -196,7 +196,7 @@ const confirmDelete = async () => {
               <TooltipTrigger as-child>
                 <Button
                   size="icon"
-                  variant="ghost"
+                  variant="outline"
                   @click="openDeleteDialog(ncp)"
                   aria-label="Delete"
                 >
@@ -235,7 +235,7 @@ const confirmDelete = async () => {
               <TooltipTrigger as-child>
                 <Button
                   size="icon"
-                  variant="ghost"
+                  variant="outline"
                   @click="openRenameDialog(ncp)"
                   aria-label="Rename"
                 >
@@ -248,7 +248,7 @@ const confirmDelete = async () => {
               <TooltipTrigger as-child>
                 <Button
                   size="icon"
-                  variant="ghost"
+                  variant="outline"
                   @click="openDeleteDialog(ncp)"
                   aria-label="Delete"
                 >

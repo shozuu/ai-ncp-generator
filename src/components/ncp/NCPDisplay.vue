@@ -6,9 +6,13 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast/use-toast'
+import { ncpService } from '@/services/ncpService'
 import { exportUtils } from '@/utils/exportUtils'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { useResizeObserver } from '@vueuse/core'
@@ -16,13 +20,17 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Edit,
   Info,
+  MoreHorizontal,
   Pencil,
+  Save,
   Settings,
+  X,
 } from 'lucide-vue-next'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 
-const emit = defineEmits(['update:format', 'ncp-renamed'])
+const emit = defineEmits(['update:format', 'ncp-renamed', 'ncp-updated'])
 const props = defineProps({
   ncp: {
     type: Object,
@@ -40,9 +48,24 @@ const isAlertCollapsed = ref(false)
 const alertContainer = ref(null)
 const elementWidth = ref(0)
 const showRenameDialog = ref(false)
+const isEditing = ref(false)
+const isSaving = ref(false)
+
+// Create reactive form data for editing
+const formData = reactive({})
 
 const allColumns = [
   { key: 'assessment', label: 'Assessment' },
+  { key: 'diagnosis', label: 'Diagnosis' },
+  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'interventions', label: 'Interventions' },
+  { key: 'rationale', label: 'Rationale' },
+  { key: 'implementation', label: 'Implementation' },
+  { key: 'evaluation', label: 'Evaluation' },
+]
+
+// Editable columns (excluding assessment)
+const editableColumns = [
   { key: 'diagnosis', label: 'Diagnosis' },
   { key: 'outcomes', label: 'Outcomes' },
   { key: 'interventions', label: 'Interventions' },
@@ -99,11 +122,9 @@ watch(
 useResizeObserver(alertContainer, entries => {
   const entry = entries[0]
   if (entry) {
-    // Use borderBoxSize for total width including padding and borders
     const totalWidth =
       entry.borderBoxSize?.[0]?.inlineSize || entry.contentRect.width
     elementWidth.value = totalWidth
-    // use 99% of elementWidth's value to serve as max-width to bypass layout problem
   }
 })
 
@@ -171,7 +192,9 @@ onMounted(() => {
 })
 
 const formatTextToLines = text => {
-  if (!text) return []
+  // Handle null, undefined, or non-string values
+  if (!text || typeof text !== 'string') return []
+
   return text
     .split('\n')
     .map(line => line.trim())
@@ -190,14 +213,16 @@ const columns = computed(() => {
   return allColumns.slice(0, parseInt(selectedFormat.value))
 })
 
+const editableColumnsInFormat = computed(() => {
+  return editableColumns.filter(col =>
+    columns.value.some(c => c.key === col.key)
+  )
+})
+
 const hasPlaceholderColumns = computed(() =>
   columns.value.some(column =>
     ['implementation', 'evaluation'].includes(column.key)
   )
-)
-
-const currentFormatOption = computed(() =>
-  formatOptions.value.find(option => option.value === selectedFormat.value)
 )
 
 const openRenameDialog = () => {
@@ -207,96 +232,200 @@ const openRenameDialog = () => {
 const handleNCPRenamed = updatedNCP => {
   emit('ncp-renamed', updatedNCP)
 }
+
+const handleNCPUpdated = updatedNCP => {
+  emit('ncp-updated', updatedNCP)
+  isEditing.value = false
+}
+
+// Editing functions
+const initializeFormData = () => {
+  editableColumnsInFormat.value.forEach(column => {
+    formData[column.key] = props.ncp[column.key] || ''
+  })
+}
+
+const startEditing = () => {
+  isEditing.value = true
+  initializeFormData()
+}
+
+const cancelEditing = () => {
+  isEditing.value = false
+}
+
+const saveChanges = async () => {
+  isSaving.value = true
+  try {
+    const updatedNCP = await ncpService.updateNCP(props.ncp.id, formData)
+
+    toast({
+      title: 'Success',
+      description: 'NCP updated successfully',
+    })
+
+    handleNCPUpdated(updatedNCP)
+  } catch (error) {
+    toast({
+      title: 'Error',
+      description: error.message || 'Failed to update NCP',
+      variant: 'destructive',
+    })
+  } finally {
+    isSaving.value = false
+  }
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <!-- Title and Action Buttons -->
     <div
-      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
+      class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
     >
-      <div class="flex items-center gap-3 flex-1 min-w-0">
-        <!-- Display the custom NCP title -->
-        <div class="flex-1 min-w-0">
-          <h1 class="font-poppins text-2xl font-bold truncate">
-            {{ ncp.title || 'Generated Nursing Care Plan' }}
-          </h1>
-          <p class="text-muted-foreground text-sm">
-            {{ selectedFormat }}-Column Format
-          </p>
+      <!-- Title Section -->
+      <div class="flex-1 min-w-0">
+        <h1 class="font-poppins text-2xl font-bold truncate">
+          {{ ncp.title || 'Generated Nursing Care Plan' }}
+        </h1>
+        <div class="flex items-center gap-2 text-muted-foreground text-sm">
+          <span>{{ selectedFormat }}-Column Format</span>
+          <div
+            v-if="ncp.is_modified"
+            class="flex items-center gap-1 text-amber-600"
+          >
+            <div class="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
+            <span class="text-xs">Modified</span>
+          </div>
         </div>
-
-        <!-- Rename Button -->
-        <Button
-          variant="ghost"
-          size="sm"
-          @click="openRenameDialog"
-          class="hover:bg-muted/10 flex-shrink-0"
-          title="Rename NCP"
-        >
-          <Pencil class="w-4 h-4" />
-          <span class="hidden sm:inline ml-2">Rename</span>
-        </Button>
       </div>
 
       <!-- Action Buttons -->
       <div class="flex gap-2">
-        <!-- Format Dropdown -->
-        <DropdownMenu>
-          <DropdownMenuTrigger as-child>
-            <Button
-              variant="outline"
-              size="sm"
-              class="hover:bg-muted/10 min-w-fit"
-            >
-              <Settings class="w-4 h-4 mr-2" />
-              {{ currentFormatOption?.label || `${selectedFormat} Columns` }}
-              <ChevronDown class="w-4 h-4 ml-2" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent class="w-[calc(100vw-2rem)] md:w-80" align="end">
-            <DropdownMenuItem
-              v-for="format in formatOptions"
-              :key="format.value"
-              @click="handleFormatChange(format.value)"
-              class="flex flex-col items-start p-3 cursor-pointer"
-              :class="{
-                'bg-primary/10 text-primary': selectedFormat === format.value,
-              }"
-            >
-              <div class="font-medium">{{ format.label }}</div>
-              <div class="text-xs text-muted-foreground mt-1">
-                {{ format.description }}
-              </div>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <!-- Edit/Save/Cancel Actions -->
+        <template v-if="!isEditing">
+          <Button
+            variant="outline"
+            size="sm"
+            @click="startEditing"
+            class="hover:bg-muted/10"
+          >
+            <Edit class="w-4 h-4 mr-2" />
+            <span class="hidden xs:inline">Edit NCP</span>
+            <span class="xs:hidden">Edit</span>
+          </Button>
+        </template>
 
-        <!-- Export Dropdown -->
+        <template v-else>
+          <Button
+            variant="outline"
+            size="sm"
+            @click="cancelEditing"
+            :disabled="isSaving"
+            class="hover:bg-muted/10"
+          >
+            <X class="w-4 h-4 mr-2" />
+            <span class="xs:inline">Cancel</span>
+          </Button>
+          <Button
+            size="sm"
+            @click="saveChanges"
+            :disabled="isSaving"
+            class="bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            <Save class="w-4 h-4 mr-2" />
+            <span class="hidden xs:inline">{{
+              isSaving ? 'Saving...' : 'Save'
+            }}</span>
+            <span class="xs:hidden">{{ isSaving ? '...' : 'Save' }}</span>
+          </Button>
+        </template>
+
+        <!-- Actions Dropdown Menu -->
         <DropdownMenu>
           <DropdownMenuTrigger as-child>
             <Button
               variant="outline"
               size="sm"
-              class="hover:bg-muted/10 min-w-fit"
+              class="hover:bg-muted/10"
+              :disabled="isSaving"
             >
-              <Download class="w-4 h-4 mr-2" />
-              Export
-              <ChevronDown class="w-4 h-4 ml-2" />
+              <MoreHorizontal class="w-4 h-4" />
+              <span class="hidden sm:inline ml-2">Actions</span>
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent class="w-[calc(100vw-2rem)] md:w-60" align="end">
+          <DropdownMenuContent
+            class="w-64 max-h-[80vh] overflow-y-auto ml-4"
+            align="end"
+          >
+            <!-- NCP Actions Section -->
+            <DropdownMenuLabel class="flex items-center gap-2 justify-center">
+              NCP Actions
+            </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+
+            <!-- Rename -->
             <DropdownMenuItem
-              v-for="option in exportOptions"
-              :key="option.value"
-              @click="handleExport(option.value)"
-              class="flex flex-col items-start p-3 cursor-pointer hover:bg-muted/50"
+              @click="openRenameDialog"
+              :disabled="isEditing"
+              class="cursor-pointer"
             >
-              <div class="font-medium">{{ option.label }}</div>
-              <div class="text-xs text-muted-foreground mt-1">
-                {{ option.description }}
-              </div>
+              <Pencil class="w-4 h-4" />
+              Rename NCP
             </DropdownMenuItem>
+
+            <!-- Format Options Section -->
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel class="flex items-center justify-center gap-2">
+              <Settings class="w-4 h-4" />
+              Format Options
+            </DropdownMenuLabel>
+
+            <!-- Format Options -->
+            <div class="max-h-32 overflow-y-auto">
+              <DropdownMenuItem
+                v-for="format in formatOptions"
+                :key="format.value"
+                @click="handleFormatChange(format.value)"
+                class="cursor-pointer"
+                :class="{
+                  'bg-accent text-accent-foreground':
+                    selectedFormat === format.value,
+                }"
+              >
+                <div class="flex flex-col w-full">
+                  <span class="font-medium">{{ format.label }}</span>
+                  <span class="text-xs text-muted-foreground leading-tight">
+                    {{ format.description }}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            </div>
+
+            <!-- Export Options Section -->
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel class="flex items-center gap-2">
+              <Download class="w-4 h-4" />
+              Export Options
+            </DropdownMenuLabel>
+
+            <!-- Export Options -->
+            <div class="max-h-40 overflow-y-auto">
+              <DropdownMenuItem
+                v-for="option in exportOptions"
+                :key="option.value"
+                @click="handleExport(option.value)"
+                :disabled="isEditing"
+                class="cursor-pointer"
+              >
+                <div class="flex flex-col w-full">
+                  <span class="font-medium">{{ option.label }}</span>
+                  <span class="text-xs text-muted-foreground leading-tight">
+                    {{ option.description }}
+                  </span>
+                </div>
+              </DropdownMenuItem>
+            </div>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -341,7 +470,7 @@ const handleNCPRenamed = updatedNCP => {
       </AlertDescription>
     </Alert>
 
-    <!-- Table Container -->
+    <!-- Main NCP Table -->
     <div
       class="max-h-[70vh] overflow-x-auto border border-muted rounded-md mx-auto"
       :style="{ maxWidth: elementWidth * 0.99 + 'px' }"
@@ -355,44 +484,97 @@ const handleNCPRenamed = updatedNCP => {
               class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-left border min-w-[200px] h-auto"
             >
               {{ column.label }}
+              <span
+                v-if="column.key === 'assessment'"
+                class="text-xs text-muted-foreground ml-1"
+              >
+                (Read-only)
+              </span>
             </th>
           </tr>
         </thead>
 
-        <!-- Table Body -->
         <tbody>
-          <tr
-            v-for="(row, index) in [formattedNCP]"
-            :key="index"
-            class="hover:bg-muted/20 border-b"
-          >
+          <tr class="hover:bg-muted/20 border-b">
             <td
               v-for="column in columns"
               :key="column.key"
-              class="border-primary/10 group hover:bg-primary/5 p-4 text-sm align-top border min-w-[200px]"
+              class="border-primary/10 group p-4 text-sm align-top border min-w-[200px]"
+              :class="{
+                'hover:bg-primary/5': !isEditing,
+                'bg-muted/20':
+                  isEditing &&
+                  editableColumnsInFormat.some(col => col.key === column.key),
+              }"
             >
-              <div class="space-y-3">
+              <!-- Assessment Column (Always Read-only) -->
+              <div v-if="column.key === 'assessment'" class="space-y-3">
                 <div
-                  v-for="(line, lineIndex) in row[column.key]"
+                  v-for="(line, lineIndex) in formattedNCP[column.key]"
                   :key="lineIndex"
-                  class="leading-relaxed"
+                  class="leading-relaxed text-muted-foreground"
                   :class="{
-                    'mb-3': lineIndex < row[column.key].length - 1,
+                    'mb-3': lineIndex < formattedNCP[column.key].length - 1,
                     'mb-4':
                       line.match(/^\d+\./) &&
-                      lineIndex < row[column.key].length - 1,
+                      lineIndex < formattedNCP[column.key].length - 1,
                     'mb-3':
                       line.startsWith('-') &&
-                      lineIndex < row[column.key].length - 1,
+                      lineIndex < formattedNCP[column.key].length - 1,
                   }"
                 >
                   {{ line }}
                 </div>
               </div>
+
+              <!-- Editable Columns - View Mode -->
+              <div v-else-if="!isEditing" class="space-y-3">
+                <div
+                  v-for="(line, lineIndex) in formattedNCP[column.key]"
+                  :key="lineIndex"
+                  class="leading-relaxed"
+                  :class="{
+                    'mb-3': lineIndex < formattedNCP[column.key].length - 1,
+                    'mb-4':
+                      line.match(/^\d+\./) &&
+                      lineIndex < formattedNCP[column.key].length - 1,
+                    'mb-3':
+                      line.startsWith('-') &&
+                      lineIndex < formattedNCP[column.key].length - 1,
+                  }"
+                >
+                  {{ line }}
+                </div>
+              </div>
+
+              <!-- Editable Columns - Edit Mode -->
+              <div
+                v-else-if="
+                  editableColumnsInFormat.some(col => col.key === column.key)
+                "
+              >
+                <Textarea
+                  v-model="formData[column.key]"
+                  :placeholder="`Enter ${column.label.toLowerCase()}...`"
+                  class="min-h-[50vh] resize-none focus:ring-2 focus:ring-primary"
+                  :disabled="isSaving"
+                />
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Modification Status -->
+    <div
+      v-if="ncp.is_modified"
+      class="flex items-center gap-2 text-sm text-amber-600"
+    >
+      <div class="w-2 h-2 bg-amber-500 rounded-full"></div>
+      <span
+        >This NCP has been modified from its original AI-generated version</span
+      >
     </div>
 
     <!-- Rename Dialog Component -->

@@ -69,6 +69,38 @@ export const ncpService = {
     return data[0]
   },
 
+  async updateNCP(ncpId, ncpData) {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) throw new Error('User not authenticated')
+
+    // Only update editable columns (excluding assessment)
+    const updateData = {}
+
+    if (ncpData.diagnosis !== undefined)
+      updateData.diagnosis = ncpData.diagnosis
+    if (ncpData.outcomes !== undefined) updateData.outcomes = ncpData.outcomes
+    if (ncpData.interventions !== undefined)
+      updateData.interventions = ncpData.interventions
+    if (ncpData.rationale !== undefined)
+      updateData.rationale = ncpData.rationale
+    if (ncpData.implementation !== undefined)
+      updateData.implementation = ncpData.implementation
+    if (ncpData.evaluation !== undefined)
+      updateData.evaluation = ncpData.evaluation
+
+    const { data, error } = await supabase
+      .from('ncps')
+      .update(updateData)
+      .eq('id', ncpId)
+      .eq('user_id', user.id)
+      .select()
+
+    if (error) throw error
+    return data[0]
+  },
+
   async getUserNCPs() {
     const {
       data: { user },

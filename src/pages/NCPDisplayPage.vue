@@ -38,6 +38,16 @@ const handleNCPRenamed = updatedNCP => {
     document.title = `${updatedNCP.title} - AI NCP Generator`
   }
 }
+
+// Handle NCP update event from child component
+const handleNCPUpdated = updatedNCP => {
+  ncp.value = updatedNCP
+
+  toast({
+    title: 'Success',
+    description: 'NCP updated successfully',
+  })
+}
 </script>
 
 <template>
@@ -56,6 +66,7 @@ const handleNCPRenamed = updatedNCP => {
           :ncp="ncp"
           :format="format"
           @ncp-renamed="handleNCPRenamed"
+          @ncp-updated="handleNCPUpdated"
         />
       </div>
     </div>
