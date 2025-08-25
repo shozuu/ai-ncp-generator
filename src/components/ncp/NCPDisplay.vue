@@ -125,18 +125,23 @@ const handleExport = async exportType => {
       }
     })
 
+    const exportData = {
+      ...filteredFormattedNCP,
+      title: props.ncp.title || 'Nursing Care Plan',
+    }
+
     switch (exportType) {
       case 'pdf':
-        await exportUtils.toPDF(filteredFormattedNCP, columnLabels, true)
+        await exportUtils.toPDF(exportData, columnLabels, true)
         break
       case 'xlsx':
-        await exportUtils.toXLSX(filteredFormattedNCP, columnLabels, true)
+        await exportUtils.toXLSX(exportData, columnLabels, true)
         break
       case 'word':
-        await exportUtils.toWord(filteredFormattedNCP, columnLabels, true)
+        await exportUtils.toWord(exportData, columnLabels, true)
         break
       case 'png':
-        await exportUtils.toPNG(filteredFormattedNCP, columnLabels, true)
+        await exportUtils.toPNG(exportData, columnLabels, true)
         break
       default:
         throw new Error('Unsupported export format')
@@ -200,8 +205,9 @@ const currentFormatOption = computed(() =>
       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
     >
       <div>
+        <!-- Display the custom NCP title -->
         <h1 class="font-poppins text-2xl font-bold">
-          Generated Nursing Care Plan
+          {{ ncp.title || 'Generated Nursing Care Plan' }}
         </h1>
         <p class="text-muted-foreground text-sm">
           {{ selectedFormat }}-Column Format

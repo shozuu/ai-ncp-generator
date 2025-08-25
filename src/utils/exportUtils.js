@@ -9,24 +9,28 @@ export const exportUtils = {
     // Get user details for accountability
     const userDetails = await userService.getUserProfile()
 
+    // Extract title and remove it from NCP data for table processing
+    const { title, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
     // Create PDF with landscape orientation and Letter size (8.5" x 11")
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'in',
-      format: [8.5, 11], // Letter size in landscape (width x height)
+      format: [8.5, 11],
     })
 
     const columns =
       columnLabels ||
-      Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
 
     // Process text based on whether it's formatted array data or raw text
     const processTextForTable = data => {
       if (isFormatted && Array.isArray(data)) {
-        // Add spacing between array items for better readability
         return data
           .map((line, index) => {
-            // Add extra spacing after numbered items, bullets, or important sections
             if (index < data.length - 1) {
               const currentLine = line.trim()
               const nextLine = data[index + 1]?.trim()
@@ -36,7 +40,6 @@ export const exportUtils = {
               const isNextNumbered = nextLine?.match(/^\d+\./)
               const isNextBullet = nextLine?.startsWith('-')
 
-              // Add extra spacing between different content types
               if (
                 (isCurrentNumbered && !isNextNumbered) ||
                 (isCurrentBullet && !isNextBullet) ||
@@ -44,14 +47,13 @@ export const exportUtils = {
                   !isCurrentBullet &&
                   (isNextNumbered || isNextBullet))
               ) {
-                return line + '\n' // Add extra line break
+                return line + '\n'
               }
             }
             return line
           })
           .join('\n')
       } else {
-        // Handle raw text data
         if (!data) return ''
         const lines = data
           .split('\n')
@@ -63,14 +65,14 @@ export const exportUtils = {
 
     // Format data for table with enhanced spacing
     const tableData = [
-      Object.values(ncp).map(value => processTextForTable(value)),
+      Object.values(ncpData).map(value => processTextForTable(value)),
     ]
 
-    // Add title with consistent styling to Word export
+    // Add title with the custom NCP title
     doc.setFontSize(16)
     doc.setFont('helvetica', 'bold')
     doc.setTextColor(45, 55, 72) // #2d3748
-    doc.text('Nursing Care Plan', doc.internal.pageSize.width / 2, 0.75, {
+    doc.text(ncpTitle, doc.internal.pageSize.width / 2, 0.75, {
       align: 'center',
     })
 
@@ -171,7 +173,7 @@ export const exportUtils = {
         })
 
         // Enhanced footer with user accountability details
-        const footerText = `Generated on ${date} | AI-NCP Generator`
+        const footerText = `Generated on ${date} | SmartCare`
         const userAccountabilityText = `Created by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}`
 
         doc.text(footerText, marginLeft, pageSize.height - 0.4)
@@ -217,16 +219,22 @@ export const exportUtils = {
       },
     })
 
-    doc.save('nursing-care-plan.pdf')
+    doc.save(`${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.pdf`)
   },
 
   async toWord(ncp, columnLabels = null, isFormatted = false) {
     // Get user details for accountability
     const userDetails = await userService.getUserProfile()
 
+    // Extract title and remove it from NCP data for table processing
+    const { title, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
     const columns =
       columnLabels ||
-      Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
 
     // Process text for Word with proper spacing
     const processTextForWord = data => {
@@ -242,7 +250,6 @@ export const exportUtils = {
               const isNextNumbered = nextLine?.match(/^\d+\./)
               const isNextBullet = nextLine?.startsWith('-')
 
-              // Add spacing between different content types
               if (
                 (isCurrentNumbered && !isNextNumbered) ||
                 (isCurrentBullet && !isNextBullet) ||
@@ -282,7 +289,7 @@ export const exportUtils = {
       )
       .join('')
 
-    const tableData = Object.values(ncp)
+    const tableData = Object.values(ncpData)
       .map((value, index) => {
         const cellContent = processTextForWord(value)
         return `<td style="
@@ -305,7 +312,7 @@ export const exportUtils = {
           <meta name="ProgId" content="Word.Document">
           <meta name="Generator" content="Microsoft Word 15">
           <meta name="Originator" content="Microsoft Word 15">
-          <title>Nursing Care Plan</title>
+          <title>${ncpTitle}</title>
           <!--[if gte mso 9]>
           <xml>
             <w:WordDocument>
@@ -480,7 +487,7 @@ export const exportUtils = {
         <body>
           <div class="Section1">
             <div class="content-wrapper">
-              <h1 class="no-break">Nursing Care Plan</h1>
+              <h1 class="no-break">${ncpTitle}</h1>
               <div class="header-table-container no-break">
                 <table>
                   <thead class="no-break">
@@ -497,7 +504,7 @@ export const exportUtils = {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
-              })} | AI-NCP Generator
+              })} | SmartCare
             </div>
             <div class="user-accountability">
               Created by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}
@@ -512,7 +519,7 @@ export const exportUtils = {
     })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
-    link.download = 'nursing-care-plan.doc'
+    link.download = `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.doc`
     link.click()
   },
 
@@ -520,9 +527,15 @@ export const exportUtils = {
     // Get user details for accountability
     const userDetails = await userService.getUserProfile()
 
+    // Extract title and remove it from NCP data for table processing
+    const { title, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
     const columns =
       columnLabels ||
-      Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
 
     // Process text for PNG with proper spacing
     const processTextForPNG = data => {
@@ -574,9 +587,9 @@ export const exportUtils = {
     container.setAttribute('data-theme', 'light')
     container.classList.add('light-theme-export')
 
-    const title = document.createElement('h1')
-    title.textContent = 'Nursing Care Plan'
-    title.style.cssText = `
+    const titleElement = document.createElement('h1')
+    titleElement.textContent = ncpTitle
+    titleElement.style.cssText = `
       margin: 0 0 40px 0;
       font-size: 32px;
       color: #1e293b !important;
@@ -585,7 +598,7 @@ export const exportUtils = {
       letter-spacing: -0.025em;
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     `
-    container.appendChild(title)
+    container.appendChild(titleElement)
 
     // Create table with enhanced styling and forced light theme
     const table = document.createElement('table')
@@ -628,7 +641,7 @@ export const exportUtils = {
     // Create body
     const tbody = document.createElement('tbody')
     const dataRow = document.createElement('tr')
-    Object.values(ncp).forEach((value, index) => {
+    Object.values(ncpData).forEach((value, index) => {
       const td = document.createElement('td')
       td.innerHTML = processTextForPNG(value)
       td.style.cssText = `
@@ -657,7 +670,7 @@ export const exportUtils = {
           month: 'long',
           day: 'numeric',
         }
-      )} | AI-NCP Generator</div>
+      )} | SmartCare</div>
       <div style="font-size: 10px; color: #4a5568 !important; font-weight: 600;">
         Created by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}
       </div>
@@ -731,33 +744,28 @@ export const exportUtils = {
 
     try {
       const canvas = await html2canvas(container, {
-        backgroundColor: '#ffffff', // Force white background
+        backgroundColor: '#ffffff',
         scale: 2.5,
         useCORS: true,
         allowTaint: true,
         width: 1500,
         height: container.offsetHeight,
         ignoreElements: element => {
-          // Ignore any dark mode specific elements
           return element.classList.contains('dark-mode-only')
         },
         onclone: clonedDoc => {
-          // Force light theme on the cloned document
           const clonedContainer = clonedDoc.querySelector('.light-theme-export')
           if (clonedContainer) {
             clonedContainer.setAttribute('data-theme', 'light')
             clonedDoc.documentElement.setAttribute('data-theme', 'light')
             clonedDoc.body.setAttribute('data-theme', 'light')
 
-            // Remove any dark mode classes
             clonedDoc.documentElement.classList.remove('dark')
             clonedDoc.body.classList.remove('dark')
 
-            // Force all text to be dark
             const allElements = clonedContainer.querySelectorAll('*')
             allElements.forEach(el => {
               if (el.tagName !== 'TH') {
-                // Don't change header text color
                 el.style.color = '#1e293b !important'
               }
             })
@@ -767,7 +775,7 @@ export const exportUtils = {
 
       const link = document.createElement('a')
       link.href = canvas.toDataURL('image/png')
-      link.download = 'nursing-care-plan.png'
+      link.download = `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.png`
       link.click()
     } finally {
       document.body.removeChild(container)
@@ -778,9 +786,15 @@ export const exportUtils = {
   async toXLSX(ncp, columnLabels = null, isFormatted = false) {
     const userDetails = await userService.getUserProfile()
 
+    // Extract title and remove it from NCP data for table processing
+    const { title, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
     const columns =
       columnLabels ||
-      Object.keys(ncp).map(key => key.charAt(0).toUpperCase() + key.slice(1))
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
 
     const processTextForExcel = data => {
       if (isFormatted && Array.isArray(data)) {
@@ -795,7 +809,6 @@ export const exportUtils = {
               const isNextNumbered = nextLine?.match(/^\d+\./)
               const isNextBullet = nextLine?.startsWith('-')
 
-              // Add extra spacing between different content types
               if (
                 (isCurrentNumbered && !isNextNumbered) ||
                 (isCurrentBullet && !isNextBullet) ||
@@ -816,18 +829,18 @@ export const exportUtils = {
 
     const workbook = XLSX.utils.book_new()
     workbook.Props = {
-      Title: 'Nursing Care Plan',
+      Title: ncpTitle,
       Subject: 'AI-Generated Nursing Care Plan',
       Author: userDetails.full_name,
       CreatedDate: new Date(),
     }
 
-    const ncpData = [
+    const ncpWorksheetData = [
       columns,
-      Object.values(ncp).map(value => processTextForExcel(value)),
+      Object.values(ncpData).map(value => processTextForExcel(value)),
     ]
 
-    const ncpWorksheet = XLSX.utils.aoa_to_sheet(ncpData)
+    const ncpWorksheet = XLSX.utils.aoa_to_sheet(ncpWorksheetData)
 
     const columnWidths = columns.map(() => ({ wch: 40 }))
     ncpWorksheet['!cols'] = columnWidths
@@ -984,10 +997,14 @@ export const exportUtils = {
       copies: 1,
     }
 
-    // Add the NCP sheet to workbook
-    XLSX.utils.book_append_sheet(workbook, ncpWorksheet, 'Nursing Care Plan')
+    // Add the NCP sheet to workbook with custom title
+    XLSX.utils.book_append_sheet(
+      workbook,
+      ncpWorksheet,
+      ncpTitle.length > 31 ? 'Nursing Care Plan' : ncpTitle
+    )
 
-    // Create metadata sheet with improved formatting
+    // Update metadata to include the custom title
     const date = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -996,8 +1013,9 @@ export const exportUtils = {
 
     const metadataData = [
       ['Document Information', ''],
+      ['Title', ncpTitle],
       ['Generated on', date],
-      ['Generator', 'AI-NCP Generator'],
+      ['Generator', 'SmartCare'],
       ['', ''],
       ['Creator Information', ''],
       ['Created by', userDetails.full_name],
@@ -1092,18 +1110,22 @@ export const exportUtils = {
     // Add metadata sheet to workbook
     XLSX.utils.book_append_sheet(workbook, metadataWorksheet, 'Document Info')
 
-    // Write file with enhanced options for better Excel compatibility
-    XLSX.writeFile(workbook, 'nursing-care-plan.xlsx', {
-      bookType: 'xlsx',
-      type: 'binary',
-      cellStyles: true,
-      compression: true,
-      Props: {
-        Title: 'Nursing Care Plan',
-        Subject: 'AI-Generated Nursing Care Plan',
-        Author: userDetails.full_name,
-        CreatedDate: new Date(),
-      },
-    })
+    // Write file with custom filename
+    XLSX.writeFile(
+      workbook,
+      `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.xlsx`,
+      {
+        bookType: 'xlsx',
+        type: 'binary',
+        cellStyles: true,
+        compression: true,
+        Props: {
+          Title: ncpTitle,
+          Subject: 'AI-Generated Nursing Care Plan',
+          Author: userDetails.full_name,
+          CreatedDate: new Date(),
+        },
+      }
+    )
   },
 }
