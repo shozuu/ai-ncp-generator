@@ -1,4 +1,5 @@
 <script setup>
+import RenameNCPDialog from '@/components/ncp/RenameNCPDialog.vue'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -15,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
 import { useToast } from '@/components/ui/toast/use-toast'
 import {
   Tooltip,
@@ -34,10 +34,9 @@ const viewMode = ref('list')
 const isLoading = ref(true)
 const { toast } = useToast()
 
-const renamingId = ref(null)
-const newTitle = ref('')
 const showRenameDialog = ref(false)
 const showDeleteDialog = ref(false)
+const ncpToRename = ref(null)
 const ncpToDelete = ref(null)
 
 onMounted(async () => {
@@ -64,30 +63,21 @@ const viewNCP = id => {
 }
 
 const openRenameDialog = ncp => {
-  renamingId.value = ncp.id
-  newTitle.value = ncp.title
+  ncpToRename.value = ncp
   showRenameDialog.value = true
 }
 
-const closeRenameDialog = () => {
-  renamingId.value = null
-  newTitle.value = ''
-  showRenameDialog.value = false
-}
-
-const confirmRename = async () => {
-  try {
-    await ncpService.renameNCP(renamingId.value, newTitle.value)
-    toast({ title: 'Renamed', description: 'NCP title updated.' })
-    await fetchNCPs()
-    closeRenameDialog()
-  } catch {
-    toast({
-      title: 'Error',
-      description: 'Failed to rename NCP.',
-      variant: 'destructive',
-    })
+const handleNCPRenamed = async updatedNCP => {
+  // Update the NCP in the local list
+  const index = ncps.value.findIndex(ncp => ncp.id === updatedNCP.id)
+  if (index !== -1) {
+    ncps.value[index] = updatedNCP
   }
+
+  toast({
+    title: 'Success',
+    description: 'NCP title updated successfully.',
+  })
 }
 
 const openDeleteDialog = ncp => {
@@ -103,7 +93,10 @@ const closeDeleteDialog = () => {
 const confirmDelete = async () => {
   try {
     await ncpService.deleteNCP(ncpToDelete.value.id)
-    toast({ title: 'Deleted', description: 'NCP deleted.' })
+    toast({
+      title: 'Deleted',
+      description: 'NCP deleted successfully.',
+    })
     await fetchNCPs()
     closeDeleteDialog()
   } catch {
@@ -119,6 +112,7 @@ const confirmDelete = async () => {
 <template>
   <PageHead title="- My NCPs" />
   <SidebarLayout>
+    <!-- Page Header -->
     <div
       class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-8 gap-4"
     >
@@ -268,42 +262,13 @@ const confirmDelete = async () => {
       </div>
     </div>
 
-    <!-- Rename Dialog -->
-    <Dialog v-model:open="showRenameDialog">
-      <DialogContent
-        class="w-[calc(100vw-2rem)] max-w-md sm:max-w-lg rounded-lg px-4 py-6 sm:px-8 sm:py-8"
-        style="max-width: 95vw"
-      >
-        <DialogHeader>
-          <DialogTitle class="text-lg sm:text-xl">Rename NCP</DialogTitle>
-          <DialogDescription class="text-sm sm:text-base">
-            Enter a new title for your nursing care plan.
-          </DialogDescription>
-        </DialogHeader>
-        <Input
-          v-model="newTitle"
-          maxlength="255"
-          placeholder="New title"
-          class="mt-4"
-        />
-        <DialogFooter class="mt-6 flex flex-col gap-2 sm:flex-row justify-end">
-          <DialogClose as-child>
-            <Button
-              variant="ghost"
-              class="w-full sm:w-auto"
-              @click="closeRenameDialog"
-              >Cancel</Button
-            >
-          </DialogClose>
-          <Button
-            variant="default"
-            class="w-full sm:w-auto"
-            @click="confirmRename"
-            >Save</Button
-          >
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <!-- Rename Dialog Component -->
+    <RenameNCPDialog
+      v-if="ncpToRename"
+      v-model:open="showRenameDialog"
+      :ncp="ncpToRename"
+      @ncp-renamed="handleNCPRenamed"
+    />
 
     <!-- Delete Dialog -->
     <Dialog v-model:open="showDeleteDialog">
@@ -320,20 +285,20 @@ const confirmDelete = async () => {
           </DialogDescription>
         </DialogHeader>
         <DialogFooter class="mt-6 flex flex-col gap-2 sm:flex-row justify-end">
-          <DialogClose as-child>
-            <Button
-              variant="ghost"
-              class="w-full sm:w-auto"
-              @click="closeDeleteDialog"
-              >Cancel</Button
-            >
-          </DialogClose>
+          <Button
+            variant="ghost"
+            class="w-full sm:w-auto"
+            @click="closeDeleteDialog"
+          >
+            Cancel
+          </Button>
           <Button
             variant="destructive"
             class="w-full sm:w-auto"
             @click="confirmDelete"
-            >Delete</Button
           >
+            Delete
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -28,6 +28,16 @@ onMounted(async () => {
     isLoading.value = false
   }
 })
+
+// Handle NCP rename event from child component
+const handleNCPRenamed = updatedNCP => {
+  ncp.value = updatedNCP
+
+  // Update the page title if you're using it
+  if (typeof document !== 'undefined') {
+    document.title = `${updatedNCP.title} - AI NCP Generator`
+  }
+}
 </script>
 
 <template>
@@ -42,7 +52,11 @@ onMounted(async () => {
         NCP not found.
       </div>
       <div v-else>
-        <NCPDisplay :ncp="ncp" :format="format" />
+        <NCPDisplay
+          :ncp="ncp"
+          :format="format"
+          @ncp-renamed="handleNCPRenamed"
+        />
       </div>
     </div>
   </SidebarLayout>

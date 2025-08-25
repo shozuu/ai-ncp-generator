@@ -1,4 +1,5 @@
 <script setup>
+import RenameNCPDialog from '@/components/ncp/RenameNCPDialog.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import {
@@ -16,11 +17,12 @@ import {
   ChevronUp,
   Download,
   Info,
+  Pencil,
   Settings,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref, watch } from 'vue'
 
-const emit = defineEmits(['update:format'])
+const emit = defineEmits(['update:format', 'ncp-renamed'])
 const props = defineProps({
   ncp: {
     type: Object,
@@ -37,6 +39,7 @@ const selectedFormat = ref(props.format)
 const isAlertCollapsed = ref(false)
 const alertContainer = ref(null)
 const elementWidth = ref(0)
+const showRenameDialog = ref(false)
 
 const allColumns = [
   { key: 'assessment', label: 'Assessment' },
@@ -196,6 +199,14 @@ const hasPlaceholderColumns = computed(() =>
 const currentFormatOption = computed(() =>
   formatOptions.value.find(option => option.value === selectedFormat.value)
 )
+
+const openRenameDialog = () => {
+  showRenameDialog.value = true
+}
+
+const handleNCPRenamed = updatedNCP => {
+  emit('ncp-renamed', updatedNCP)
+}
 </script>
 
 <template>
@@ -204,14 +215,28 @@ const currentFormatOption = computed(() =>
     <div
       class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
     >
-      <div>
+      <div class="flex items-center gap-3 flex-1 min-w-0">
         <!-- Display the custom NCP title -->
-        <h1 class="font-poppins text-2xl font-bold">
-          {{ ncp.title || 'Generated Nursing Care Plan' }}
-        </h1>
-        <p class="text-muted-foreground text-sm">
-          {{ selectedFormat }}-Column Format
-        </p>
+        <div class="flex-1 min-w-0">
+          <h1 class="font-poppins text-2xl font-bold truncate">
+            {{ ncp.title || 'Generated Nursing Care Plan' }}
+          </h1>
+          <p class="text-muted-foreground text-sm">
+            {{ selectedFormat }}-Column Format
+          </p>
+        </div>
+
+        <!-- Rename Button -->
+        <Button
+          variant="ghost"
+          size="sm"
+          @click="openRenameDialog"
+          class="hover:bg-muted/10 flex-shrink-0"
+          title="Rename NCP"
+        >
+          <Pencil class="w-4 h-4" />
+          <span class="hidden sm:inline ml-2">Rename</span>
+        </Button>
       </div>
 
       <!-- Action Buttons -->
@@ -369,5 +394,12 @@ const currentFormatOption = computed(() =>
         </tbody>
       </table>
     </div>
+
+    <!-- Rename Dialog Component -->
+    <RenameNCPDialog
+      v-model:open="showRenameDialog"
+      :ncp="ncp"
+      @ncp-renamed="handleNCPRenamed"
+    />
   </div>
 </template>
