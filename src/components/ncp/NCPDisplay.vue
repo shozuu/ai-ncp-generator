@@ -152,6 +152,7 @@ const handleExport = async exportType => {
     const exportData = {
       ...filteredFormattedNCP,
       title: props.ncp.title || 'Nursing Care Plan',
+      is_modified: props.ncp.is_modified || false,
     }
 
     switch (exportType) {

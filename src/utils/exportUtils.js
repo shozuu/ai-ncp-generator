@@ -9,8 +9,8 @@ export const exportUtils = {
     // Get user details for accountability
     const userDetails = await userService.getUserProfile()
 
-    // Extract title and remove it from NCP data for table processing
-    const { title, ...ncpData } = ncp
+    // Extract title and modification status, remove them from NCP data for table processing
+    const { title, is_modified, ...ncpData } = ncp
     const ncpTitle = title || 'Nursing Care Plan'
 
     // Create PDF with landscape orientation and Letter size (8.5" x 11")
@@ -76,10 +76,26 @@ export const exportUtils = {
       align: 'center',
     })
 
+    // Add modification status indicator if modified
+    if (is_modified) {
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'italic')
+      doc.setTextColor(217, 119, 6) // #d97706 - amber color
+      doc.text('(Modified by User)', doc.internal.pageSize.width / 2, 0.95, {
+        align: 'center',
+      })
+    }
+
     // Add title underline similar to Word export
     doc.setDrawColor(66, 153, 225) // #4299e1
     doc.setLineWidth(0.02)
-    doc.line(2, 0.9, doc.internal.pageSize.width - 2, 0.9)
+    const titleUnderlineY = is_modified ? 1.05 : 0.9
+    doc.line(
+      2,
+      titleUnderlineY,
+      doc.internal.pageSize.width - 2,
+      titleUnderlineY
+    )
 
     // Calculate dynamic column width based on number of columns
     const pageWidth = doc.internal.pageSize.width
@@ -92,25 +108,25 @@ export const exportUtils = {
     autoTable(doc, {
       head: [columns],
       body: tableData,
-      startY: 1.2, // Start after title and spacing
+      startY: is_modified ? 1.3 : 1.2, // Adjust start position if modified
       theme: 'grid',
       styles: {
         fontSize: 9,
-        cellPadding: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 }, // Convert 8pt 6pt to inches
+        cellPadding: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 },
         valign: 'top',
         halign: 'left',
-        lineColor: [203, 213, 224], // #cbd5e0 - matching Word
-        lineWidth: 0.007, // ~0.5pt converted to inches
-        textColor: [45, 55, 72], // #2d3748 - matching Word
+        lineColor: [203, 213, 224],
+        lineWidth: 0.007,
+        textColor: [45, 55, 72],
         fontStyle: 'normal',
         font: 'helvetica',
         overflow: 'linebreak',
         cellWidth: 'wrap',
-        lineHeight: 1.4, // Matching Word line height
+        lineHeight: 1.4,
       },
       headStyles: {
-        fillColor: [45, 55, 72], // #2d3748 - matching Word header
-        textColor: [255, 255, 255], // White text
+        fillColor: [45, 55, 72],
+        textColor: [255, 255, 255],
         fontStyle: 'bold',
         fontSize: 10,
         halign: 'center',
@@ -118,12 +134,12 @@ export const exportUtils = {
         cellPadding: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 },
       },
       bodyStyles: {
-        fillColor: [255, 255, 255], // White background
-        minCellHeight: 0.25, // Minimum cell height
+        fillColor: [255, 255, 255],
+        minCellHeight: 0.25,
         cellPadding: { top: 0.08, right: 0.06, bottom: 0.08, left: 0.06 },
       },
       alternateRowStyles: {
-        fillColor: [247, 250, 252], // #f7fafc - matching Word alternating rows
+        fillColor: [247, 250, 252],
       },
       columnStyles: {
         ...Object.fromEntries(
@@ -138,11 +154,11 @@ export const exportUtils = {
         ),
       },
       margin: {
-        top: 1.2,
+        top: is_modified ? 1.3 : 1.2,
         right: marginRight,
-        bottom: 0.6, // Increased bottom margin for user details
+        bottom: 0.8, // Increased for modification notice
         left: marginLeft,
-      }, // 0.5" margins matching Word
+      },
       tableWidth: 'auto',
       showHead: 'everyPage',
       pageBreak: 'auto',
@@ -154,9 +170,8 @@ export const exportUtils = {
         // Add footer with user details and accountability info
         doc.setFontSize(8)
         doc.setFont('helvetica', 'normal')
-        doc.setTextColor(113, 128, 150) // #718096 - matching Word footer color
+        doc.setTextColor(113, 128, 150) // #718096
 
-        // Use doc.internal.getNumberOfPages() as fallback if data.pageCount is undefined
         const totalPages = data.pageCount || doc.internal.getNumberOfPages()
         const pageText = `Page ${data.pageNumber} of ${totalPages}`
         const pageTextWidth = doc.getTextWidth(pageText)
@@ -179,21 +194,30 @@ export const exportUtils = {
         doc.text(footerText, marginLeft, pageSize.height - 0.4)
         doc.text(userAccountabilityText, marginLeft, pageSize.height - 0.25)
 
-        // Add footer line similar to Word export
+        // Add modification notice in footer if modified
+        if (is_modified) {
+          doc.setFont('helvetica', 'italic')
+          doc.setTextColor(217, 119, 6) // #d97706
+          const modificationText =
+            'Note: This NCP has been modified from its original AI-generated version'
+          doc.text(modificationText, marginLeft, pageSize.height - 0.1)
+        }
+
+        // Add footer line
         doc.setDrawColor(226, 232, 240) // #e2e8f0
         doc.setLineWidth(0.007)
         doc.line(
           marginLeft,
-          pageSize.height - 0.55,
+          pageSize.height - (is_modified ? 0.7 : 0.55),
           pageSize.width - marginRight,
-          pageSize.height - 0.55
+          pageSize.height - (is_modified ? 0.7 : 0.55)
         )
       },
 
       didParseCell: function (data) {
         if (data.section === 'head') {
           // Header cell styling to match Word export
-          data.cell.styles.lineColor = [74, 85, 104] // #4a5568 - matching Word header border
+          data.cell.styles.lineColor = [74, 85, 104] // #4a5568 - matching Word header
           data.cell.styles.lineWidth = 0.014 // ~1pt converted to inches
         } else if (data.section === 'body') {
           // Body cell styling adjustments for longer content
@@ -226,8 +250,8 @@ export const exportUtils = {
     // Get user details for accountability
     const userDetails = await userService.getUserProfile()
 
-    // Extract title and remove it from NCP data for table processing
-    const { title, ...ncpData } = ncp
+    // Extract title and modification status, remove them from NCP data for table processing
+    const { title, is_modified, ...ncpData } = ncp
     const ncpTitle = title || 'Nursing Care Plan'
 
     const columns =
@@ -305,6 +329,11 @@ export const exportUtils = {
       })
       .join('')
 
+    // Add modification status to title if modified
+    const titleWithStatus = is_modified
+      ? `${ncpTitle} <span style="color: #d97706; font-style: italic; font-weight: normal; font-size: 12pt;">(Modified by User)</span>`
+      : ncpTitle
+
     const content = `
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
         <head>
@@ -366,6 +395,19 @@ export const exportUtils = {
               page-break-after: avoid;
               page-break-inside: avoid;
               keep-with-next: always;
+            }
+            
+            .modification-notice {
+              text-align: center;
+              font-size: 8pt;
+              color: #d97706;
+              font-style: italic;
+              margin: 6pt 0 12pt 0;
+              padding: 4pt 8pt;
+              background-color: #fef3c7;
+              border: 1pt solid #f59e0b;
+              border-radius: 3pt;
+              page-break-inside: avoid;
             }
             
             .header-table-container {
@@ -487,7 +529,8 @@ export const exportUtils = {
         <body>
           <div class="Section1">
             <div class="content-wrapper">
-              <h1 class="no-break">${ncpTitle}</h1>
+              <h1 class="no-break">${titleWithStatus}</h1>
+              ${is_modified ? '<div class="modification-notice no-break">Note: This Nursing Care Plan has been modified from its original AI-generated version</div>' : ''}
               <div class="header-table-container no-break">
                 <table>
                   <thead class="no-break">
@@ -527,8 +570,8 @@ export const exportUtils = {
     // Get user details for accountability
     const userDetails = await userService.getUserProfile()
 
-    // Extract title and remove it from NCP data for table processing
-    const { title, ...ncpData } = ncp
+    // Extract title and modification status, remove them from NCP data for table processing
+    const { title, is_modified, ...ncpData } = ncp
     const ncpTitle = title || 'Nursing Care Plan'
 
     const columns =
@@ -590,7 +633,7 @@ export const exportUtils = {
     const titleElement = document.createElement('h1')
     titleElement.textContent = ncpTitle
     titleElement.style.cssText = `
-      margin: 0 0 40px 0;
+      margin: 0 0 ${is_modified ? '20px' : '40px'} 0;
       font-size: 32px;
       color: #1e293b !important;
       text-align: center;
@@ -599,6 +642,25 @@ export const exportUtils = {
       text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     `
     container.appendChild(titleElement)
+
+    // Add modification notice if modified
+    if (is_modified) {
+      const modificationNotice = document.createElement('div')
+      modificationNotice.innerHTML = '(Modified by User)'
+      modificationNotice.style.cssText = `
+        margin: 0 0 20px 0;
+        font-size: 16px;
+        color: #d97706 !important;
+        text-align: center;
+        font-weight: 500;
+        font-style: italic;
+        background: rgba(254, 243, 199, 0.8);
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid #f59e0b;
+      `
+      container.appendChild(modificationNotice)
+    }
 
     // Create table with enhanced styling and forced light theme
     const table = document.createElement('table')
@@ -612,6 +674,7 @@ export const exportUtils = {
       background: white !important;
       border: 1px solid #e2e8f0;
       color: #1e293b !important;
+      margin-bottom: ${is_modified ? '20px' : '30px'};
     `
 
     // Create header
@@ -659,6 +722,25 @@ export const exportUtils = {
     tbody.appendChild(dataRow)
     table.appendChild(tbody)
     container.appendChild(table)
+
+    // Add modification disclaimer if modified
+    if (is_modified) {
+      const disclaimer = document.createElement('div')
+      disclaimer.innerHTML =
+        'Note: This Nursing Care Plan has been modified from its original AI-generated version'
+      disclaimer.style.cssText = `
+        margin-bottom: 20px;
+        text-align: center;
+        font-size: 11px;
+        color: #d97706 !important;
+        font-weight: 600;
+        background: rgba(254, 243, 199, 0.6);
+        padding: 12px 20px;
+        border-radius: 8px;
+        border: 1px solid #f59e0b;
+      `
+      container.appendChild(disclaimer)
+    }
 
     // Enhanced footer with user accountability and forced light theme
     const footer = document.createElement('div')
@@ -786,8 +868,8 @@ export const exportUtils = {
   async toXLSX(ncp, columnLabels = null, isFormatted = false) {
     const userDetails = await userService.getUserProfile()
 
-    // Extract title and remove it from NCP data for table processing
-    const { title, ...ncpData } = ncp
+    // Extract title and modification status, remove them from NCP data for table processing
+    const { title, is_modified, ...ncpData } = ncp
     const ncpTitle = title || 'Nursing Care Plan'
 
     const columns =
@@ -830,7 +912,9 @@ export const exportUtils = {
     const workbook = XLSX.utils.book_new()
     workbook.Props = {
       Title: ncpTitle,
-      Subject: 'AI-Generated Nursing Care Plan',
+      Subject: is_modified
+        ? 'AI-Generated Nursing Care Plan (Modified by User)'
+        : 'AI-Generated Nursing Care Plan',
       Author: userDetails.full_name,
       CreatedDate: new Date(),
     }
@@ -930,7 +1014,7 @@ export const exportUtils = {
         rowHeights.push({ hpx: 50 })
       } else {
         // Calculate height based on content with better estimation
-        const rowContent = Object.values(ncp).map(value =>
+        const rowContent = Object.values(ncpData).map(value =>
           processTextForExcel(value)
         )
 
@@ -998,13 +1082,17 @@ export const exportUtils = {
     }
 
     // Add the NCP sheet to workbook with custom title
-    XLSX.utils.book_append_sheet(
-      workbook,
-      ncpWorksheet,
-      ncpTitle.length > 31 ? 'Nursing Care Plan' : ncpTitle
-    )
+    const sheetName = is_modified
+      ? ncpTitle.length > 26
+        ? 'NCP (Modified)'
+        : `${ncpTitle} (Modified)`
+      : ncpTitle.length > 31
+        ? 'Nursing Care Plan'
+        : ncpTitle
 
-    // Update metadata to include the custom title
+    XLSX.utils.book_append_sheet(workbook, ncpWorksheet, sheetName)
+
+    // Update metadata to include the custom title and modification status
     const date = new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
@@ -1014,6 +1102,7 @@ export const exportUtils = {
     const metadataData = [
       ['Document Information', ''],
       ['Title', ncpTitle],
+      ['Status', is_modified ? 'Modified by User' : 'Original AI-Generated'],
       ['Generated on', date],
       ['Generator', 'SmartCare'],
       ['', ''],
@@ -1034,6 +1123,14 @@ export const exportUtils = {
       ],
     ]
 
+    // Add modification notice if applicable
+    if (is_modified) {
+      metadataData.splice(11, 0, [
+        'Modification Notice',
+        'This NCP has been modified from its original AI-generated version. Please review all modifications for clinical accuracy.',
+      ])
+    }
+
     const metadataWorksheet = XLSX.utils.aoa_to_sheet(metadataData)
 
     // Set metadata column widths
@@ -1041,7 +1138,12 @@ export const exportUtils = {
 
     // Style metadata sheet with proper formatting
     const metadataRange = XLSX.utils.decode_range(metadataWorksheet['!ref'])
-    const sectionHeaderCells = ['A1', 'A5', 'A10']
+    const sectionHeaderCells = ['A1', 'A6', 'A11']
+
+    // Add modification notice styling if present
+    if (is_modified) {
+      sectionHeaderCells.push('A12')
+    }
 
     for (let row = 0; row <= metadataRange.e.r; row++) {
       for (let col = 0; col <= metadataRange.e.c; col++) {
@@ -1062,6 +1164,39 @@ export const exportUtils = {
             },
             fill: {
               fgColor: { rgb: 'FFE2E8F0' },
+            },
+            alignment: {
+              vertical: 'center',
+              horizontal: 'left',
+              wrapText: true,
+            },
+          }
+        } else if (is_modified && cellAddress === 'A3') {
+          // Special styling for modification status
+          metadataWorksheet[cellAddress].s = {
+            font: {
+              bold: true,
+              sz: 10,
+              color: { rgb: 'FFD97706' },
+              name: 'Calibri',
+            },
+            alignment: {
+              vertical: 'center',
+              horizontal: 'left',
+              wrapText: true,
+            },
+          }
+        } else if (is_modified && cellAddress === 'B3') {
+          // Special styling for modification status value
+          metadataWorksheet[cellAddress].s = {
+            font: {
+              bold: true,
+              sz: 10,
+              color: { rgb: 'FFD97706' },
+              name: 'Calibri',
+            },
+            fill: {
+              fgColor: { rgb: 'FFFEF3C7' },
             },
             alignment: {
               vertical: 'center',
@@ -1111,21 +1246,23 @@ export const exportUtils = {
     XLSX.utils.book_append_sheet(workbook, metadataWorksheet, 'Document Info')
 
     // Write file with custom filename
-    XLSX.writeFile(
-      workbook,
-      `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.xlsx`,
-      {
-        bookType: 'xlsx',
-        type: 'binary',
-        cellStyles: true,
-        compression: true,
-        Props: {
-          Title: ncpTitle,
-          Subject: 'AI-Generated Nursing Care Plan',
-          Author: userDetails.full_name,
-          CreatedDate: new Date(),
-        },
-      }
-    )
+    const filename = is_modified
+      ? `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}-modified.xlsx`
+      : `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.xlsx`
+
+    XLSX.writeFile(workbook, filename, {
+      bookType: 'xlsx',
+      type: 'binary',
+      cellStyles: true,
+      compression: true,
+      Props: {
+        Title: ncpTitle,
+        Subject: is_modified
+          ? 'AI-Generated Nursing Care Plan (Modified by User)'
+          : 'AI-Generated Nursing Care Plan',
+        Author: userDetails.full_name,
+        CreatedDate: new Date(),
+      },
+    })
   },
 }
