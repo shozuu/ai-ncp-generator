@@ -148,6 +148,7 @@ const getFormattedExplanationContent = (
 ) => getExplanationContent(explanation.value, section, levelKey, contentType)
 
 const showDetailedView = ref({})
+const levelContainerRefs = ref({})
 
 const toggleDetailedView = (section, levelKey) => {
   const key = `${section}-${levelKey}`
@@ -157,6 +158,17 @@ const toggleDetailedView = (section, levelKey) => {
 const isDetailedViewOpen = (section, levelKey) => {
   const key = `${section}-${levelKey}`
   return showDetailedView.value[key] || false
+}
+
+const setLevelContainerRef = (section, levelKey) => {
+  return el => {
+    const key = `${section}-${levelKey}`
+    if (el) {
+      levelContainerRefs.value[key] = el
+      // Enable auto-animate on this container
+      el.__v_auto_animate = true
+    }
+  }
 }
 </script>
 
@@ -348,7 +360,6 @@ const isDetailedViewOpen = (section, levelKey) => {
               v-for="section in availableSections"
               :key="section"
               class="overflow-hidden transition-all duration-200 hover:shadow-md"
-              
             >
               <CardHeader class="bg-muted/30 border-b p-4 sm:p-6">
                 <CardTitle class="flex items-center gap-2 sm:gap-3">
@@ -425,6 +436,8 @@ const isDetailedViewOpen = (section, levelKey) => {
                         "
                         class="border rounded-xl p-3 sm:p-5 transition-all duration-200 hover:shadow-sm"
                         :class="[level.bgColor, level.borderColor]"
+                        :ref="setLevelContainerRef(section, level.key)"
+                        v-auto-animate
                       >
                         <div
                           class="flex items-start gap-2 sm:gap-3 mb-2 sm:mb-3"
@@ -461,7 +474,7 @@ const isDetailedViewOpen = (section, levelKey) => {
                                 variant="ghost"
                                 size="sm"
                                 @click="toggleDetailedView(section, level.key)"
-                                class="h-5 sm:h-6 px-1.5 sm:px-2 text-xs self-start sm:self-auto"
+                                class="h-5 sm:h-6 px-1.5 sm:px-2 text-xs self-start sm:self-auto transition-transform duration-200 hover:scale-105"
                               >
                                 <!-- Hide text on mobile, show only on sm and up -->
                                 <span class="hidden sm:inline text-xs">{{
@@ -471,9 +484,12 @@ const isDetailedViewOpen = (section, levelKey) => {
                                 }}</span>
                                 <ChevronDown
                                   v-if="!isDetailedViewOpen(section, level.key)"
-                                  class="h-3 w-3"
+                                  class="h-3 w-3 transition-transform duration-200"
                                 />
-                                <ChevronUp v-else class="h-3 w-3" />
+                                <ChevronUp
+                                  v-else
+                                  class="h-3 w-3 transition-transform duration-200"
+                                />
                               </Button>
                             </div>
                             <p
