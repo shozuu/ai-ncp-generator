@@ -757,3 +757,43 @@ export const prepareExportData = (ncp, columns, formattedNCP) => {
  */
 export const hasPlaceholderColumns = columns =>
   columns.some(column => ['implementation', 'evaluation'].includes(column.key))
+
+/**
+ * Text processing utilities
+ */
+export const truncateText = (text, maxLength = 120) => {
+  if (!text) return 'Not provided'
+  return text.length > maxLength ? text.substring(0, maxLength) + '...' : text
+}
+
+/**
+ * NCP completion percentage utility (kept for badges)
+ */
+export const getCompletionPercentage = ncp => {
+  const sections = [
+    'assessment',
+    'diagnosis',
+    'outcomes',
+    'interventions',
+    'rationale',
+    'implementation',
+    'evaluation',
+  ]
+  const completedSections = sections.filter(
+    section => ncp[section] && ncp[section].trim()
+  )
+  return Math.round((completedSections.length / sections.length) * 100)
+}
+
+/**
+ * Format-related utilities
+ */
+export const getFormatDisplayName = formatType => {
+  const format = formatType || '7'
+  return `${format}-Column Format`
+}
+
+export const getFormatShortName = formatType => {
+  const format = formatType || '7'
+  return `${format}-Col`
+}
