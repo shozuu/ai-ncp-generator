@@ -57,7 +57,6 @@ const sectionTitles = {
   evaluation: 'Evaluation',
 }
 
-// Enhanced explanation level configuration with better styling
 const explanationLevels = [
   {
     key: 'clinical_reasoning',
@@ -93,17 +92,6 @@ const explanationLevels = [
     description: 'Step-by-step learning guidance for nursing students',
   },
 ]
-
-// Dynamic breadcrumbs
-const breadcrumbs = computed(() => [
-  { title: 'Home', to: '/' },
-  { title: 'NCP Explanations', to: '/explain' },
-  {
-    title: ncp.value?.title || 'Explanation Details',
-    to: '',
-    isActive: true,
-  },
-])
 
 const loadingMessages = [
   'Analyzing NCP components...',
@@ -302,7 +290,7 @@ const availableSections = computed(() => {
 
 <template>
   <PageHead :title="`- ${ncp?.title || 'NCP Explanation'}`" />
-  <SidebarLayout :breadcrumbs="breadcrumbs">
+  <SidebarLayout>
     <!-- AI Generation Loading State -->
     <div
       v-if="isGeneratingExplanation"
@@ -324,9 +312,13 @@ const availableSections = computed(() => {
 
       <!-- Initial Loading State -->
       <div v-if="isLoading" class="flex items-center justify-center py-16">
-        <span class="animate-pulse text-muted-foreground text-lg">
-          Loading NCP explanation...
-        </span>
+        <LoadingIndicator
+          :messages="[
+            'Loading NCP data...',
+            'Retrieving explanations...',
+            'Preparing content...',
+          ]"
+        />
       </div>
 
       <div v-else-if="ncp" class="space-y-6">
@@ -394,39 +386,18 @@ const availableSections = computed(() => {
                       class="h-5 w-5 text-primary"
                     />
                   </div>
-                  <div>
-                    <div class="text-lg">{{ sectionTitles[section] }}</div>
-                    <div class="text-sm font-normal text-muted-foreground">
-                      {{
-                        hasContent(section) ? 'Content available' : 'No content'
-                      }}
-                      •
-                      {{
-                        hasValidSectionExplanation(section)
-                          ? 'Explanation available'
-                          : 'No explanation'
-                      }}
-                    </div>
-                  </div>
+                  <div class="text-lg">{{ sectionTitles[section] }}</div>
                 </CardTitle>
               </CardHeader>
 
               <CardContent class="p-6 space-y-6">
                 <!-- Original Content -->
                 <div class="space-y-3">
-                  <div class="flex items-center gap-2">
-                    <h4
-                      class="font-semibold text-sm text-muted-foreground uppercase tracking-wider"
-                    >
-                      NCP Content
-                    </h4>
-                    <Badge
-                      :variant="hasContent(section) ? 'default' : 'secondary'"
-                      class="text-xs"
-                    >
-                      {{ hasContent(section) ? 'Available' : 'Empty' }}
-                    </Badge>
-                  </div>
+                  <h4
+                    class="font-semibold text-sm text-muted-foreground uppercase tracking-wider"
+                  >
+                    NCP Content
+                  </h4>
                   <div
                     class="bg-muted/30 rounded-lg p-4 border-l-4 border-muted"
                   >
