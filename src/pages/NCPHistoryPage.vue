@@ -1,13 +1,9 @@
 <script setup>
+import PageHead from '@/components/PageHead.vue'
 import RenameNCPDialog from '@/components/ncp/RenameNCPDialog.vue'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import {
   Dialog,
   DialogContent,
@@ -25,7 +21,24 @@ import {
 } from '@/components/ui/tooltip'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { ncpService } from '@/services/ncpService'
-import { LayoutGrid, List, Pencil, Trash2 } from 'lucide-vue-next'
+import { formatDate, getTimeAgo } from '@/utils/dateUtils'
+import {
+  getFormatDisplayName,
+  getFormatShortName,
+  truncateText,
+} from '@/utils/ncpUtils'
+import {
+  Brain,
+  Calendar,
+  Clock,
+  FileText,
+  LayoutGrid,
+  List,
+  Pencil,
+  PencilLine,
+  Stethoscope,
+  Trash2,
+} from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 
@@ -63,13 +76,13 @@ const viewNCP = id => {
   router.push(`/ncps/${id}`)
 }
 
-const openRenameDialog = ncp => {
+const openRenameDialog = (event, ncp) => {
+  event.stopPropagation() // Prevent card click
   ncpToRename.value = ncp
   showRenameDialog.value = true
 }
 
 const handleNCPRenamed = async updatedNCP => {
-  // Update the NCP in the local list
   const index = ncps.value.findIndex(ncp => ncp.id === updatedNCP.id)
   if (index !== -1) {
     ncps.value[index] = updatedNCP
@@ -81,7 +94,8 @@ const handleNCPRenamed = async updatedNCP => {
   })
 }
 
-const openDeleteDialog = ncp => {
+const openDeleteDialog = (event, ncp) => {
+  event.stopPropagation() // Prevent card click
   ncpToDelete.value = ncp
   showDeleteDialog.value = true
 }
@@ -157,11 +171,17 @@ const confirmDelete = async () => {
     </div>
 
     <!-- Empty State -->
-    <div
-      v-else-if="ncps.length === 0"
-      class="text-muted-foreground mt-10 text-center"
-    >
-      No NCPs found.
+    <div v-else-if="ncps.length === 0" class="text-center py-16 space-y-4">
+      <FileText class="mx-auto h-16 w-16 text-muted-foreground" />
+      <div>
+        <h3 class="text-lg font-semibold">No NCPs found</h3>
+        <p class="text-muted-foreground">
+          Create your first nursing care plan to get started.
+        </p>
+      </div>
+      <Button @click="router.push('/generate')" class="mt-4">
+        Generate Your First NCP
+      </Button>
     </div>
 
     <div v-else>
@@ -170,99 +190,245 @@ const confirmDelete = async () => {
         <Card
           v-for="ncp in ncps"
           :key="ncp.id"
-          class="group border bg-card rounded-xl px-5 py-4 flex flex-col sm:flex-row sm:items-center justify-between hover:shadow-lg hover:border-primary transition"
+          class="group border bg-card rounded-xl hover:shadow-lg hover:border-primary transition-all duration-200 cursor-pointer"
+          @click="viewNCP(ncp.id)"
         >
-          <CardHeader class="p-0 flex-1 min-w-0">
-            <CardTitle
-              class="font-semibold text-lg hover:text-primary cursor-pointer transition block truncate"
-              @click="viewNCP(ncp.id)"
-            >
-              {{ ncp.title }}
-            </CardTitle>
-            <CardDescription class="text-sm text-muted-foreground mt-1">
-              Format: {{ ncp.format_type }} Columns
-            </CardDescription>
+          <CardHeader class="pb-4">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex-1 min-w-0 space-y-3">
+                <CardTitle
+                  class="font-semibold text-xl group-hover:text-primary transition-colors line-clamp-2"
+                >
+                  {{ ncp.title }}
+                </CardTitle>
+
+                <!-- Status badges -->
+                <div class="flex flex-wrap gap-2">
+                  <Badge v-if="ncp.is_modified" variant="warning" size="sm">
+                    <PencilLine class="w-3 h-3 mr-1" />
+                    Modified
+                  </Badge>
+                  <Badge variant="info" size="sm">
+                    <FileText class="w-3 h-3 mr-1" />
+                    {{ getFormatDisplayName(ncp.format_type) }}
+                  </Badge>
+                </div>
+              </div>
+
+              <!-- Action buttons - Always visible -->
+              <div class="flex gap-2 shrink-0">
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      @click="openRenameDialog($event, ncp)"
+                      aria-label="Rename"
+                      class="h-9 w-9"
+                    >
+                      <Pencil class="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Rename</TooltipContent>
+                </Tooltip>
+                <Tooltip>
+                  <TooltipTrigger as-child>
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      @click="openDeleteDialog($event, ncp)"
+                      aria-label="Delete"
+                      class="h-9 w-9 hover:bg-destructive hover:text-destructive-foreground"
+                    >
+                      <Trash2 class="w-4 h-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Delete</TooltipContent>
+                </Tooltip>
+              </div>
+            </div>
           </CardHeader>
-          <CardFooter class="flex gap-2 mt-4 sm:mt-0 sm:ml-4 p-0">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  @click="openRenameDialog(ncp)"
-                  aria-label="Rename"
-                >
-                  <Pencil class="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Rename</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  @click="openDeleteDialog(ncp)"
-                  aria-label="Delete"
-                >
-                  <Trash2 class="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
-          </CardFooter>
+
+          <CardContent class="pt-0">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Primary Information -->
+              <div class="space-y-4">
+                <!-- Assessment Preview -->
+                <div v-if="ncp.assessment" class="space-y-2">
+                  <div class="flex items-center gap-2">
+                    <Stethoscope class="h-4 w-4 text-muted-foreground" />
+                    <span class="text-sm font-medium text-muted-foreground"
+                      >Assessment</span
+                    >
+                  </div>
+                  <p
+                    class="text-sm text-foreground bg-muted/30 p-3 rounded-md line-clamp-3"
+                  >
+                    {{ truncateText(ncp.assessment, 150) }}
+                  </p>
+                </div>
+
+                <!-- Primary Diagnosis -->
+                <div v-if="ncp.diagnosis" class="space-y-2">
+                  <div class="flex items-center gap-2">
+                    <Brain class="h-4 w-4 text-muted-foreground" />
+                    <span class="text-sm font-medium text-muted-foreground"
+                      >Primary Diagnosis</span
+                    >
+                  </div>
+                  <p
+                    class="text-sm text-foreground bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md line-clamp-2 border border-blue-200 dark:border-blue-800"
+                  >
+                    {{
+                      truncateText(
+                        ncp.diagnosis.replace(/\n/g, ' ').trim(),
+                        120
+                      )
+                    }}
+                  </p>
+                </div>
+              </div>
+
+              <!-- Timeline -->
+              <div class="space-y-4">
+                <div class="space-y-3">
+                  <h4 class="text-sm font-medium text-muted-foreground">
+                    Timeline
+                  </h4>
+                  <div class="space-y-2">
+                    <div class="flex items-center gap-2 text-sm">
+                      <Calendar class="h-4 w-4 text-muted-foreground" />
+                      <span class="text-muted-foreground">Created:</span>
+                      <span class="font-medium">{{
+                        formatDate(ncp.created_at)
+                      }}</span>
+                      <span class="text-xs text-muted-foreground"
+                        >({{ getTimeAgo(ncp.created_at) }})</span
+                      >
+                    </div>
+                    <div
+                      v-if="ncp.updated_at && ncp.updated_at !== ncp.created_at"
+                      class="flex items-center gap-2 text-sm"
+                    >
+                      <Clock class="h-4 w-4 text-muted-foreground" />
+                      <span class="text-muted-foreground">Updated:</span>
+                      <span class="font-medium">{{
+                        formatDate(ncp.updated_at)
+                      }}</span>
+                      <span class="text-xs text-muted-foreground"
+                        >({{ getTimeAgo(ncp.updated_at) }})</span
+                      >
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
         </Card>
       </div>
 
       <!-- Grid View -->
-      <div
-        v-else
-        class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
-      >
+      <div v-else class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <Card
           v-for="ncp in ncps"
           :key="ncp.id"
-          class="group border bg-card rounded-xl p-5 flex flex-col justify-between hover:shadow-xl hover:border-primary transition"
+          class="group border bg-card rounded-xl hover:shadow-xl hover:border-primary transition-all duration-200 flex flex-col cursor-pointer h-full"
+          @click="viewNCP(ncp.id)"
         >
-          <CardHeader class="p-0">
-            <CardTitle
-              class="font-semibold text-lg mb-2 hover:text-primary cursor-pointer transition block truncate"
-              @click="viewNCP(ncp.id)"
-            >
-              {{ ncp.title }}
-            </CardTitle>
-            <CardDescription class="text-sm text-muted-foreground">
-              Format: {{ ncp.format_type }} Columns
-            </CardDescription>
+          <CardHeader class="pb-3 flex-shrink-0">
+            <div class="space-y-3">
+              <CardTitle
+                class="font-semibold text-lg group-hover:text-primary transition-colors line-clamp-2 leading-tight"
+              >
+                {{ ncp.title }}
+              </CardTitle>
+
+              <!-- Status badges -->
+              <div class="flex flex-wrap gap-1">
+                <Badge v-if="ncp.is_modified" variant="warning" size="sm">
+                  <PencilLine class="w-3 h-3 mr-1" />
+                  Modified
+                </Badge>
+                <Badge variant="info" size="sm">
+                  {{ getFormatShortName(ncp.format_type) }}
+                </Badge>
+              </div>
+            </div>
           </CardHeader>
-          <CardFooter class="flex gap-2 mt-4 p-0">
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  @click="openRenameDialog(ncp)"
-                  aria-label="Rename"
+
+          <CardContent
+            class="flex-1 flex flex-col justify-between space-y-4 pt-0"
+          >
+            <!-- Content area -->
+            <div class="space-y-4">
+              <!-- Primary Diagnosis Preview -->
+              <div v-if="ncp.diagnosis" class="space-y-2">
+                <div class="flex items-center gap-2">
+                  <Brain class="h-3 w-3 text-muted-foreground" />
+                  <span class="text-xs font-medium text-muted-foreground"
+                    >Primary Diagnosis</span
+                  >
+                </div>
+                <p
+                  class="text-xs text-foreground bg-blue-50 dark:bg-blue-950/20 p-2 rounded border border-blue-200 dark:border-blue-800 line-clamp-3"
                 >
-                  <Pencil class="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Rename</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger as-child>
-                <Button
-                  size="icon"
-                  variant="outline"
-                  @click="openDeleteDialog(ncp)"
-                  aria-label="Delete"
+                  {{
+                    truncateText(ncp.diagnosis.replace(/\n/g, ' ').trim(), 100)
+                  }}
+                </p>
+              </div>
+
+              <!-- Timeline -->
+              <div class="space-y-2">
+                <div class="flex items-center gap-2 text-xs">
+                  <Calendar class="h-3 w-3 text-muted-foreground" />
+                  <span class="text-muted-foreground"
+                    >Created {{ getTimeAgo(ncp.created_at) }}</span
+                  >
+                </div>
+                <div
+                  v-if="ncp.updated_at && ncp.updated_at !== ncp.created_at"
+                  class="flex items-center gap-2 text-xs"
                 >
-                  <Trash2 class="w-4 h-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Delete</TooltipContent>
-            </Tooltip>
-          </CardFooter>
+                  <Clock class="h-3 w-3 text-muted-foreground" />
+                  <span class="text-muted-foreground"
+                    >Updated {{ getTimeAgo(ncp.updated_at) }}</span
+                  >
+                </div>
+              </div>
+            </div>
+
+            <!-- Action buttons - Always visible at bottom -->
+            <div class="flex gap-2 pt-3 border-t">
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    @click="openRenameDialog($event, ncp)"
+                    class="flex-1 text-xs"
+                  >
+                    <Pencil class="w-3 h-3 mr-1" />
+                    Rename
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Rename NCP</TooltipContent>
+              </Tooltip>
+              <Tooltip>
+                <TooltipTrigger as-child>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    @click="openDeleteDialog($event, ncp)"
+                    class="hover:bg-destructive hover:text-destructive-foreground"
+                  >
+                    <Trash2 class="w-3 h-3" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Delete NCP</TooltipContent>
+              </Tooltip>
+            </div>
+          </CardContent>
         </Card>
       </div>
     </div>
