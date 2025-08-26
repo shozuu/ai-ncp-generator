@@ -30,6 +30,7 @@ import {
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { useResizeObserver } from '@vueuse/core'
 import {
+  BookOpen,
   ChevronDown,
   ChevronUp,
   Download,
@@ -43,6 +44,7 @@ import {
   X,
 } from 'lucide-vue-next'
 import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['update:format', 'ncp-renamed', 'ncp-updated'])
 const props = defineProps({
@@ -57,6 +59,7 @@ const props = defineProps({
 })
 
 const { toast } = useToast()
+const router = useRouter()
 const selectedFormat = ref(props.format)
 const isAlertCollapsed = ref(false)
 const alertContainer = ref(null)
@@ -185,6 +188,11 @@ const handleNCPRenamed = updatedNCP => {
 const handleNCPUpdated = updatedNCP => {
   emit('ncp-updated', updatedNCP)
   isEditing.value = false
+}
+
+// Navigation to explanation page
+const viewExplanations = () => {
+  router.push(`/explain/${props.ncp.id}`)
 }
 
 // Editing functions
@@ -319,6 +327,16 @@ onMounted(() => {
               NCP Actions
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+
+            <!-- View Explanations -->
+            <DropdownMenuItem
+              @click="viewExplanations"
+              :disabled="isEditing"
+              class="cursor-pointer"
+            >
+              <BookOpen class="w-4 h-4" />
+              View Explanations
+            </DropdownMenuItem>
 
             <!-- Rename -->
             <DropdownMenuItem
