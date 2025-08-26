@@ -10,6 +10,18 @@ import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { explanationService } from '@/services/explanationService'
 import { ncpService } from '@/services/ncpService'
 import {
+  explanationLevels,
+  formatTextToLines,
+  getAvailableSections,
+  getExplanationContent,
+  hasAnyValidExplanations,
+  hasContent,
+  hasValidSectionExplanation,
+  loadingMessages,
+  sectionIcons,
+  sectionTitles,
+} from '@/utils/ncpUtils'
+import {
   Brain,
   CheckCircle,
   ClipboardList,
@@ -37,69 +49,25 @@ const generationError = ref(null)
 
 const ncpId = route.params.id
 
-const sectionIcons = {
-  assessment: Stethoscope,
-  diagnosis: Brain,
-  outcomes: Target,
-  interventions: ClipboardList,
-  rationale: Lightbulb,
-  implementation: CheckCircle,
-  evaluation: RefreshCw,
+// Convert string icon names to actual icon components
+const iconComponents = {
+  Stethoscope,
+  Brain,
+  Target,
+  ClipboardList,
+  Lightbulb,
+  CheckCircle,
+  RefreshCw,
+  FileCheck,
+  GraduationCap,
 }
 
-const sectionTitles = {
-  assessment: 'Assessment',
-  diagnosis: 'Nursing Diagnosis',
-  outcomes: 'Outcomes/Goals',
-  interventions: 'Interventions',
-  rationale: 'Rationale',
-  implementation: 'Implementation',
-  evaluation: 'Evaluation',
-}
+// Computed properties using utilities
+const availableSections = computed(() => getAvailableSections(ncp.value))
 
-const explanationLevels = [
-  {
-    key: 'clinical_reasoning',
-    title: 'Clinical Reasoning',
-    icon: Brain,
-    bgColor: 'bg-blue-50 dark:bg-blue-950/20',
-    borderColor: 'border-blue-200 dark:border-blue-800',
-    textColor: 'text-blue-800 dark:text-blue-200',
-    titleColor: 'text-blue-900 dark:text-blue-100',
-    iconColor: 'text-blue-600 dark:text-blue-400',
-    description: 'Why this clinical decision was made',
-  },
-  {
-    key: 'evidence_based_support',
-    title: 'Evidence-Based Support',
-    icon: FileCheck,
-    bgColor: 'bg-emerald-50 dark:bg-emerald-950/20',
-    borderColor: 'border-emerald-200 dark:border-emerald-800',
-    textColor: 'text-emerald-800 dark:text-emerald-200',
-    titleColor: 'text-emerald-900 dark:text-emerald-100',
-    iconColor: 'text-emerald-600 dark:text-emerald-400',
-    description: 'Research and guidelines supporting this approach',
-  },
-  {
-    key: 'student_guidance',
-    title: 'Student Guidance',
-    icon: GraduationCap,
-    bgColor: 'bg-violet-50 dark:bg-violet-950/20',
-    borderColor: 'border-violet-200 dark:border-violet-800',
-    textColor: 'text-violet-800 dark:text-violet-200',
-    titleColor: 'text-violet-900 dark:text-violet-100',
-    iconColor: 'text-violet-600 dark:text-violet-400',
-    description: 'Step-by-step learning guidance for nursing students',
-  },
-]
-
-const loadingMessages = [
-  'Analyzing NCP components...',
-  'Generating educational explanations...',
-  'Applying evidence-based reasoning...',
-  'Creating student guidance...',
-  'Finalizing explanations...',
-]
+const hasAnyValidExplanationsComputed = computed(() =>
+  hasAnyValidExplanations(explanation.value, availableSections.value)
+)
 
 onMounted(async () => {
   await loadNCPAndExplanation()
@@ -112,15 +80,12 @@ const loadNCPAndExplanation = async () => {
   try {
     // Load NCP data
     ncp.value = await ncpService.getNCPById(ncpId)
-    console.log('Loaded NCP:', ncp.value)
 
     // Check if explanation exists
     hasExplanation.value = await explanationService.hasExplanation(ncpId)
-    console.log('Has explanation:', hasExplanation.value)
 
     if (hasExplanation.value) {
       explanation.value = await explanationService.getNCPExplanation(ncpId)
-      console.log('Loaded explanation:', explanation.value)
     }
   } catch (error) {
     console.error('Error loading NCP:', error)
@@ -162,130 +127,12 @@ const generateExplanation = async () => {
   }
 }
 
-const formatTextToLines = text => {
-  if (!text || typeof text !== 'string') return []
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-}
-
-// Check if a section has meaningful content
-const hasContent = section => {
-  if (!ncp.value || !ncp.value[section]) return false
-  const content = ncp.value[section].trim()
-  return (
-    content &&
-    content.toLowerCase() !== 'not provided' &&
-    content.toLowerCase() !== 'n/a'
-  )
-}
-
-// Enhanced content checking
-const hasValidSectionExplanation = section => {
-  console.log('Checking hasValidSectionExplanation for section:', section)
-
-  if (!explanation.value?.explanation?.[section]) {
-    console.log('No explanation object for section:', section)
-    return false
-  }
-
-  const sectionExplanation = explanation.value.explanation[section]
-  console.log('Section explanation:', sectionExplanation)
-
-  // Check if it's a properly structured explanation object
-  if (typeof sectionExplanation !== 'object' || sectionExplanation === null) {
-    console.log('Invalid explanation structure for section:', section)
-    return false
-  }
-
-  // Check if it has at least one of the required levels with meaningful content
-  const requiredKeys = [
-    'clinical_reasoning',
-    'evidence_based_support',
-    'student_guidance',
-  ]
-
-  const hasValidContent = requiredKeys.some(key => {
-    const content = sectionExplanation[key]
-    const isValid =
-      content &&
-      typeof content === 'string' &&
-      content.trim().length > 10 && // Minimum meaningful content length
-      !content.toLowerCase().includes('temporarily unavailable') &&
-      !content.toLowerCase().includes('technical issue')
-
-    console.log(`Key ${key} validation:`, { content, isValid })
-    return isValid
-  })
-
-  console.log('hasValidContent for section', section, ':', hasValidContent)
-  return hasValidContent
-}
-
-// Enhanced content formatting with better error handling
-const getExplanationContent = (section, levelKey) => {
-  // Add debug logging
-  console.log('getExplanationContent called with:', { section, levelKey })
-  console.log('explanation.value:', explanation.value)
-
-  if (!explanation.value?.explanation?.[section]) {
-    console.log('No explanation found for section:', section)
-    return null
-  }
-
-  const sectionExplanation = explanation.value.explanation[section]
-  console.log('sectionExplanation:', sectionExplanation)
-
-  if (!levelKey || typeof levelKey !== 'string') {
-    console.log('Invalid levelKey:', levelKey)
-    return null
-  }
-
-  const content = sectionExplanation[levelKey]
-  console.log('content for levelKey', levelKey, ':', content)
-
-  if (!content || typeof content !== 'string') {
-    console.log('No valid content found for levelKey:', levelKey)
-    return null
-  }
-
-  // Clean and format the content
-  const cleanContent = content.trim()
-  if (cleanContent.length === 0) return null
-
-  // Format the text with better line breaks and emphasis
-  return cleanContent
-    .replace(/\n\n/g, '</p><p class="mt-2">')
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
-}
-
-// Check if we have any valid explanations at all
-const hasAnyValidExplanations = computed(() => {
-  if (!explanation.value?.explanation) return false
-
-  return availableSections.value.some(section =>
-    hasValidSectionExplanation(section)
-  )
-})
-
-const availableSections = computed(() => {
-  if (!ncp.value) return []
-
-  const format = parseInt(ncp.value.format_type || '7')
-  const allSections = [
-    'assessment',
-    'diagnosis',
-    'outcomes',
-    'interventions',
-    'rationale',
-    'implementation',
-    'evaluation',
-  ]
-  return allSections.slice(0, format)
-})
+// Wrapper functions to pass the current data to utilities
+const checkHasContent = section => hasContent(ncp.value, section)
+const checkHasValidSectionExplanation = section =>
+  hasValidSectionExplanation(explanation.value, section)
+const getFormattedExplanationContent = (section, levelKey) =>
+  getExplanationContent(explanation.value, section, levelKey)
 </script>
 
 <template>
@@ -331,7 +178,7 @@ const availableSections = computed(() => {
 
         <!-- Generate Explanation Section -->
         <div
-          v-if="!hasExplanation || !hasAnyValidExplanations"
+          v-if="!hasExplanation || !hasAnyValidExplanationsComputed"
           class="text-center py-8"
         >
           <Card class="max-w-md mx-auto">
@@ -361,7 +208,10 @@ const availableSections = computed(() => {
         </div>
 
         <!-- NCP with Explanations -->
-        <div v-if="hasExplanation && hasAnyValidExplanations" class="space-y-6">
+        <div
+          v-if="hasExplanation && hasAnyValidExplanationsComputed"
+          class="space-y-6"
+        >
           <Alert>
             <Lightbulb class="h-4 w-4" />
             <AlertDescription>
@@ -382,7 +232,7 @@ const availableSections = computed(() => {
                 <CardTitle class="flex items-center gap-3">
                   <div class="p-2 rounded-lg bg-primary/10">
                     <component
-                      :is="sectionIcons[section]"
+                      :is="iconComponents[sectionIcons[section]]"
                       class="h-5 w-5 text-primary"
                     />
                   </div>
@@ -401,7 +251,7 @@ const availableSections = computed(() => {
                   <div
                     class="bg-muted/30 rounded-lg p-4 border-l-4 border-muted"
                   >
-                    <div v-if="hasContent(section)" class="space-y-2">
+                    <div v-if="checkHasContent(section)" class="space-y-2">
                       <div
                         v-for="(line, index) in formatTextToLines(ncp[section])"
                         :key="index"
@@ -418,7 +268,7 @@ const availableSections = computed(() => {
 
                 <!-- Educational Explanation -->
                 <div
-                  v-if="hasValidSectionExplanation(section)"
+                  v-if="checkHasValidSectionExplanation(section)"
                   class="space-y-4"
                 >
                   <div class="flex items-center gap-2">
@@ -439,7 +289,9 @@ const availableSections = computed(() => {
                       :key="level.key"
                     >
                       <div
-                        v-if="getExplanationContent(section, level.key)"
+                        v-if="
+                          getFormattedExplanationContent(section, level.key)
+                        "
                         class="border rounded-xl p-5 transition-all duration-200 hover:shadow-sm"
                         :class="[level.bgColor, level.borderColor]"
                       >
@@ -448,7 +300,7 @@ const availableSections = computed(() => {
                             class="p-2 rounded-lg bg-white/50 dark:bg-gray-800/50"
                           >
                             <component
-                              :is="level.icon"
+                              :is="iconComponents[level.icon]"
                               class="h-4 w-4"
                               :class="level.iconColor"
                             />
@@ -471,7 +323,9 @@ const availableSections = computed(() => {
                           </div>
                         </div>
                         <div
-                          v-html="getExplanationContent(section, level.key)"
+                          v-html="
+                            getFormattedExplanationContent(section, level.key)
+                          "
                           class="text-sm leading-relaxed prose prose-sm max-w-none"
                           :class="level.textColor"
                         ></div>
