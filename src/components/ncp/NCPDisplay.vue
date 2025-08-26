@@ -14,7 +14,17 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { ncpService } from '@/services/ncpService'
 import { exportUtils } from '@/utils/exportUtils'
-import { formatNCPForDisplay, parseNCPSectionContent } from '@/utils/ncpUtils'
+import {
+  hasPlaceholderColumns as checkPlaceholderColumns,
+  formatNCPForDisplay,
+  formatTextToLines,
+  generateFormatOptions,
+  getAllNCPColumns,
+  getEditableColumns,
+  getExportOptions,
+  parseNCPSectionContent,
+  prepareExportData,
+} from '@/utils/ncpUtils'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { useResizeObserver } from '@vueuse/core'
 import {
@@ -55,63 +65,11 @@ const isSaving = ref(false)
 // Create reactive form data for editing
 const formData = reactive({})
 
-const allColumns = [
-  { key: 'assessment', label: 'Assessment' },
-  { key: 'diagnosis', label: 'Diagnosis' },
-  { key: 'outcomes', label: 'Outcomes' },
-  { key: 'interventions', label: 'Interventions' },
-  { key: 'rationale', label: 'Rationale' },
-  { key: 'implementation', label: 'Implementation' },
-  { key: 'evaluation', label: 'Evaluation' },
-]
-
-// Editable columns (excluding assessment)
-const editableColumns = [
-  { key: 'diagnosis', label: 'Diagnosis' },
-  { key: 'outcomes', label: 'Outcomes' },
-  { key: 'interventions', label: 'Interventions' },
-  { key: 'rationale', label: 'Rationale' },
-  { key: 'implementation', label: 'Implementation' },
-  { key: 'evaluation', label: 'Evaluation' },
-]
-
-const formatOptions = computed(() => {
-  const options = []
-  for (let i = 4; i <= allColumns.length; i++) {
-    options.push({
-      value: i.toString(),
-      label: `${i} Columns`,
-      description: allColumns
-        .slice(0, i)
-        .map(col => col.label)
-        .join(', '),
-    })
-  }
-  return options
-})
-
-const exportOptions = [
-  {
-    value: 'pdf',
-    label: 'Export as PDF',
-    description: 'Portable Document Format',
-  },
-  {
-    value: 'xlsx',
-    label: 'Export as Excel',
-    description: 'Microsoft Excel spreadsheet',
-  },
-  {
-    value: 'word',
-    label: 'Export as Word',
-    description: 'Microsoft Word document',
-  },
-  {
-    value: 'png',
-    label: 'Export as PNG',
-    description: 'Portable Network Graphics image',
-  },
-]
+// Use utilities from ncpUtils
+const allColumns = getAllNCPColumns()
+const editableColumns = getEditableColumns()
+const formatOptions = computed(() => generateFormatOptions(allColumns))
+const exportOptions = getExportOptions()
 
 watch(
   () => props.format,
@@ -129,6 +87,36 @@ useResizeObserver(alertContainer, entries => {
   }
 })
 
+// Computed properties
+const formattedNCP = computed(() => {
+  const formatted = {}
+  for (const key in props.ncp) {
+    if (allColumns.some(col => col.key === key)) {
+      // Parse and format each section based on its type
+      const structure = parseNCPSectionContent(props.ncp[key], key)
+      formatted[key] = formatNCPForDisplay(structure)
+    } else {
+      formatted[key] = formatTextToLines(props.ncp[key])
+    }
+  }
+  return formatted
+})
+
+const columns = computed(() => {
+  return allColumns.slice(0, parseInt(selectedFormat.value))
+})
+
+const editableColumnsInFormat = computed(() => {
+  return editableColumns.filter(col =>
+    columns.value.some(c => c.key === col.key)
+  )
+})
+
+const hasPlaceholderColumns = computed(() =>
+  checkPlaceholderColumns(columns.value)
+)
+
+// Event handlers
 const updateFormat = value => {
   selectedFormat.value = value
   emit('update:format', value)
@@ -140,30 +128,14 @@ const handleFormatChange = format => {
 
 const handleExport = async exportType => {
   try {
-    // Try to use original raw data first, fall back to formatted conversion if needed
-    const exportData = {}
     const currentColumns = allColumns.slice(0, parseInt(selectedFormat.value))
     const columnLabels = currentColumns.map(col => col.label)
 
-    currentColumns.forEach(column => {
-      // Use original raw data from props.ncp if available
-      if (props.ncp[column.key] && typeof props.ncp[column.key] === 'string') {
-        exportData[column.key] = props.ncp[column.key]
-      } else if (formattedNCP.value[column.key]) {
-        // Convert formatted data back to raw text as fallback
-        exportData[column.key] = convertFormattedToRawText(
-          formattedNCP.value[column.key]
-        )
-      } else {
-        exportData[column.key] = ''
-      }
-    })
-
-    const finalExportData = {
-      ...exportData,
-      title: props.ncp.title || 'Nursing Care Plan',
-      is_modified: props.ncp.is_modified || false,
-    }
+    const finalExportData = prepareExportData(
+      props.ncp,
+      currentColumns,
+      formattedNCP.value
+    )
 
     switch (exportType) {
       case 'pdf':
@@ -195,82 +167,6 @@ const handleExport = async exportType => {
     })
   }
 }
-
-// Helper function to convert formatted data back to raw text
-const convertFormattedToRawText = formattedData => {
-  if (!formattedData || !Array.isArray(formattedData)) {
-    return ''
-  }
-
-  return formattedData
-    .map(item => {
-      if (typeof item === 'string') {
-        return item
-      } else if (item && typeof item === 'object' && item.content) {
-        // Handle formatted objects with type and content
-        switch (item.type) {
-          case 'header':
-            return `* ${item.content}:`
-          case 'subheader':
-            return `* ${item.content}:`
-          case 'bullet':
-            return `- ${item.content}`
-          case 'text':
-          default:
-            return item.content
-        }
-      }
-      return ''
-    })
-    .filter(line => line.trim().length > 0)
-    .join('\n')
-}
-
-onMounted(() => {
-  if (alertContainer.value) {
-    alertContainer.value.__v_auto_animate = true
-  }
-})
-
-const formatTextToLines = text => {
-  // Handle null, undefined, or non-string values
-  if (!text || typeof text !== 'string') return []
-
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-}
-
-const formattedNCP = computed(() => {
-  const formatted = {}
-  for (const key in props.ncp) {
-    if (allColumns.some(col => col.key === key)) {
-      // Parse and format each section based on its type
-      const structure = parseNCPSectionContent(props.ncp[key], key)
-      formatted[key] = formatNCPForDisplay(structure)
-    } else {
-      formatted[key] = formatTextToLines(props.ncp[key])
-    }
-  }
-  return formatted
-})
-
-const columns = computed(() => {
-  return allColumns.slice(0, parseInt(selectedFormat.value))
-})
-
-const editableColumnsInFormat = computed(() => {
-  return editableColumns.filter(col =>
-    columns.value.some(c => c.key === col.key)
-  )
-})
-
-const hasPlaceholderColumns = computed(() =>
-  columns.value.some(column =>
-    ['implementation', 'evaluation'].includes(column.key)
-  )
-)
 
 const openRenameDialog = () => {
   showRenameDialog.value = true
@@ -322,6 +218,12 @@ const saveChanges = async () => {
     isSaving.value = false
   }
 }
+
+onMounted(() => {
+  if (alertContainer.value) {
+    alertContainer.value.__v_auto_animate = true
+  }
+})
 </script>
 
 <template>

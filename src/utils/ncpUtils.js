@@ -573,3 +573,150 @@ const formatEvaluationDisplay = structure => {
 
   return display
 }
+
+/**
+ * Convert formatted display data back to raw text for export
+ * @param {Array} formattedData - Array of formatted display items
+ * @returns {string} Raw text representation
+ */
+export const convertFormattedToRawText = formattedData => {
+  if (!formattedData || !Array.isArray(formattedData)) {
+    return ''
+  }
+
+  return formattedData
+    .map(item => {
+      if (typeof item === 'string') {
+        return item
+      } else if (item && typeof item === 'object' && item.content) {
+        // Handle formatted objects with type and content
+        switch (item.type) {
+          case 'header':
+            return `* ${item.content}:`
+          case 'subheader':
+            return `* ${item.content}:`
+          case 'bullet':
+            return `- ${item.content}`
+          case 'text':
+          default:
+            return item.content
+        }
+      }
+      return ''
+    })
+    .filter(line => line.trim().length > 0)
+    .join('\n')
+}
+
+/**
+ * Generate format options for NCP display
+ * @param {Array} allColumns - Array of all available columns
+ * @returns {Array} Array of format options
+ */
+export const generateFormatOptions = allColumns => {
+  const options = []
+  for (let i = 4; i <= allColumns.length; i++) {
+    options.push({
+      value: i.toString(),
+      label: `${i} Columns`,
+      description: allColumns
+        .slice(0, i)
+        .map(col => col.label)
+        .join(', '),
+    })
+  }
+  return options
+}
+
+/**
+ * Get export options configuration
+ * @returns {Array} Array of export options
+ */
+export const getExportOptions = () => [
+  {
+    value: 'pdf',
+    label: 'Export as PDF',
+    description: 'Portable Document Format',
+  },
+  {
+    value: 'xlsx',
+    label: 'Export as Excel',
+    description: 'Microsoft Excel spreadsheet',
+  },
+  {
+    value: 'word',
+    label: 'Export as Word',
+    description: 'Microsoft Word document',
+  },
+  {
+    value: 'png',
+    label: 'Export as PNG',
+    description: 'Portable Network Graphics image',
+  },
+]
+
+/**
+ * Get all available NCP columns
+ * @returns {Array} Array of column definitions
+ */
+export const getAllNCPColumns = () => [
+  { key: 'assessment', label: 'Assessment' },
+  { key: 'diagnosis', label: 'Diagnosis' },
+  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'interventions', label: 'Interventions' },
+  { key: 'rationale', label: 'Rationale' },
+  { key: 'implementation', label: 'Implementation' },
+  { key: 'evaluation', label: 'Evaluation' },
+]
+
+/**
+ * Get editable columns (excluding assessment)
+ * @returns {Array} Array of editable column definitions
+ */
+export const getEditableColumns = () => [
+  { key: 'diagnosis', label: 'Diagnosis' },
+  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'interventions', label: 'Interventions' },
+  { key: 'rationale', label: 'Rationale' },
+  { key: 'implementation', label: 'Implementation' },
+  { key: 'evaluation', label: 'Evaluation' },
+]
+
+/**
+ * Prepare export data from NCP object
+ * @param {Object} ncp - NCP object
+ * @param {Array} columns - Selected columns for export
+ * @param {Object} formattedNCP - Formatted NCP data
+ * @returns {Object} Export-ready data
+ */
+export const prepareExportData = (ncp, columns, formattedNCP) => {
+  const exportData = {}
+
+  columns.forEach(column => {
+    // Use original raw data from ncp if available
+    if (ncp[column.key] && typeof ncp[column.key] === 'string') {
+      exportData[column.key] = ncp[column.key]
+    } else if (formattedNCP[column.key]) {
+      // Convert formatted data back to raw text as fallback
+      exportData[column.key] = convertFormattedToRawText(
+        formattedNCP[column.key]
+      )
+    } else {
+      exportData[column.key] = ''
+    }
+  })
+
+  return {
+    ...exportData,
+    title: ncp.title || 'Nursing Care Plan',
+    is_modified: ncp.is_modified || false,
+  }
+}
+
+/**
+ * Check if NCP has placeholder columns
+ * @param {Array} columns - Array of columns to check
+ * @returns {boolean} Whether placeholder columns exist
+ */
+export const hasPlaceholderColumns = columns =>
+  columns.some(column => ['implementation', 'evaluation'].includes(column.key))
