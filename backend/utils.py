@@ -55,37 +55,69 @@ def format_data(data) -> str:
 
 def parse_ncp_response(text: str) -> Dict:
     """
-    Parse the AI response into structured sections.
-    Returns clean text without HTML formatting.
+    Parse the AI response into structured sections with better formatting.
+    Returns clean text with preserved structure for frontend formatting.
     """
     sections = {
-        "assessment": "Not applicable",
-        "diagnosis": "Not applicable", 
-        "outcomes": "Not applicable",
-        "interventions": "Not applicable",
-        "rationale": "Not applicable",
-        "implementation": "Not applicable",
-        "evaluation": "Not applicable"
+        "assessment": "",
+        "diagnosis": "", 
+        "outcomes": "",
+        "interventions": "",
+        "rationale": "",
+        "implementation": "",
+        "evaluation": ""
     }
     
     # Define regex pattern to match section headers
     section_pattern = re.compile(r'\*\*(.*?):\*\*', re.IGNORECASE)
     current_section = None
+    section_content = []
 
     # Iterate through each line of the text
     for line in text.splitlines():
         line = line.strip()
+        
+        # Check if this is a section header
         match = section_pattern.match(line)
         if match:
-            current_section = match.group(1).lower()
-            if current_section == "diagnosis (nanda-i)":
+            # Save previous section content if exists
+            if current_section and section_content:
+                # Join content and clean it up
+                content = '\n'.join(section_content).strip()
+                sections[current_section] = content
+            
+            # Start new section
+            section_name = match.group(1).lower()
+            if "diagnosis" in section_name:
                 current_section = "diagnosis"
-        elif current_section:
-            if sections[current_section] == "Not applicable":
-                sections[current_section] = line
+            elif "assessment" in section_name:
+                current_section = "assessment"
+            elif "outcome" in section_name or "goal" in section_name:
+                current_section = "outcomes"
+            elif "intervention" in section_name:
+                current_section = "interventions"
+            elif "rationale" in section_name:
+                current_section = "rationale"
+            elif "implementation" in section_name:
+                current_section = "implementation"
+            elif "evaluation" in section_name:
+                current_section = "evaluation"
             else:
-                sections[current_section] += f"\n{line}"
-
-    # Return clean text without HTML formatting
-    # The frontend will handle formatting during display
+                current_section = None
+            
+            section_content = []
+            
+        elif current_section and line:
+            section_content.append(line)
+    
+    # Don't forget the last section
+    if current_section and section_content:
+        content = '\n'.join(section_content).strip()
+        sections[current_section] = content
+    
+    # Ensure all sections have content (use fallback if empty)
+    for section, content in sections.items():
+        if not content or content.lower() in ['not applicable', 'n/a', '']:
+            sections[section] = "Not provided"
+    
     return sections
