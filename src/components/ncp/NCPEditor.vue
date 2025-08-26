@@ -193,40 +193,48 @@ const formattedNCP = computed(() => {
               <!-- Assessment Column (Read-only) -->
               <div v-if="column.key === 'assessment'" class="space-y-3">
                 <div
-                  v-for="(line, lineIndex) in formattedNCP[column.key]"
-                  :key="lineIndex"
+                  v-for="(item, itemIndex) in formattedNCP[column.key]"
+                  :key="itemIndex"
                   class="leading-relaxed text-muted-foreground"
                   :class="{
-                    'mb-3': lineIndex < formattedNCP[column.key].length - 1,
-                    'mb-4':
-                      line.match(/^\d+\./) &&
-                      lineIndex < formattedNCP[column.key].length - 1,
-                    'mb-3':
-                      line.startsWith('-') &&
-                      lineIndex < formattedNCP[column.key].length - 1,
+                    'mb-3': itemIndex < formattedNCP[column.key].length - 1,
+                    'font-semibold text-sm': item.type === 'header',
+                    'mb-1': item.type === 'bullet',
                   }"
                 >
-                  {{ line }}
+                  <span v-if="item.type === 'bullet'" class="text-primary mr-1"
+                    >*</span
+                  >
+                  {{ item.content }}
                 </div>
               </div>
 
-              <!-- Editable Columns -->
+              <!-- Editable Columns - View Mode -->
               <div v-else-if="!isEditing" class="space-y-3">
                 <div
-                  v-for="(line, lineIndex) in formattedNCP[column.key]"
-                  :key="lineIndex"
+                  v-for="(item, itemIndex) in formattedNCP[column.key]"
+                  :key="itemIndex"
                   class="leading-relaxed"
                   :class="{
-                    'mb-3': lineIndex < formattedNCP[column.key].length - 1,
                     'mb-4':
-                      line.match(/^\d+\./) &&
-                      lineIndex < formattedNCP[column.key].length - 1,
+                      item.type === 'header' &&
+                      itemIndex < formattedNCP[column.key].length - 1,
                     'mb-3':
-                      line.startsWith('-') &&
-                      lineIndex < formattedNCP[column.key].length - 1,
+                      item.type === 'subheader' &&
+                      itemIndex < formattedNCP[column.key].length - 1,
+                    'mb-2':
+                      item.type === 'text' &&
+                      itemIndex < formattedNCP[column.key].length - 1,
+                    'mb-1': item.type === 'bullet',
+                    'font-semibold text-sm text-muted-foreground':
+                      item.type === 'header',
+                    'font-medium text-sm': item.type === 'subheader',
                   }"
                 >
-                  {{ line }}
+                  <span v-if="item.type === 'bullet'" class="text-primary mr-1"
+                    >*</span
+                  >
+                  {{ item.content }}
                 </div>
               </div>
 

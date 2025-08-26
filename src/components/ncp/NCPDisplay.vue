@@ -140,34 +140,43 @@ const handleFormatChange = format => {
 
 const handleExport = async exportType => {
   try {
-    const filteredFormattedNCP = {}
+    // Try to use original raw data first, fall back to formatted conversion if needed
+    const exportData = {}
     const currentColumns = allColumns.slice(0, parseInt(selectedFormat.value))
     const columnLabels = currentColumns.map(col => col.label)
 
     currentColumns.forEach(column => {
-      if (formattedNCP.value[column.key]) {
-        filteredFormattedNCP[column.key] = formattedNCP.value[column.key]
+      // Use original raw data from props.ncp if available
+      if (props.ncp[column.key] && typeof props.ncp[column.key] === 'string') {
+        exportData[column.key] = props.ncp[column.key]
+      } else if (formattedNCP.value[column.key]) {
+        // Convert formatted data back to raw text as fallback
+        exportData[column.key] = convertFormattedToRawText(
+          formattedNCP.value[column.key]
+        )
+      } else {
+        exportData[column.key] = ''
       }
     })
 
-    const exportData = {
-      ...filteredFormattedNCP,
+    const finalExportData = {
+      ...exportData,
       title: props.ncp.title || 'Nursing Care Plan',
       is_modified: props.ncp.is_modified || false,
     }
 
     switch (exportType) {
       case 'pdf':
-        await exportUtils.toPDF(exportData, columnLabels, true)
+        await exportUtils.toPDF(finalExportData, columnLabels, false)
         break
       case 'xlsx':
-        await exportUtils.toXLSX(exportData, columnLabels, true)
+        await exportUtils.toXLSX(finalExportData, columnLabels, false)
         break
       case 'word':
-        await exportUtils.toWord(exportData, columnLabels, true)
+        await exportUtils.toWord(finalExportData, columnLabels, false)
         break
       case 'png':
-        await exportUtils.toPNG(exportData, columnLabels, true)
+        await exportUtils.toPNG(finalExportData, columnLabels, false)
         break
       default:
         throw new Error('Unsupported export format')
@@ -185,6 +194,36 @@ const handleExport = async exportType => {
       variant: 'destructive',
     })
   }
+}
+
+// Helper function to convert formatted data back to raw text
+const convertFormattedToRawText = formattedData => {
+  if (!formattedData || !Array.isArray(formattedData)) {
+    return ''
+  }
+
+  return formattedData
+    .map(item => {
+      if (typeof item === 'string') {
+        return item
+      } else if (item && typeof item === 'object' && item.content) {
+        // Handle formatted objects with type and content
+        switch (item.type) {
+          case 'header':
+            return `* ${item.content}:`
+          case 'subheader':
+            return `* ${item.content}:`
+          case 'bullet':
+            return `- ${item.content}`
+          case 'text':
+          default:
+            return item.content
+        }
+      }
+      return ''
+    })
+    .filter(line => line.trim().length > 0)
+    .join('\n')
 }
 
 onMounted(() => {
@@ -525,12 +564,11 @@ const saveChanges = async () => {
                     'mb-3': itemIndex < formattedNCP[column.key].length - 1,
                     'text-muted-foreground': item.type === 'header',
                     'font-semibold text-sm': item.type === 'header',
-                    'ml-4': item.type === 'bullet',
                     'mb-1': item.type === 'bullet',
                   }"
                 >
-                  <span v-if="item.type === 'bullet'" class="text-primary mr-2"
-                    >•</span
+                  <span v-if="item.type === 'bullet'" class="text-primary"
+                    >*</span
                   >
                   {{ item.content }}
                 </div>
@@ -556,11 +594,10 @@ const saveChanges = async () => {
                     'font-semibold text-sm text-muted-foreground':
                       item.type === 'header',
                     'font-medium text-sm': item.type === 'subheader',
-                    'ml-4': item.type === 'bullet',
                   }"
                 >
-                  <span v-if="item.type === 'bullet'" class="text-primary mr-2"
-                    >•</span
+                  <span v-if="item.type === 'bullet'" class="text-primary"
+                    >*</span
                   >
                   {{ item.content }}
                 </div>
