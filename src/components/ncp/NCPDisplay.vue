@@ -1,6 +1,7 @@
 <script setup>
 import RenameNCPDialog from '@/components/ncp/RenameNCPDialog.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -36,6 +37,7 @@ import {
   Info,
   MoreHorizontal,
   Pencil,
+  PencilLine,
   Save,
   Settings,
   X,
@@ -237,19 +239,20 @@ onMounted(() => {
       class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
     >
       <!-- Title Section -->
-      <div class="flex-1 min-w-0">
+      <div class="flex-1 min-w-0 space-y-3">
         <h1 class="font-poppins text-2xl font-bold truncate">
           {{ displayTitle }}
         </h1>
-        <div class="flex items-center gap-2 text-muted-foreground text-sm">
-          <span>{{ selectedFormat }}-Column Format</span>
-          <div
-            v-if="ncp.is_modified"
-            class="flex items-center gap-1 text-amber-600"
+
+        <!-- Status info below title -->
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="text-muted-foreground text-sm"
+            >{{ selectedFormat }}-Column Format</span
           >
-            <div class="w-1.5 h-1.5 bg-amber-500 rounded-full"></div>
-            <span class="text-xs">Modified</span>
-          </div>
+          <Badge v-if="ncp.is_modified" variant="warning" size="sm">
+            <PencilLine class="w-3 h-3 mr-1" />
+            Modified
+          </Badge>
         </div>
       </div>
 

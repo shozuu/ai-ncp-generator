@@ -81,6 +81,11 @@ const currentLoadingState = computed(() => {
   return null
 })
 
+// Show disclaimer only when we have explanations
+const shouldShowDisclaimer = computed(() => {
+  return hasExplanation.value && hasAnyValidExplanationsComputed.value
+})
+
 onMounted(async () => {
   await loadNCPAndExplanation()
 
@@ -213,8 +218,9 @@ const setLevelContainerRef = (section, levelKey) => {
         </p>
       </div>
 
-      <!-- Important Disclaimer Alert - Mobile Optimized -->
+      <!-- Important Disclaimer Alert - Only show when explanations exist -->
       <Alert
+        v-if="shouldShowDisclaimer"
         variant="default"
         class="border-amber-200 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800"
         ref="disclaimerContainer"
