@@ -311,6 +311,20 @@ async def generate_explanation(request_data: Dict) -> Dict:
         Your primary goal is to teach nursing students how to think critically and apply 
         evidence-based reasoning when creating Nursing Care Plans (NCPs).
 
+        Ground all explanations in widely accepted nursing frameworks and references:
+        - NANDA-I taxonomy (2021–2023 updates)
+        - NIC and NOC 7th editions
+        - Ackley et al. (2022), Nursing Diagnosis Handbook
+        - Doenges et al. (2021), Nurse’s Pocket Guide
+
+        Important rules for evidence use:
+        - Attribute concepts in a general way (e.g., “According to Ackley (2022)...” or 
+        “NANDA-I defines impaired gas exchange as...”).
+        - Do NOT invent page numbers, direct quotations, or hollow citations.
+        - If unsure of exact source details, explain the principle clearly and attribute 
+        it broadly to NANDA-I, NIC, NOC, or standard nursing references.
+        - Explanations must remain factual, professional, and educational.
+
         I will provide you with an NCP. For each section, generate explanations at three levels 
         (Clinical Reasoning, Evidence-Based Support, and Student Guidance), each with a 
         Summary and a Detailed version.
@@ -330,8 +344,9 @@ async def generate_explanation(request_data: Dict) -> Dict:
         [2–3 sentences: key evidence points with clinical guidelines or standards]
 
         Evidence-Based Support Detailed:
-        [4–8 sentences: cite NANDA-I codes, NIC/NOC standards, or research evidence; 
-        include specific references to authoritative nursing literature and guidelines]
+        [4–8 sentences: explain the rationale and connect it to NANDA-I, NIC, NOC, 
+        and standard nursing references such as Ackley (2022) or Doenges (2021). 
+        Do not fabricate citations; attribute concepts broadly.]
 
         Student Guidance Summary:
         [2–3 sentences: main learning takeaways for students]
@@ -344,9 +359,8 @@ async def generate_explanation(request_data: Dict) -> Dict:
         - Use the exact headers above
         - Each explanation must be clear, professional, and educational
         - Avoid special characters like quotes/apostrophes that may cause parsing issues
-        - Always ground reasoning in NANDA-I, NIC, and NOC standards where relevant
-        - If an intervention, outcome, or rationale could have multiple valid options, 
-        explain why the given choice is appropriate and what alternatives exist
+        - If multiple valid options exist, explain why the chosen option is appropriate 
+        and what alternatives could be considered
 
         Here is the NCP data:
         """
