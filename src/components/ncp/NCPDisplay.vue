@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { ncpService } from '@/services/ncpService'
 import { exportUtils } from '@/utils/exportUtils'
+import { formatNCPForDisplay, parseNCPSectionContent } from '@/utils/ncpUtils'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { useResizeObserver } from '@vueuse/core'
 import {
@@ -205,7 +206,13 @@ const formatTextToLines = text => {
 const formattedNCP = computed(() => {
   const formatted = {}
   for (const key in props.ncp) {
-    formatted[key] = formatTextToLines(props.ncp[key])
+    if (allColumns.some(col => col.key === key)) {
+      // Parse and format each section based on its type
+      const structure = parseNCPSectionContent(props.ncp[key], key)
+      formatted[key] = formatNCPForDisplay(structure)
+    } else {
+      formatted[key] = formatTextToLines(props.ncp[key])
+    }
   }
   return formatted
 })
@@ -511,40 +518,51 @@ const saveChanges = async () => {
               <!-- Assessment Column (Always Read-only) -->
               <div v-if="column.key === 'assessment'" class="space-y-3">
                 <div
-                  v-for="(line, lineIndex) in formattedNCP[column.key]"
-                  :key="lineIndex"
-                  class="leading-relaxed text-muted-foreground"
+                  v-for="(item, itemIndex) in formattedNCP[column.key]"
+                  :key="itemIndex"
+                  class="leading-relaxed"
                   :class="{
-                    'mb-3': lineIndex < formattedNCP[column.key].length - 1,
-                    'mb-4':
-                      line.match(/^\d+\./) &&
-                      lineIndex < formattedNCP[column.key].length - 1,
-                    'mb-3':
-                      line.startsWith('-') &&
-                      lineIndex < formattedNCP[column.key].length - 1,
+                    'mb-3': itemIndex < formattedNCP[column.key].length - 1,
+                    'text-muted-foreground': item.type === 'header',
+                    'font-semibold text-sm': item.type === 'header',
+                    'ml-4': item.type === 'bullet',
+                    'mb-1': item.type === 'bullet',
                   }"
                 >
-                  {{ line }}
+                  <span v-if="item.type === 'bullet'" class="text-primary mr-2"
+                    >•</span
+                  >
+                  {{ item.content }}
                 </div>
               </div>
 
               <!-- Editable Columns - View Mode -->
               <div v-else-if="!isEditing" class="space-y-3">
                 <div
-                  v-for="(line, lineIndex) in formattedNCP[column.key]"
-                  :key="lineIndex"
+                  v-for="(item, itemIndex) in formattedNCP[column.key]"
+                  :key="itemIndex"
                   class="leading-relaxed"
                   :class="{
-                    'mb-3': lineIndex < formattedNCP[column.key].length - 1,
                     'mb-4':
-                      line.match(/^\d+\./) &&
-                      lineIndex < formattedNCP[column.key].length - 1,
+                      item.type === 'header' &&
+                      itemIndex < formattedNCP[column.key].length - 1,
                     'mb-3':
-                      line.startsWith('-') &&
-                      lineIndex < formattedNCP[column.key].length - 1,
+                      item.type === 'subheader' &&
+                      itemIndex < formattedNCP[column.key].length - 1,
+                    'mb-2':
+                      item.type === 'text' &&
+                      itemIndex < formattedNCP[column.key].length - 1,
+                    'mb-1': item.type === 'bullet',
+                    'font-semibold text-sm text-muted-foreground':
+                      item.type === 'header',
+                    'font-medium text-sm': item.type === 'subheader',
+                    'ml-4': item.type === 'bullet',
                   }"
                 >
-                  {{ line }}
+                  <span v-if="item.type === 'bullet'" class="text-primary mr-2"
+                    >•</span
+                  >
+                  {{ item.content }}
                 </div>
               </div>
 

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { ncpService } from '@/services/ncpService'
+import { formatNCPForDisplay, parseNCPSectionContent } from '@/utils/ncpUtils'
 import { Edit, Save, X } from 'lucide-vue-next'
 import { computed, reactive, ref } from 'vue'
 
@@ -102,7 +103,22 @@ const formatTextToLines = text => {
 const formattedNCP = computed(() => {
   const formatted = {}
   for (const key in props.ncp) {
-    formatted[key] = formatTextToLines(props.ncp[key])
+    if (
+      [
+        'assessment',
+        'diagnosis',
+        'outcomes',
+        'interventions',
+        'rationale',
+        'implementation',
+        'evaluation',
+      ].includes(key)
+    ) {
+      const structure = parseNCPSectionContent(props.ncp[key], key)
+      formatted[key] = formatNCPForDisplay(structure)
+    } else {
+      formatted[key] = formatTextToLines(props.ncp[key])
+    }
   }
   return formatted
 })

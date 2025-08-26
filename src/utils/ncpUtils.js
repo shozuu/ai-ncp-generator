@@ -218,3 +218,358 @@ export const hasAnyValidExplanations = (explanation, availableSections) => {
     hasValidSectionExplanation(explanation, section)
   )
 }
+
+/**
+ * Parse and format NCP section content into structured display format
+ * @param {string} content - Raw content from AI
+ * @param {string} sectionType - Type of section (assessment, diagnosis, etc.)
+ * @returns {Object} Formatted content structure
+ */
+export const parseNCPSectionContent = (content, sectionType) => {
+  if (!content || typeof content !== 'string') {
+    return { type: 'simple', content: [] }
+  }
+
+  const lines = content
+    .split('\n')
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+
+  switch (sectionType) {
+    case 'assessment':
+      return parseAssessmentContent(lines)
+    case 'diagnosis':
+      return parseDiagnosisContent(lines)
+    case 'outcomes':
+      return parseOutcomesContent(lines)
+    case 'interventions':
+    case 'rationale':
+    case 'implementation':
+      return parseStructuredListContent(lines)
+    case 'evaluation':
+      return parseEvaluationContent(lines)
+    default:
+      return { type: 'simple', content: lines }
+  }
+}
+
+/**
+ * Parse assessment content (subjective/objective structure)
+ */
+const parseAssessmentContent = lines => {
+  const structure = {
+    type: 'assessment',
+    subjective: [],
+    objective: [],
+  }
+
+  let currentSection = null
+
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase()
+
+    if (
+      lowerLine.includes('subjective') ||
+      lowerLine.includes('* subjective')
+    ) {
+      currentSection = 'subjective'
+      continue
+    } else if (
+      lowerLine.includes('objective') ||
+      lowerLine.includes('* objective')
+    ) {
+      currentSection = 'objective'
+      continue
+    }
+
+    if (currentSection && line.startsWith('-')) {
+      structure[currentSection].push(line.substring(1).trim())
+    } else if (currentSection && line) {
+      structure[currentSection].push(line)
+    }
+  }
+
+  return structure
+}
+
+/**
+ * Parse diagnosis content
+ */
+const parseDiagnosisContent = lines => {
+  return {
+    type: 'diagnosis',
+    content: lines,
+  }
+}
+
+/**
+ * Parse outcomes/goals content
+ */
+const parseOutcomesContent = lines => {
+  const structure = {
+    type: 'outcomes',
+    shortTerm: [],
+    longTerm: [],
+  }
+
+  let currentType = null
+
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase()
+
+    if (lowerLine.includes('short') || lowerLine.includes('within')) {
+      currentType = 'shortTerm'
+      if (!lowerLine.startsWith('-')) {
+        structure.shortTerm.push(line)
+        continue
+      }
+    } else if (
+      lowerLine.includes('long') ||
+      lowerLine.includes('week') ||
+      lowerLine.includes('month')
+    ) {
+      currentType = 'longTerm'
+      if (!lowerLine.startsWith('-')) {
+        structure.longTerm.push(line)
+        continue
+      }
+    }
+
+    if (currentType && line.startsWith('-')) {
+      structure[currentType].push(line.substring(1).trim())
+    } else if (currentType && line) {
+      structure[currentType].push(line)
+    } else if (!currentType && line) {
+      // If no specific type detected, add to short term
+      structure.shortTerm.push(line)
+    }
+  }
+
+  return structure
+}
+
+/**
+ * Parse structured list content (interventions, rationale, implementation)
+ */
+const parseStructuredListContent = lines => {
+  const structure = {
+    type: 'structured',
+    independent: [],
+    dependent: [],
+    collaborative: [],
+    general: [],
+  }
+
+  let currentType = 'general'
+
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase()
+
+    if (
+      lowerLine.includes('* independent') ||
+      lowerLine.includes('independent:')
+    ) {
+      currentType = 'independent'
+      continue
+    } else if (
+      lowerLine.includes('* dependent') ||
+      lowerLine.includes('dependent:')
+    ) {
+      currentType = 'dependent'
+      continue
+    } else if (
+      lowerLine.includes('* collaborative') ||
+      lowerLine.includes('collaborative:')
+    ) {
+      currentType = 'collaborative'
+      continue
+    }
+
+    if (line.startsWith('-')) {
+      structure[currentType].push(line.substring(1).trim())
+    } else if (line.match(/^\d+\./)) {
+      structure[currentType].push(line)
+    } else if (line) {
+      structure[currentType].push(line)
+    }
+  }
+
+  return structure
+}
+
+/**
+ * Parse evaluation content
+ */
+const parseEvaluationContent = lines => {
+  const structure = {
+    type: 'evaluation',
+    shortTerm: [],
+    longTerm: [],
+  }
+
+  let currentType = null
+
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase()
+
+    if (
+      lowerLine.includes('short') ||
+      (lowerLine.includes('after') && lowerLine.includes('hour'))
+    ) {
+      currentType = 'shortTerm'
+      if (!lowerLine.startsWith('-')) {
+        structure.shortTerm.push(line)
+        continue
+      }
+    } else if (
+      lowerLine.includes('long') ||
+      lowerLine.includes('week') ||
+      lowerLine.includes('month') ||
+      lowerLine.includes('discharge')
+    ) {
+      currentType = 'longTerm'
+      if (!lowerLine.startsWith('-')) {
+        structure.longTerm.push(line)
+        continue
+      }
+    }
+
+    if (currentType && line.startsWith('-')) {
+      structure[currentType].push(line.substring(1).trim())
+    } else if (currentType && line) {
+      structure[currentType].push(line)
+    } else if (!currentType && line) {
+      structure.shortTerm.push(line)
+    }
+  }
+
+  return structure
+}
+
+/**
+ * Format structured NCP content for display
+ * @param {Object} structure - Parsed structure from parseNCPSectionContent
+ * @returns {Array} Array of formatted display elements
+ */
+export const formatNCPForDisplay = structure => {
+  if (!structure || !structure.type) {
+    return []
+  }
+
+  switch (structure.type) {
+    case 'assessment':
+      return formatAssessmentDisplay(structure)
+    case 'diagnosis':
+      return formatDiagnosisDisplay(structure)
+    case 'outcomes':
+      return formatOutcomesDisplay(structure)
+    case 'structured':
+      return formatStructuredDisplay(structure)
+    case 'evaluation':
+      return formatEvaluationDisplay(structure)
+    default:
+      return structure.content || []
+  }
+}
+
+const formatAssessmentDisplay = structure => {
+  const display = []
+
+  if (structure.subjective?.length > 0) {
+    display.push({ type: 'header', content: 'Subjective Data:' })
+    structure.subjective.forEach(item => {
+      display.push({ type: 'bullet', content: item })
+    })
+  }
+
+  if (structure.objective?.length > 0) {
+    display.push({ type: 'header', content: 'Objective Data:' })
+    structure.objective.forEach(item => {
+      display.push({ type: 'bullet', content: item })
+    })
+  }
+
+  return display
+}
+
+const formatDiagnosisDisplay = structure => {
+  return structure.content.map(item => ({ type: 'text', content: item }))
+}
+
+const formatOutcomesDisplay = structure => {
+  const display = []
+
+  if (structure.shortTerm?.length > 0) {
+    display.push({ type: 'header', content: 'Short-term Goals:' })
+    structure.shortTerm.forEach(item => {
+      display.push({ type: 'text', content: item })
+    })
+  }
+
+  if (structure.longTerm?.length > 0) {
+    display.push({ type: 'header', content: 'Long-term Goals:' })
+    structure.longTerm.forEach(item => {
+      display.push({ type: 'text', content: item })
+    })
+  }
+
+  return display
+}
+
+const formatStructuredDisplay = structure => {
+  const display = []
+
+  if (structure.independent?.length > 0) {
+    display.push({ type: 'subheader', content: 'Independent:' })
+    structure.independent.forEach(item => {
+      display.push({ type: 'bullet', content: item })
+    })
+  }
+
+  if (structure.dependent?.length > 0) {
+    display.push({ type: 'subheader', content: 'Dependent:' })
+    structure.dependent.forEach(item => {
+      display.push({ type: 'bullet', content: item })
+    })
+  }
+
+  if (structure.collaborative?.length > 0) {
+    display.push({ type: 'subheader', content: 'Collaborative:' })
+    structure.collaborative.forEach(item => {
+      display.push({ type: 'bullet', content: item })
+    })
+  }
+
+  if (
+    structure.general?.length > 0 &&
+    structure.independent?.length === 0 &&
+    structure.dependent?.length === 0 &&
+    structure.collaborative?.length === 0
+  ) {
+    structure.general.forEach(item => {
+      display.push({ type: 'text', content: item })
+    })
+  }
+
+  return display
+}
+
+const formatEvaluationDisplay = structure => {
+  const display = []
+
+  if (structure.shortTerm?.length > 0) {
+    display.push({ type: 'header', content: 'Short-term Goal Evaluation:' })
+    structure.shortTerm.forEach(item => {
+      display.push({ type: 'text', content: item })
+    })
+  }
+
+  if (structure.longTerm?.length > 0) {
+    display.push({ type: 'header', content: 'Long-term Goal Evaluation:' })
+    structure.longTerm.forEach(item => {
+      display.push({ type: 'text', content: item })
+    })
+  }
+
+  return display
+}
