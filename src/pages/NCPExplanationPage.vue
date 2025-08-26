@@ -204,11 +204,9 @@ const setLevelContainerRef = (section, levelKey) => {
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-2">
             <AlertTriangle
-              class="shrink-0 text-amber-600 dark:text-amber-400 w-4 h-4 sm:w-5 sm:h-5"
+              class="shrink-0 text-amber-600 dark:text-amber-400 w-4 h-4"
             />
-            <AlertTitle
-              class="mb-0 text-amber-800 dark:text-amber-200 text-sm sm:text-base"
-            >
+            <AlertTitle class="mb-0 text-amber-800 dark:text-amber-200 text-sm">
               Educational Disclaimer
             </AlertTitle>
           </div>
@@ -217,7 +215,7 @@ const setLevelContainerRef = (section, levelKey) => {
             @click="isDisclaimerCollapsed = !isDisclaimerCollapsed"
           >
             <!-- Hide text on mobile, show only on sm and up -->
-            <span class="hidden sm:block">
+            <span class="hidden text-xs sm:block">
               <span v-if="isDisclaimerCollapsed">Show</span>
               <span v-else>Hide</span>
             </span>
@@ -230,14 +228,14 @@ const setLevelContainerRef = (section, levelKey) => {
           class="text-amber-700 dark:text-amber-200 mt-3"
         >
           <div class="space-y-3">
-            <p class="font-medium text-sm sm:text-base">
+            <p class="font-medium text-xs">
               These explanations are AI-generated educational tools designed to
               support learning and understanding of nursing care plan
               components.
             </p>
             <div class="space-y-2">
-              <p class="font-semibold text-xs sm:text-sm">Please Remember:</p>
-              <ul class="space-y-2 text-xs sm:text-sm ml-2 sm:ml-4">
+              <p class="font-semibold text-xs">Please Remember:</p>
+              <ul class="space-y-2 text-xs ml-2 sm:ml-4">
                 <li class="flex items-start gap-2">
                   <span
                     class="text-amber-600 dark:text-amber-400 font-bold mt-0.5 text-xs"
@@ -285,7 +283,7 @@ const setLevelContainerRef = (section, levelKey) => {
               </ul>
             </div>
             <p
-              class="text-xs sm:text-sm italic bg-amber-100 dark:bg-amber-900/30 p-2 sm:p-3 rounded-md border border-amber-200 dark:border-amber-700"
+              class="text-xs italic bg-amber-100 dark:bg-amber-900/30 p-2 sm:p-3 rounded-md border border-amber-200 dark:border-amber-700"
             >
               <strong>Learning Objective:</strong> These explanations aim to
               help you understand the "why" behind nursing decisions. Use them
