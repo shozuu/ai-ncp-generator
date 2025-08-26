@@ -29,6 +29,8 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
+  Eye,
+  FileCheck,
   GraduationCap,
   Lightbulb,
   RefreshCw,
@@ -63,6 +65,8 @@ const iconComponents = {
   Lightbulb,
   CheckCircle,
   RefreshCw,
+  FileCheck,
+  GraduationCap,
 }
 
 // Computed properties using utilities
@@ -150,6 +154,11 @@ const generateExplanation = async () => {
   }
 }
 
+// Navigation function to view the NCP
+const viewNCP = () => {
+  router.push(`/ncps/${ncpId}`)
+}
+
 // Wrapper functions to pass the current data to utilities
 const checkHasContent = section => hasContent(ncp.value, section)
 const checkHasValidSectionExplanation = section =>
@@ -209,13 +218,30 @@ const setLevelContainerRef = (section, levelKey) => {
 
     <div v-else class="space-y-4 sm:space-y-6 px-2 sm:px-0">
       <!-- Header -->
-      <div class="flex-1 min-w-0">
-        <h1 class="text-xl sm:text-2xl font-bold font-poppins truncate">
-          {{ ncp?.title || 'NCP Explanation' }}
-        </h1>
-        <p class="text-muted-foreground text-sm sm:text-base">
-          Evidence-based educational explanations for each NCP component
-        </p>
+      <div
+        class="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
+        <div class="flex-1 min-w-0">
+          <h1 class="text-xl sm:text-2xl font-bold font-poppins truncate">
+            {{ ncp?.title || 'NCP Explanation' }}
+          </h1>
+          <p class="text-muted-foreground text-sm sm:text-base">
+            Evidence-based educational explanations for each NCP component
+          </p>
+        </div>
+
+        <!-- View NCP Button -->
+        <div v-if="ncp" class="flex gap-2 shrink-0">
+          <Button
+            variant="outline"
+            @click="viewNCP"
+            class="flex items-center gap-2 text-xs"
+          >
+            <Eye class="h-3 w-3" />
+            <span class="hidden sm:inline">View NCP</span>
+            <span class="sm:hidden">View</span>
+          </Button>
+        </div>
       </div>
 
       <!-- Important Disclaimer Alert - Only show when explanations exist -->
