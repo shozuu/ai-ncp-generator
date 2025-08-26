@@ -204,15 +204,13 @@ const isDetailedViewOpen = (section, levelKey) => {
             class="text-amber-700 dark:text-amber-300 hover:underline flex items-center text-xs sm:text-sm font-medium"
             @click="isDisclaimerCollapsed = !isDisclaimerCollapsed"
           >
-            <span>
+            <!-- Hide text on mobile, show only on sm and up -->
+            <span class="hidden sm:block">
               <span v-if="isDisclaimerCollapsed">Show</span>
               <span v-else>Hide</span>
             </span>
-            <ChevronDown
-              v-if="isDisclaimerCollapsed"
-              class="w-3 h-3 sm:w-4 sm:h-4 ml-1"
-            />
-            <ChevronUp v-else class="w-3 h-3 sm:w-4 sm:h-4 ml-1" />
+            <ChevronDown v-if="isDisclaimerCollapsed" class="w-4 h-4 ml-1" />
+            <ChevronUp v-else class="w-4 h-4 ml-1" />
           </button>
         </div>
         <AlertDescription
@@ -350,6 +348,7 @@ const isDetailedViewOpen = (section, levelKey) => {
               v-for="section in availableSections"
               :key="section"
               class="overflow-hidden transition-all duration-200 hover:shadow-md"
+              
             >
               <CardHeader class="bg-muted/30 border-b p-4 sm:p-6">
                 <CardTitle class="flex items-center gap-2 sm:gap-3">
@@ -405,7 +404,7 @@ const isDetailedViewOpen = (section, levelKey) => {
                     >
                       Educational Explanation
                     </h4>
-                    <Badge variant="outline" class="text-xs">
+                    <Badge variant="outline" class="text-xs text-center">
                       3 Learning Levels
                     </Badge>
                   </div>
@@ -441,7 +440,7 @@ const isDetailedViewOpen = (section, levelKey) => {
                           </div>
                           <div class="flex-1 min-w-0">
                             <div
-                              class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 mb-1"
+                              class="flex items-center justify-between gap-1 sm:gap-0 mb-1"
                             >
                               <div class="flex items-center gap-2">
                                 <span
@@ -464,19 +463,17 @@ const isDetailedViewOpen = (section, levelKey) => {
                                 @click="toggleDetailedView(section, level.key)"
                                 class="h-5 sm:h-6 px-1.5 sm:px-2 text-xs self-start sm:self-auto"
                               >
-                                <span class="text-xs">{{
+                                <!-- Hide text on mobile, show only on sm and up -->
+                                <span class="hidden sm:inline text-xs">{{
                                   isDetailedViewOpen(section, level.key)
-                                    ? 'Hide Details'
-                                    : 'View Details'
+                                    ? 'Hide'
+                                    : 'See More'
                                 }}</span>
                                 <ChevronDown
                                   v-if="!isDetailedViewOpen(section, level.key)"
-                                  class="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-1"
+                                  class="h-3 w-3"
                                 />
-                                <ChevronUp
-                                  v-else
-                                  class="h-2.5 w-2.5 sm:h-3 sm:w-3 ml-1"
-                                />
+                                <ChevronUp v-else class="h-3 w-3" />
                               </Button>
                             </div>
                             <p
