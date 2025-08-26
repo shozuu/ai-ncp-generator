@@ -29,7 +29,6 @@ import {
   ChevronDown,
   ChevronUp,
   ClipboardList,
-  FileCheck,
   GraduationCap,
   Lightbulb,
   RefreshCw,
@@ -64,8 +63,6 @@ const iconComponents = {
   Lightbulb,
   CheckCircle,
   RefreshCw,
-  FileCheck,
-  GraduationCap,
 }
 
 // Computed properties using utilities
@@ -74,6 +71,15 @@ const availableSections = computed(() => getAvailableSections(ncp.value))
 const hasAnyValidExplanationsComputed = computed(() =>
   hasAnyValidExplanations(explanation.value, availableSections.value)
 )
+
+const currentLoadingState = computed(() => {
+  if (isGeneratingExplanation.value) {
+    return 'generating'
+  } else if (isLoading.value) {
+    return 'loading'
+  }
+  return null
+})
 
 onMounted(async () => {
   await loadNCPAndExplanation()
@@ -85,6 +91,7 @@ onMounted(async () => {
 
 const loadNCPAndExplanation = async () => {
   isLoading.value = true
+  isGeneratingExplanation.value = false // Ensure only one loading state
   generationError.value = null
 
   try {
@@ -112,6 +119,7 @@ const loadNCPAndExplanation = async () => {
 
 const generateExplanation = async () => {
   isGeneratingExplanation.value = true
+  isLoading.value = false
   generationError.value = null
 
   try {
@@ -147,6 +155,7 @@ const getFormattedExplanationContent = (
   contentType = 'summary'
 ) => getExplanationContent(explanation.value, section, levelKey, contentType)
 
+// Detailed view management
 const showDetailedView = ref({})
 const levelContainerRefs = ref({})
 
@@ -175,12 +184,22 @@ const setLevelContainerRef = (section, levelKey) => {
 <template>
   <PageHead :title="`- ${ncp?.title || 'NCP Explanation'}`" />
   <SidebarLayout>
-    <!-- AI Generation Loading State -->
+    <!-- Single Loading State Handler -->
     <div
-      v-if="isGeneratingExplanation"
+      v-if="currentLoadingState"
       class="flex items-center justify-center h-screen"
     >
-      <LoadingIndicator :messages="loadingMessages" />
+      <LoadingIndicator
+        :messages="
+          currentLoadingState === 'generating'
+            ? loadingMessages
+            : [
+                'Loading NCP data...',
+                'Retrieving explanations...',
+                'Preparing educational content...',
+              ]
+        "
+      />
     </div>
 
     <div v-else class="space-y-4 sm:space-y-6 px-2 sm:px-0">
@@ -295,18 +314,8 @@ const setLevelContainerRef = (section, levelKey) => {
         </AlertDescription>
       </Alert>
 
-      <!-- Initial Loading State -->
-      <div v-if="isLoading" class="flex items-center justify-center py-16">
-        <LoadingIndicator
-          :messages="[
-            'Loading NCP data...',
-            'Retrieving explanations...',
-            'Preparing content...',
-          ]"
-        />
-      </div>
-
-      <div v-else-if="ncp" class="space-y-4 sm:space-y-6">
+      <!-- Content when not loading -->
+      <div v-if="ncp" class="space-y-4 sm:space-y-6">
         <!-- Error Alert -->
         <Alert v-if="generationError" variant="destructive" class="mb-6">
           <AlertDescription class="text-sm">

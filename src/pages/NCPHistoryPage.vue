@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import { useToast } from '@/components/ui/toast/use-toast'
 import {
   Tooltip,
@@ -146,9 +147,13 @@ const confirmDelete = async () => {
 
     <!-- Loading State -->
     <div v-if="isLoading" class="flex items-center justify-center py-16">
-      <span class="animate-pulse text-muted-foreground text-lg"
-        >Loading your nursing care plans...</span
-      >
+      <LoadingIndicator
+        :messages="[
+          'Loading your nursing care plans...',
+          'Retrieving NCP data...',
+          'Preparing your dashboard...',
+        ]"
+      />
     </div>
 
     <!-- Empty State -->

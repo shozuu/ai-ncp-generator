@@ -3,6 +3,7 @@ import PageHead from '@/components/PageHead.vue'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import { useToast } from '@/components/ui/toast/use-toast'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { ncpService } from '@/services/ncpService'
@@ -67,9 +68,13 @@ const formatDate = dateString => {
 
       <!-- Loading State -->
       <div v-if="isLoading" class="flex items-center justify-center py-16">
-        <span class="animate-pulse text-muted-foreground text-lg">
-          Loading your nursing care plans...
-        </span>
+        <LoadingIndicator
+          :messages="[
+            'Loading your nursing care plans...',
+            'Retrieving NCP data...',
+            'Preparing explanation portal...',
+          ]"
+        />
       </div>
 
       <!-- Empty State -->

@@ -1,5 +1,6 @@
 <script setup>
 import NCPDisplay from '@/components/ncp/NCPDisplay.vue'
+import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import { useToast } from '@/components/ui/toast/use-toast'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { ncpService } from '@/services/ncpService'
@@ -54,9 +55,13 @@ const handleNCPUpdated = updatedNCP => {
   <SidebarLayout>
     <div class="mx-auto">
       <div v-if="isLoading" class="flex items-center justify-center py-16">
-        <span class="animate-pulse text-muted-foreground text-lg">
-          Loading nursing care plan...
-        </span>
+        <LoadingIndicator
+          :messages="[
+            'Loading nursing care plan...',
+            'Retrieving NCP details...',
+            'Preparing display format...',
+          ]"
+        />
       </div>
       <div v-else-if="!ncp" class="text-center text-destructive py-16">
         NCP not found.
