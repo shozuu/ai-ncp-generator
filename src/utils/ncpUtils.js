@@ -683,6 +683,43 @@ export const getEditableColumns = () => [
 ]
 
 /**
+ * Generate a standard default title for new NCPs
+ * @returns {string} Standard default title
+ */
+export const generateDefaultNCPTitle = () => {
+  return 'Nursing Care Plan'
+}
+
+/**
+ * Get display title with fallback to default
+ * @param {Object} ncp - NCP object
+ * @returns {string} Display title
+ */
+export const getDisplayTitle = ncp => {
+  if (ncp.title && ncp.title.trim() && !isDateString(ncp.title)) {
+    return ncp.title
+  }
+  return generateDefaultNCPTitle()
+}
+
+/**
+ * Check if a string looks like a formatted date
+ * @param {string} str - String to check
+ * @returns {boolean} Whether the string appears to be a date
+ */
+const isDateString = str => {
+  // Check for common date patterns like "2024-01-15", "Jan 15, 2024", etc.
+  const datePatterns = [
+    /^\d{4}-\d{2}-\d{2}/, // YYYY-MM-DD
+    /^\d{2}\/\d{2}\/\d{4}/, // MM/DD/YYYY
+    /^\w{3}\s+\d{1,2},\s+\d{4}/, // Jan 15, 2024
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/, // ISO datetime
+  ]
+
+  return datePatterns.some(pattern => pattern.test(str.trim()))
+}
+
+/**
  * Prepare export data from NCP object
  * @param {Object} ncp - NCP object
  * @param {Array} columns - Selected columns for export
@@ -708,7 +745,7 @@ export const prepareExportData = (ncp, columns, formattedNCP) => {
 
   return {
     ...exportData,
-    title: ncp.title || 'Nursing Care Plan',
+    title: getDisplayTitle(ncp),
     is_modified: ncp.is_modified || false,
   }
 }

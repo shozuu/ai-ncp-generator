@@ -20,6 +20,7 @@ import {
   formatTextToLines,
   generateFormatOptions,
   getAllNCPColumns,
+  getDisplayTitle,
   getEditableColumns,
   getExportOptions,
   parseNCPSectionContent,
@@ -115,6 +116,9 @@ const editableColumnsInFormat = computed(() => {
 const hasPlaceholderColumns = computed(() =>
   checkPlaceholderColumns(columns.value)
 )
+
+// Add a computed property for the display title
+const displayTitle = computed(() => getDisplayTitle(props.ncp))
 
 // Event handlers
 const updateFormat = value => {
@@ -235,7 +239,7 @@ onMounted(() => {
       <!-- Title Section -->
       <div class="flex-1 min-w-0">
         <h1 class="font-poppins text-2xl font-bold truncate">
-          {{ ncp.title || 'Generated Nursing Care Plan' }}
+          {{ displayTitle }}
         </h1>
         <div class="flex items-center gap-2 text-muted-foreground text-sm">
           <span>{{ selectedFormat }}-Column Format</span>

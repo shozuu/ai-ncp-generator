@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { generateDefaultNCPTitle } from '@/utils/ncpUtils'
 import axios from 'axios'
 
 const API_BASE_URL =
@@ -45,7 +46,8 @@ export const ncpService = {
     } = await supabase.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
-    const ncpTitle = title || `NCP - ${new Date().toLocaleDateString()}`
+    // Use the new default title function instead of date-based title
+    const ncpTitle = title || generateDefaultNCPTitle()
 
     const { data, error } = await supabase
       .from('ncps')
