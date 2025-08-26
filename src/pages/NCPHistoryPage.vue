@@ -22,11 +22,7 @@ import {
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { ncpService } from '@/services/ncpService'
 import { formatDate, getTimeAgo } from '@/utils/dateUtils'
-import {
-  getFormatDisplayName,
-  getFormatShortName,
-  truncateText,
-} from '@/utils/ncpUtils'
+import { getFormatDisplayName, getFormatShortName } from '@/utils/ncpUtils'
 import {
   Brain,
   Calendar,
@@ -122,6 +118,18 @@ const confirmDelete = async () => {
     })
   }
 }
+
+// Enhanced text processing function
+const processTextContent = (text, maxLength = 120) => {
+  if (!text) return 'Not provided'
+
+  // Remove multiple spaces and normalize line breaks
+  const cleanText = text.replace(/\s+/g, ' ').replace(/\n+/g, ' ').trim()
+
+  return cleanText.length > maxLength
+    ? cleanText.substring(0, maxLength).trim() + '...'
+    : cleanText
+}
 </script>
 
 <template>
@@ -190,14 +198,14 @@ const confirmDelete = async () => {
         <Card
           v-for="ncp in ncps"
           :key="ncp.id"
-          class="group border bg-card rounded-xl hover:shadow-lg hover:border-primary transition-all duration-200 cursor-pointer"
+          class="group border bg-card rounded-xl hover:shadow-lg hover:border-primary transition-all duration-200 cursor-pointer overflow-hidden"
           @click="viewNCP(ncp.id)"
         >
           <CardHeader class="pb-4">
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0 space-y-3">
                 <CardTitle
-                  class="font-semibold text-xl group-hover:text-primary transition-colors line-clamp-2"
+                  class="font-semibold text-xl group-hover:text-primary transition-colors line-clamp-2 break-words"
                 >
                   {{ ncp.title }}
                 </CardTitle>
@@ -205,12 +213,14 @@ const confirmDelete = async () => {
                 <!-- Status badges -->
                 <div class="flex flex-wrap gap-2">
                   <Badge v-if="ncp.is_modified" variant="warning" size="sm">
-                    <PencilLine class="w-3 h-3 mr-1" />
-                    Modified
+                    <PencilLine class="w-3 h-3 mr-1 flex-shrink-0" />
+                    <span class="truncate">Modified</span>
                   </Badge>
                   <Badge variant="info" size="sm">
-                    <FileText class="w-3 h-3 mr-1" />
-                    {{ getFormatDisplayName(ncp.format_type) }}
+                    <FileText class="w-3 h-3 mr-1 flex-shrink-0" />
+                    <span class="truncate">{{
+                      getFormatDisplayName(ncp.format_type)
+                    }}</span>
                   </Badge>
                 </div>
               </div>
@@ -252,70 +262,81 @@ const confirmDelete = async () => {
           <CardContent class="pt-0">
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Primary Information -->
-              <div class="space-y-4">
+              <div class="space-y-4 min-w-0">
                 <!-- Assessment Preview -->
                 <div v-if="ncp.assessment" class="space-y-2">
                   <div class="flex items-center gap-2">
-                    <Stethoscope class="h-4 w-4 text-muted-foreground" />
+                    <Stethoscope
+                      class="h-4 w-4 text-muted-foreground flex-shrink-0"
+                    />
                     <span class="text-sm font-medium text-muted-foreground"
                       >Assessment</span
                     >
                   </div>
-                  <p
-                    class="text-sm text-foreground bg-muted/30 p-3 rounded-md line-clamp-3"
+                  <div
+                    class="text-sm text-foreground bg-muted/30 p-3 rounded-md overflow-hidden"
                   >
-                    {{ truncateText(ncp.assessment, 150) }}
-                  </p>
+                    <p class="line-clamp-3 break-words leading-relaxed">
+                      {{ processTextContent(ncp.assessment, 150) }}
+                    </p>
+                  </div>
                 </div>
 
                 <!-- Primary Diagnosis -->
                 <div v-if="ncp.diagnosis" class="space-y-2">
                   <div class="flex items-center gap-2">
-                    <Brain class="h-4 w-4 text-muted-foreground" />
+                    <Brain
+                      class="h-4 w-4 text-muted-foreground flex-shrink-0"
+                    />
                     <span class="text-sm font-medium text-muted-foreground"
                       >Primary Diagnosis</span
                     >
                   </div>
-                  <p
-                    class="text-sm text-foreground bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md line-clamp-2 border border-blue-200 dark:border-blue-800"
+                  <div
+                    class="text-sm text-foreground bg-blue-50 dark:bg-blue-950/20 p-3 rounded-md border border-blue-200 dark:border-blue-800 overflow-hidden"
                   >
-                    {{
-                      truncateText(
-                        ncp.diagnosis.replace(/\n/g, ' ').trim(),
-                        120
-                      )
-                    }}
-                  </p>
+                    <p class="line-clamp-2 break-words leading-relaxed">
+                      {{ processTextContent(ncp.diagnosis, 120) }}
+                    </p>
+                  </div>
                 </div>
               </div>
 
               <!-- Timeline -->
-              <div class="space-y-4">
+              <div class="space-y-4 min-w-0">
                 <div class="space-y-3">
                   <h4 class="text-sm font-medium text-muted-foreground">
                     Timeline
                   </h4>
                   <div class="space-y-2">
-                    <div class="flex items-center gap-2 text-sm">
-                      <Calendar class="h-4 w-4 text-muted-foreground" />
-                      <span class="text-muted-foreground">Created:</span>
-                      <span class="font-medium">{{
+                    <div class="flex items-center gap-2 text-sm min-w-0">
+                      <Calendar
+                        class="h-4 w-4 text-muted-foreground flex-shrink-0"
+                      />
+                      <span class="text-muted-foreground flex-shrink-0"
+                        >Created:</span
+                      >
+                      <span class="font-medium truncate">{{
                         formatDate(ncp.created_at)
                       }}</span>
-                      <span class="text-xs text-muted-foreground"
+                      <span class="text-xs text-muted-foreground flex-shrink-0"
                         >({{ getTimeAgo(ncp.created_at) }})</span
                       >
                     </div>
                     <div
                       v-if="ncp.updated_at && ncp.updated_at !== ncp.created_at"
-                      class="flex items-center gap-2 text-sm"
+                      class="flex items-center gap-2 text-sm min-w-0"
                     >
-                      <Clock class="h-4 w-4 text-muted-foreground" />
-                      <span class="text-muted-foreground">Updated:</span>
-                      <span class="font-medium">{{
+                      <Clock
+                        class="h-4 w-4 text-muted-foreground flex-shrink-0"
+                      />
+                      <span class="text-muted-foreground flex-shrink-0"
+                        >Updated:</span
+                      >
+                      <span class="font-medium truncate">{{
                         formatDate(ncp.updated_at)
                       }}</span>
-                      <span class="text-xs text-muted-foreground"
+                      <span class="text-xs text-muted-foreground flex-shrink-0"
                         >({{ getTimeAgo(ncp.updated_at) }})</span
                       >
                     </div>
@@ -332,66 +353,75 @@ const confirmDelete = async () => {
         <Card
           v-for="ncp in ncps"
           :key="ncp.id"
-          class="group border bg-card rounded-xl hover:shadow-xl hover:border-primary transition-all duration-200 flex flex-col cursor-pointer h-full"
+          class="group border bg-card rounded-xl hover:shadow-xl hover:border-primary transition-all duration-200 flex flex-col cursor-pointer h-full overflow-hidden"
           @click="viewNCP(ncp.id)"
         >
           <CardHeader class="pb-3 flex-shrink-0">
             <div class="space-y-3">
               <CardTitle
-                class="font-semibold text-lg group-hover:text-primary transition-colors line-clamp-2 leading-tight"
+                class="font-semibold text-lg group-hover:text-primary transition-colors line-clamp-2 leading-tight break-words"
               >
                 {{ ncp.title }}
               </CardTitle>
 
               <!-- Status badges -->
               <div class="flex flex-wrap gap-1">
-                <Badge v-if="ncp.is_modified" variant="warning" size="sm">
-                  <PencilLine class="w-3 h-3 mr-1" />
-                  Modified
+                <Badge
+                  v-if="ncp.is_modified"
+                  variant="warning"
+                  size="sm"
+                  class="max-w-full"
+                >
+                  <PencilLine class="w-3 h-3 mr-1 flex-shrink-0" />
+                  <span class="truncate">Modified</span>
                 </Badge>
-                <Badge variant="info" size="sm">
-                  {{ getFormatShortName(ncp.format_type) }}
+                <Badge variant="info" size="sm" class="max-w-full">
+                  <span class="truncate">{{
+                    getFormatShortName(ncp.format_type)
+                  }}</span>
                 </Badge>
               </div>
             </div>
           </CardHeader>
 
           <CardContent
-            class="flex-1 flex flex-col justify-between space-y-4 pt-0"
+            class="flex-1 flex flex-col justify-between space-y-4 pt-0 min-w-0"
           >
             <!-- Content area -->
-            <div class="space-y-4">
+            <div class="space-y-4 flex-1 min-w-0">
               <!-- Primary Diagnosis Preview -->
               <div v-if="ncp.diagnosis" class="space-y-2">
                 <div class="flex items-center gap-2">
-                  <Brain class="h-3 w-3 text-muted-foreground" />
+                  <Brain class="h-3 w-3 text-muted-foreground flex-shrink-0" />
                   <span class="text-xs font-medium text-muted-foreground"
                     >Primary Diagnosis</span
                   >
                 </div>
-                <p
-                  class="text-xs text-foreground bg-blue-50 dark:bg-blue-950/20 p-2 rounded border border-blue-200 dark:border-blue-800 line-clamp-3"
+                <div
+                  class="text-xs text-foreground bg-blue-50 dark:bg-blue-950/20 p-2 rounded border border-blue-200 dark:border-blue-800 overflow-hidden"
                 >
-                  {{
-                    truncateText(ncp.diagnosis.replace(/\n/g, ' ').trim(), 100)
-                  }}
-                </p>
+                  <p class="line-clamp-3 break-words leading-relaxed">
+                    {{ processTextContent(ncp.diagnosis, 100) }}
+                  </p>
+                </div>
               </div>
 
               <!-- Timeline -->
               <div class="space-y-2">
-                <div class="flex items-center gap-2 text-xs">
-                  <Calendar class="h-3 w-3 text-muted-foreground" />
-                  <span class="text-muted-foreground"
+                <div class="flex items-center gap-2 text-xs min-w-0">
+                  <Calendar
+                    class="h-3 w-3 text-muted-foreground flex-shrink-0"
+                  />
+                  <span class="text-muted-foreground truncate"
                     >Created {{ getTimeAgo(ncp.created_at) }}</span
                   >
                 </div>
                 <div
                   v-if="ncp.updated_at && ncp.updated_at !== ncp.created_at"
-                  class="flex items-center gap-2 text-xs"
+                  class="flex items-center gap-2 text-xs min-w-0"
                 >
-                  <Clock class="h-3 w-3 text-muted-foreground" />
-                  <span class="text-muted-foreground"
+                  <Clock class="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  <span class="text-muted-foreground truncate"
                     >Updated {{ getTimeAgo(ncp.updated_at) }}</span
                   >
                 </div>
@@ -399,17 +429,17 @@ const confirmDelete = async () => {
             </div>
 
             <!-- Action buttons - Always visible at bottom -->
-            <div class="flex gap-2 pt-3 border-t">
+            <div class="flex gap-2 pt-3 border-t flex-shrink-0">
               <Tooltip>
                 <TooltipTrigger as-child>
                   <Button
                     size="sm"
                     variant="outline"
                     @click="openRenameDialog($event, ncp)"
-                    class="flex-1 text-xs"
+                    class="flex-1 text-xs min-w-0"
                   >
-                    <Pencil class="w-3 h-3 mr-1" />
-                    Rename
+                    <Pencil class="w-3 h-3 mr-1 flex-shrink-0" />
+                    <span class="truncate">Rename</span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>Rename NCP</TooltipContent>
@@ -420,7 +450,7 @@ const confirmDelete = async () => {
                     size="sm"
                     variant="outline"
                     @click="openDeleteDialog($event, ncp)"
-                    class="hover:bg-destructive hover:text-destructive-foreground"
+                    class="hover:bg-destructive hover:text-destructive-foreground flex-shrink-0"
                   >
                     <Trash2 class="w-3 h-3" />
                   </Button>
