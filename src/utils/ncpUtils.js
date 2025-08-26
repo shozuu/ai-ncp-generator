@@ -108,7 +108,7 @@ export const hasContent = (ncp, section) => {
 }
 
 /**
- * Check if a section has valid explanation content
+ * Check if a section has valid explanation content (updated for new structure)
  * @param {Object} explanation - The explanation object
  * @param {string} section - The section to check
  * @returns {boolean} Whether the section has valid explanations
@@ -133,13 +133,16 @@ export const hasValidSectionExplanation = (explanation, section) => {
   ]
 
   return requiredKeys.some(key => {
-    const content = sectionExplanation[key]
+    const levelContent = sectionExplanation[key]
+    if (!levelContent || typeof levelContent !== 'object') return false
+
+    // Check if it has summary and detailed structure
+    const summary = levelContent.summary
+    const detailed = levelContent.detailed
+
     return (
-      content &&
-      typeof content === 'string' &&
-      content.trim().length > 10 && // Minimum meaningful content length
-      !content.toLowerCase().includes('temporarily unavailable') &&
-      !content.toLowerCase().includes('technical issue')
+      (summary && typeof summary === 'string' && summary.trim().length > 10) ||
+      (detailed && typeof detailed === 'string' && detailed.trim().length > 20)
     )
   })
 }
@@ -149,35 +152,36 @@ export const hasValidSectionExplanation = (explanation, section) => {
  * @param {Object} explanation - The explanation object
  * @param {string} section - The section name
  * @param {string} levelKey - The level key
+ * @param {string} contentType - Either 'summary' or 'detailed'
  * @returns {string|null} Formatted content or null
  */
-export const getExplanationContent = (explanation, section, levelKey) => {
+export const getExplanationContent = (
+  explanation,
+  section,
+  levelKey,
+  contentType = 'summary'
+) => {
   if (!explanation?.explanation?.[section]) {
     return null
   }
 
   const sectionExplanation = explanation.explanation[section]
 
-  if (!levelKey || typeof levelKey !== 'string') {
+  if (
+    !sectionExplanation[levelKey] ||
+    typeof sectionExplanation[levelKey] !== 'object'
+  ) {
     return null
   }
 
-  const content = sectionExplanation[levelKey]
+  const content = sectionExplanation[levelKey][contentType]
 
   if (!content || typeof content !== 'string') {
     return null
   }
 
-  // Clean and format the content
-  const cleanContent = content.trim()
-  if (cleanContent.length === 0) return null
-
-  // Format the text with better line breaks and emphasis
-  return cleanContent
-    .replace(/\n\n/g, '</p><p class="mt-2">')
-    .replace(/\n/g, '<br>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+  // Convert newlines to HTML breaks for display
+  return content.replace(/\n/g, '<br>')
 }
 
 /**

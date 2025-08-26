@@ -24,6 +24,8 @@ import {
 import {
   Brain,
   CheckCircle,
+  ChevronDown,
+  ChevronUp,
   ClipboardList,
   FileCheck,
   GraduationCap,
@@ -131,8 +133,23 @@ const generateExplanation = async () => {
 const checkHasContent = section => hasContent(ncp.value, section)
 const checkHasValidSectionExplanation = section =>
   hasValidSectionExplanation(explanation.value, section)
-const getFormattedExplanationContent = (section, levelKey) =>
-  getExplanationContent(explanation.value, section, levelKey)
+const getFormattedExplanationContent = (
+  section,
+  levelKey,
+  contentType = 'summary'
+) => getExplanationContent(explanation.value, section, levelKey, contentType)
+
+const showDetailedView = ref({})
+
+const toggleDetailedView = (section, levelKey) => {
+  const key = `${section}-${levelKey}`
+  showDetailedView.value[key] = !showDetailedView.value[key]
+}
+
+const isDetailedViewOpen = (section, levelKey) => {
+  const key = `${section}-${levelKey}`
+  return showDetailedView.value[key] || false
+}
 </script>
 
 <template>
@@ -217,7 +234,8 @@ const getFormattedExplanationContent = (section, levelKey) =>
             <AlertDescription>
               These educational explanations provide clinical reasoning,
               evidence-based support, and step-by-step guidance to help nursing
-              students understand each component.
+              students understand each component. Click "View Details" for
+              comprehensive explanations.
             </AlertDescription>
           </Alert>
 
@@ -282,7 +300,7 @@ const getFormattedExplanationContent = (section, levelKey) =>
                     </Badge>
                   </div>
 
-                  <!-- Structured three-level explanation -->
+                  <!-- Enhanced three-level explanation with summary/detailed -->
                   <div class="space-y-4">
                     <template
                       v-for="level in explanationLevels"
@@ -290,7 +308,11 @@ const getFormattedExplanationContent = (section, levelKey) =>
                     >
                       <div
                         v-if="
-                          getFormattedExplanationContent(section, level.key)
+                          getFormattedExplanationContent(
+                            section,
+                            level.key,
+                            'summary'
+                          )
                         "
                         class="border rounded-xl p-5 transition-all duration-200 hover:shadow-sm"
                         :class="[level.bgColor, level.borderColor]"
@@ -306,13 +328,39 @@ const getFormattedExplanationContent = (section, levelKey) =>
                             />
                           </div>
                           <div class="flex-1">
-                            <div class="flex items-center gap-2 mb-1">
-                              <span
-                                class="font-semibold text-sm"
-                                :class="level.titleColor"
+                            <div class="flex items-center justify-between mb-1">
+                              <div class="flex items-center gap-2">
+                                <span
+                                  class="font-semibold text-sm"
+                                  :class="level.titleColor"
+                                >
+                                  {{ level.title }}
+                                </span>
+                              </div>
+                              <Button
+                                v-if="
+                                  getFormattedExplanationContent(
+                                    section,
+                                    level.key,
+                                    'detailed'
+                                  )
+                                "
+                                variant="ghost"
+                                size="sm"
+                                @click="toggleDetailedView(section, level.key)"
+                                class="h-6 px-2 text-xs"
                               >
-                                {{ level.title }}
-                              </span>
+                                <span>{{
+                                  isDetailedViewOpen(section, level.key)
+                                    ? 'Hide Details'
+                                    : 'View Details'
+                                }}</span>
+                                <ChevronDown
+                                  v-if="!isDetailedViewOpen(section, level.key)"
+                                  class="h-3 w-3 ml-1"
+                                />
+                                <ChevronUp v-else class="h-3 w-3 ml-1" />
+                              </Button>
                             </div>
                             <p
                               class="text-xs opacity-75"
@@ -322,13 +370,50 @@ const getFormattedExplanationContent = (section, levelKey) =>
                             </p>
                           </div>
                         </div>
+
+                        <!-- Summary Content -->
                         <div
                           v-html="
-                            getFormattedExplanationContent(section, level.key)
+                            getFormattedExplanationContent(
+                              section,
+                              level.key,
+                              'summary'
+                            )
                           "
-                          class="text-sm leading-relaxed prose prose-sm max-w-none"
+                          class="text-sm leading-relaxed prose prose-sm max-w-none mb-3"
                           :class="level.textColor"
                         ></div>
+
+                        <!-- Detailed Content (Expandable) -->
+                        <div
+                          v-if="
+                            isDetailedViewOpen(section, level.key) &&
+                            getFormattedExplanationContent(
+                              section,
+                              level.key,
+                              'detailed'
+                            )
+                          "
+                          class="border-t pt-3 mt-3"
+                          :class="level.borderColor"
+                        >
+                          <div class="flex items-center gap-2 mb-2">
+                            <Badge variant="secondary" class="text-xs">
+                              Detailed Explanation
+                            </Badge>
+                          </div>
+                          <div
+                            v-html="
+                              getFormattedExplanationContent(
+                                section,
+                                level.key,
+                                'detailed'
+                              )
+                            "
+                            class="text-sm leading-relaxed prose prose-sm max-w-none"
+                            :class="level.textColor"
+                          ></div>
+                        </div>
                       </div>
                     </template>
                   </div>

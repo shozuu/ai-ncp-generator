@@ -305,26 +305,50 @@ async def generate_explanation(request_data: Dict) -> Dict:
 
         logger.info(f"Generating explanations for sections: {available_sections}")
 
-        # Create the explanation prompt
+        # Create the enhanced explanation prompt for plain text response
         explanation_prompt = f"""
-        You are a nursing educator with expertise in NANDA-I, NIC, and NOC standards. 
-        I will provide you with a Nursing Care Plan (NCP). For each section of the NCP, 
-        generate a clear explanation that covers three levels:
+        You are a nursing educator with expertise in NANDA-I, NIC, and NOC standards.
+        Your primary goal is to teach nursing students how to think critically and apply 
+        evidence-based reasoning when creating Nursing Care Plans (NCPs).
 
-        1. Clinical Reasoning: Why this choice was made based on the patient data.  
-        2. Evidence-Based Support: Cite facts, guidelines, or textbook-based standards (e.g., Ackley & Ladwig, NANDA-I 2021-2023). Keep this short and specific.  
-        3. Student Guidance: How a nursing student could arrive at this decision themselves (step-by-step thinking or questions to ask).  
+        I will provide you with an NCP. For each section, generate explanations at three levels 
+        (Clinical Reasoning, Evidence-Based Support, and Student Guidance), each with a 
+        Summary and a Detailed version.
 
-        Keep explanations compact but insightful (4–6 sentences per section).  
-        Use PLAIN TEXT only - no HTML, markdown, or special formatting.
+        For each NCP section, use this EXACT format:
 
-        IMPORTANT: Format your response as valid JSON where:
-        - Each key is the section name (lowercase)
-        - Each value is an object with three keys: "clinical_reasoning", "evidence_based_support", "student_guidance"
-        - All text should be plain text without any formatting
+        **SECTION_NAME:**
 
-        Here is the NCP:
+        Clinical Reasoning Summary:
+        [2–3 sentences: concise explanation of why this decision was made]
 
+        Clinical Reasoning Detailed:
+        [4–8 sentences: step-by-step reasoning process, including assessment priorities, 
+        differential considerations, and why certain options were chosen or excluded]
+
+        Evidence-Based Support Summary:
+        [2–3 sentences: key evidence points with clinical guidelines or standards]
+
+        Evidence-Based Support Detailed:
+        [4–8 sentences: cite NANDA-I codes, NIC/NOC standards, or research evidence; 
+        include specific references to authoritative nursing literature and guidelines]
+
+        Student Guidance Summary:
+        [2–3 sentences: main learning takeaways for students]
+
+        Student Guidance Detailed:
+        [4–8 sentences: practical learning pathway including reflection questions, 
+        case application examples, common mistakes to avoid, and skill-building exercises]
+
+        IMPORTANT RULES:
+        - Use the exact headers above
+        - Each explanation must be clear, professional, and educational
+        - Avoid special characters like quotes/apostrophes that may cause parsing issues
+        - Always ground reasoning in NANDA-I, NIC, and NOC standards where relevant
+        - If an intervention, outcome, or rationale could have multiple valid options, 
+        explain why the given choice is appropriate and what alternatives exist
+
+        Here is the NCP data:
         """
 
         for section in available_sections:
@@ -337,26 +361,12 @@ async def generate_explanation(request_data: Dict) -> Dict:
         """
 
         explanation_prompt += """
-        
-        Example response format:
-        {
-            "diagnosis": {
-                "clinical_reasoning": "This NANDA-I diagnosis was selected because the patient's reported pain level of 8/10 with throbbing characteristics, combined with objective findings of facial grimacing and elevated blood pressure, clearly indicates acute pain as the priority nursing concern.",
-                "evidence_based_support": "According to Ackley & Ladwig (2023), acute pain is defined as 'an unpleasant sensory and emotional experience' with defining characteristics including verbal reports of pain, facial grimacing, and changes in vital signs, all present in this case.",
-                "student_guidance": "To identify this diagnosis, students should ask: What is the patient's primary complaint? How severe is it? What objective signs support this? Are there physiological changes? This systematic approach helps prioritize the most immediate patient need."
-            },
-            "assessment": {
-                "clinical_reasoning": "The assessment combines both subjective (patient-reported) and objective (nurse-observed) data to create a comprehensive picture of the patient's current health status, providing the foundation for all subsequent nursing interventions.",
-                "evidence_based_support": "Evidence-based nursing practice requires systematic data collection including both subjective symptoms and objective measurements, as outlined in nursing assessment protocols and the nursing process framework.",
-                "student_guidance": "Students should organize data by asking: What does the patient tell me (subjective)? What can I observe or measure (objective)? How do these findings relate to each other? This creates a complete clinical picture for diagnosis."
-            }
-        }
 
-        Ensure each explanation contains all three levels and is properly formatted as plain text within a valid JSON structure.
+        Now provide explanations for each section in the exact format specified above.
         """
 
         # Generate explanation using Gemini
-        logger.info("Calling Gemini API for explanation generation")
+        logger.info("Calling Gemini API for enhanced explanation generation")
         response = model.generate_content(explanation_prompt)
         
         if not response or not response.text:
@@ -364,90 +374,132 @@ async def generate_explanation(request_data: Dict) -> Dict:
 
         # Parse the AI response
         ai_explanation = response.text.strip()
-        logger.info(f"Received AI explanation: {ai_explanation[:200]}...")
+        logger.info(f"Received AI explanation length: {len(ai_explanation)} characters")
 
-        # Try to parse as JSON, with fallback handling
-        try:
-            # Remove any markdown code block formatting
-            if ai_explanation.startswith('```json'):
-                ai_explanation = ai_explanation.replace('```json', '').replace('```', '').strip()
-            elif ai_explanation.startswith('```'):
-                ai_explanation = ai_explanation.replace('```', '').strip()
-            
-            import json
-            explanations = json.loads(ai_explanation)
-            
-            # Validate that we have explanations for the expected sections
-            final_explanations = {}
-            for section in available_sections:
-                if section in explanations and isinstance(explanations[section], dict):
-                    # Ensure the explanation contains all three levels
-                    explanation_obj = explanations[section]
-                    required_keys = ['clinical_reasoning', 'evidence_based_support', 'student_guidance']
-                    
-                    if all(key in explanation_obj for key in required_keys):
-                        final_explanations[section] = explanation_obj
-                    else:
-                        # Provide structured fallback if levels are missing
-                        final_explanations[section] = {
-                            "clinical_reasoning": f"This {section.replace('_', ' ')} component represents critical clinical decision-making based on the patient's assessment data and nursing judgment.",
-                            "evidence_based_support": f"This approach aligns with current nursing standards and evidence-based practice guidelines as outlined in nursing literature and NANDA-I standards.",
-                            "student_guidance": f"To understand this component, students should consider: What patient data supports this decision? How does this align with nursing standards? What would be the step-by-step thinking process?"
-                        }
-                else:
-                    # Provide structured explanation if AI didn't generate one
-                    final_explanations[section] = {
-                        "clinical_reasoning": f"This {section.replace('_', ' ')} component is essential for comprehensive nursing care planning and patient safety.",
-                        "evidence_based_support": f"Evidence-based nursing practice requires systematic approach to {section.replace('_', ' ')} as outlined in current nursing standards and guidelines.",
-                        "student_guidance": f"Students should analyze: What is the purpose of this component? How does it fit into the overall care plan? What evidence supports these choices?"
-                    }
-            
-            # Also include explanations for sections that might not have content but are part of the NCP structure
-            for section in all_sections:
-                if section not in final_explanations:
-                    section_content = ncp.get(section, '').strip() if ncp.get(section) else ''
-                    if not section_content or section_content.lower() in ['', 'not provided', 'n/a', 'none']:
-                        # Provide educational explanation for empty sections
-                        final_explanations[section] = {
-                            "clinical_reasoning": f"The {section.replace('_', ' ')} section is a critical component of comprehensive nursing care planning, though it appears incomplete in this particular care plan.",
-                            "evidence_based_support": f"According to nursing documentation standards, complete {section.replace('_', ' ')} information is essential for quality patient care and professional accountability.",
-                            "student_guidance": f"Students should understand: What information typically belongs in this section? Why is it important for patient care? How would you complete this section if you were the nurse?"
-                        }
-            
-            logger.info(f"Successfully generated explanations for sections: {list(final_explanations.keys())}")
-            logger.info(f"Output: {final_explanations}")
-            return final_explanations
-
-        except json.JSONDecodeError as e:
-            logger.error(f"Failed to parse AI response as JSON: {e}")
-            logger.error(f"AI Response: {ai_explanation}")
-            
-            # Fallback: create structured explanations for all sections
-            fallback_explanations = {}
-            for section in all_sections:
-                fallback_explanations[section] = {
-                    "clinical_reasoning": f"This {section.replace('_', ' ')} section represents a critical component of evidence-based nursing practice and systematic patient care.",
-                    "evidence_based_support": f"Current nursing standards emphasize the importance of comprehensive {section.replace('_', ' ')} documentation for quality patient outcomes.",
-                    "student_guidance": f"Students should consider: What is the clinical significance of this component? How does it contribute to patient care? What questions should guide your thinking?"
-                }
-            
-            return fallback_explanations
+        # Parse the plain text response into our JSON structure
+        explanations = parse_explanation_text(ai_explanation, available_sections)
+        
+        logger.info(f"Successfully parsed explanations for sections: {list(explanations.keys())}")
+        logger.info(f"Explanations: {explanations}")
+        return explanations
 
     except Exception as e:
         logger.error(f"Error generating explanation: {str(e)}", exc_info=True)
+        raise Exception(f"Failed to generate explanation: {str(e)}")
+
+def parse_explanation_text(text: str, available_sections: list) -> Dict:
+    """
+    Parse plain text AI response into structured explanation format.
+    """
+    explanations = {}
+    
+    # Split text into sections
+    lines = text.split('\n')
+    current_section = None
+    current_content = {}
+    current_type = None
+    current_text = []
+    
+    for line in lines:
+        line = line.strip()
         
-        # Return structured error explanations for all sections
-        error_explanations = {}
-        all_sections = ['assessment', 'diagnosis', 'outcomes', 'interventions', 'rationale', 'implementation', 'evaluation']
-        
-        for section in all_sections:
-            error_explanations[section] = {
-                "clinical_reasoning": f"An explanation for this {section.replace('_', ' ')} section is temporarily unavailable due to a technical issue.",
-                "evidence_based_support": f"This component remains essential for comprehensive nursing care planning according to current nursing standards.",
-                "student_guidance": f"Students should review this section with their instructor for detailed analysis and educational guidance."
+        # Check if this is a section header
+        if line.startswith('**') and line.endswith(':**'):
+            # Save previous section if exists
+            if current_section and current_content:
+                explanations[current_section] = current_content
+            
+            # Start new section
+            section_name = line.replace('**', '').replace(':', '').strip().lower()
+            # Map section names back to our format
+            for available_section in available_sections:
+                if available_section.replace('_', ' ').lower() in section_name:
+                    current_section = available_section
+                    break
+            
+            current_content = {
+                'clinical_reasoning': {'summary': '', 'detailed': ''},
+                'evidence_based_support': {'summary': '', 'detailed': ''},
+                'student_guidance': {'summary': '', 'detailed': ''}
             }
+            current_type = None
+            current_text = []
+            
+        # Check if this is an explanation type header
+        elif line.endswith(':') and any(key_phrase in line.lower() for key_phrase in [
+            'clinical reasoning summary',
+            'clinical reasoning detailed', 
+            'evidence-based support summary',
+            'evidence-based support detailed',
+            'student guidance summary',
+            'student guidance detailed'
+        ]):
+            # Save previous type content
+            if current_type and current_text and current_section:
+                content = ' '.join(current_text).strip()
+                if content:
+                    if 'clinical reasoning summary' in current_type:
+                        current_content['clinical_reasoning']['summary'] = content
+                    elif 'clinical reasoning detailed' in current_type:
+                        current_content['clinical_reasoning']['detailed'] = content
+                    elif 'evidence-based support summary' in current_type:
+                        current_content['evidence_based_support']['summary'] = content
+                    elif 'evidence-based support detailed' in current_type:
+                        current_content['evidence_based_support']['detailed'] = content
+                    elif 'student guidance summary' in current_type:
+                        current_content['student_guidance']['summary'] = content
+                    elif 'student guidance detailed' in current_type:
+                        current_content['student_guidance']['detailed'] = content
+            
+            # Start new type
+            current_type = line.lower()
+            current_text = []
+            
+        # Regular content line
+        elif line and current_section and current_type:
+            current_text.append(line)
+    
+    # Don't forget the last section
+    if current_section and current_content:
+        # Save the last type content
+        if current_type and current_text:
+            content = ' '.join(current_text).strip()
+            if content:
+                if 'clinical reasoning summary' in current_type:
+                    current_content['clinical_reasoning']['summary'] = content
+                elif 'clinical reasoning detailed' in current_type:
+                    current_content['clinical_reasoning']['detailed'] = content
+                elif 'evidence-based support summary' in current_type:
+                    current_content['evidence_based_support']['summary'] = content
+                elif 'evidence-based support detailed' in current_type:
+                    current_content['evidence_based_support']['detailed'] = content
+                elif 'student guidance summary' in current_type:
+                    current_content['student_guidance']['summary'] = content
+                elif 'student guidance detailed' in current_type:
+                    current_content['student_guidance']['detailed'] = content
         
-        return error_explanations
+        explanations[current_section] = current_content
+    
+    # Ensure all available sections have explanations (with fallbacks if needed)
+    for section in available_sections:
+        if section not in explanations:
+            explanations[section] = {
+                'clinical_reasoning': {
+                    'summary': f'Clinical reasoning for this {section.replace("_", " ")} component involves systematic analysis of patient data and evidence-based decision making.',
+                    'detailed': f'The {section.replace("_", " ")} component requires comprehensive clinical thinking, incorporating patient assessment data, nursing knowledge, and evidence-based guidelines to ensure safe and effective care delivery.'
+                },
+                'evidence_based_support': {
+                    'summary': f'Evidence-based nursing practice supports comprehensive {section.replace("_", " ")} documentation according to current standards.',
+                    'detailed': f'Current nursing literature and professional guidelines emphasize the importance of thorough {section.replace("_", " ")} documentation for quality patient outcomes and professional accountability.'
+                },
+                'student_guidance': {
+                    'summary': f'Students should understand the purpose and components of effective {section.replace("_", " ")}.',
+                    'detailed': f'Learning objectives include theoretical foundation, practical application, and competency demonstration in {section.replace("_", " ")}. Students should engage in guided practice and reflective learning.'
+                }
+            }
+    
+    return explanations
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
