@@ -22,9 +22,15 @@ const props = defineProps({
     type: Array,
     default: null,
   },
+  noPadding: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const route = useRoute()
+
+const isHomePage = computed(() => route.name === 'Home')
 
 const breadcrumbItems = computed(() => {
   if (props.breadcrumbs) {
@@ -68,7 +74,10 @@ const breadcrumbItems = computed(() => {
     <AppSidebar class="z-30" />
     <SidebarInset>
       <header
-        class="sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b mb-4 transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12"
+        :class="[
+          'sticky top-0 z-40 flex h-16 shrink-0 items-center gap-2 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12',
+          !isHomePage && 'mb-4',
+        ]"
       >
         <div class="flex items-center gap-2 px-4">
           <SidebarTrigger class="-ml-1" />
@@ -100,7 +109,12 @@ const breadcrumbItems = computed(() => {
           </Breadcrumb>
         </div>
       </header>
-      <div class="w-full py-8 pt-4 px-4 lg:px-6 space-y-10">
+      <div
+        :class="[
+          'w-full',
+          noPadding ? '' : 'py-8 pt-4 px-4 lg:px-6 space-y-10',
+        ]"
+      >
         <slot />
       </div>
     </SidebarInset>
