@@ -93,13 +93,11 @@ const cleanup = () => {
 onMounted(async () => {
   await checkAnimationFiles()
 
-  // Small delay to ensure container is mounted
-  setTimeout(async () => {
-    if (animationContainer.value && hasAnimationFiles.value) {
-      await loadAnimation()
-    }
-    startMessageCycle()
-  }, 100)
+  // Load animation immediately without artificial delay
+  if (animationContainer.value && hasAnimationFiles.value) {
+    await loadAnimation()
+  }
+  startMessageCycle()
 })
 
 onUnmounted(() => {
