@@ -48,18 +48,27 @@ const fetchNCPs = async () => {
 const checkExplanationStatuses = async () => {
   const statusMap = new Map()
 
-  for (const ncp of ncps.value) {
+  // Run all explanation checks in parallel instead of sequentially
+  const promises = ncps.value.map(async ncp => {
     try {
       const hasExplanation = await explanationService.hasExplanation(ncp.id)
-      statusMap.set(ncp.id, hasExplanation)
+      return { id: ncp.id, hasExplanation }
     } catch (error) {
       console.warn(
         `Failed to check explanation status for NCP ${ncp.id}:`,
         error
       )
-      statusMap.set(ncp.id, false)
+      return { id: ncp.id, hasExplanation: false }
     }
-  }
+  })
+
+  // Wait for all API calls to complete
+  const results = await Promise.all(promises)
+
+  // Populate the status map with results
+  results.forEach(({ id, hasExplanation }) => {
+    statusMap.set(id, hasExplanation)
+  })
 
   explanationStatuses.value = statusMap
 }
