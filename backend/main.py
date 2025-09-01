@@ -136,9 +136,18 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
         # Construct the prompt for the AI model
         prompt = f"""
-            You are a nursing educator with deep knowledge of NANDA-I, NIC, and NOC standards, and you are referencing the "Nursing Diagnosis Handbook, 12th Edition Revised Reprint with 2021–2023 NANDA-I Updates" by Ackley, Ladwig, et al. Based on the assessment data I will provide, generate a structured Nursing Care Plan (NCP) that includes the following:
+            You are a nursing educator with deep knowledge of NANDA-I, NIC, and NOC standards. 
+            Base your care plan on established nursing textbooks, specifically:
+            - Ackley, B. J., et al. (2022). Nursing Diagnosis Handbook, 12th Edition (with 2021–2023 NANDA-I updates)
+            - Doenges, M. E., et al. (2021). Nurse’s Pocket Guide, 15th Edition
 
-            
+            Use these as your guiding sources when structuring the Nursing Care Plan (NCP). 
+            IMPORTANT: Do NOT provide page numbers, direct quotations, or fabricated citations. 
+            Instead, reference standards generally (e.g., “According to NANDA-I classification” or “Based on Ackley, 2022”) 
+            to show evidence alignment without risk of false citations.
+
+            ---
+
             PATIENT ASSESSMENT DATA
 
             Subjective Data:
@@ -159,6 +168,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             6. If a section is not applicable, explicitly state "Not applicable" under that section.
             7. Do **not** include any introductions, explanations, examples, or general information outside the specified sections.
             8. Maintain a professional, concise, and clinical tone throughout.
+            9. All content must align with NANDA-I diagnoses, NIC interventions, and NOC outcomes.
 
             ---
 
@@ -166,40 +176,52 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             - Provide a concise, structured summary of key findings.
             - Clearly separate subjective and objective data.
 
+            
             Diagnosis:
-            - Correctly format NANDA-I nursing diagnosis based on the assessment data. Use the format: [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics]. 
-            - Ensure that the diagnosis label matches NANDA-I terminology found in the Ackley & Ladwig textbook.
-            - Ensure the diagnoses are aligned with the patient's assessment data and reflect evidence-based guidelines.
+            - Correctly format NANDA-I nursing diagnosis based on the assessment data. 
+            - Use the format: [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics]. 
+            - Ensure the diagnosis label matches NANDA-I terminology from Ackley (2022).
+            - Align with the patient’s assessment data and reflect evidence-based standards.
+            
 
             Outcomes:
-            - Define short-term goal that distinguishes a shift in behavior that can be completed immediately, usually within a few hours or days.
-            - Define long-term goal that indicates an objective to be completed over a longer period, usually weeks or months.
-            - Begin each goal with a clear **time-bound phrase** 
-            - Align each goal directly with the identified nursing diagnosis and patient assessment.
-            - Ensure outcomes are measurable, appropriate, and aligned with NOC terminology. 
-            - Ensure they reflect realistic clinical goals.
+            - Generate outcomes that are directly derived from the given assessment data and the identified nursing diagnosis.  
+            - Distinguish clearly between **Short-Term Outcomes (STO)** and **Long-Term Outcomes (LTO)**.  
+                - Short-Term: Achievable within hours to 1–2 days, directly measurable, related to immediate physiological or safety needs.  
+                - Long-Term: Achievable over several days, before discharge, or at home, focusing on sustained health, knowledge, or lifestyle change.  
+            - Each outcome must:  
+                1. Use standardized **NOC terminology/labels**.  
+                2. Be stated as a **SMART goal** (specific, measurable, achievable, relevant, time-bound).  
+                3. Include at least **2–3 indicators with rating scales** (e.g., reports pain ≤ 3/10, oxygen saturation ≥ 95%).  
+                4. Match logically with the interventions and rationales provided.  
+            - Avoid vague terms like “improve” or “normalize” without measurable indicators.  
+            
 
+            
             Interventions:
-            - Provide relevant and evidence-based nursing interventions aligned with NIC taxonomy. 
-            - Ensure they are taken from or inspired by the suggested interventions in the Ackley & Ladwig textbook.
-            - List at least 3 specific nursing interventions.
-            - Include and clearly separate independent, dependent, and collaborative actions where applicable.
+            - Provide at least 3 evidence-based nursing interventions aligned with NIC taxonomy.  
+            - Organize into Independent, Dependent, and Collaborative actions where applicable.  
+            - For **Dependent Interventions**, explicitly include medication-related actions such as:
+                * Administering prescribed drugs (use generic names only; do not invent or prescribe new drugs).  
+                * Monitoring therapeutic effects and possible adverse reactions.  
+                * Educating the patient about proper use, timing, and side effects of medications.  
+            - Ensure interventions are consistent with Ackley (2022), Doenges (2021), and nursing practice standards.  
+            - Do NOT fabricate specific prescriptions or dosages; instead, reference the drug class or generic name (e.g., “Administer prescribed bronchodilator” rather than “Give 2mg Salbutamol”).  
+
 
             Rationale:
-            - Provide an evidence-based rationale for each intervention.
-            - Justify with clinical reasoning, nursing theory, or guidelines.
-            - If applicable, the rationale may include general textbook-based knowledge
+            - Provide a rationale for each intervention.
+            - Justify with clinical reasoning, nursing theory, or general textbook-based standards.
+            - Do not fabricate citations; instead, refer to established nursing guidelines.
 
             Implementation:
-            - Provide implementation for every intervention.
-            - Include a realistic placeholder result (e.g., “3/10 pain”, “BP 120/80 mmHg”)
-            - Write in **past tense** as if the intervention was already performed.
+            - Provide implementation steps for each intervention.
+            - Write in **past tense** as if performed, with placeholder results (e.g., “Pain reduced to 3/10”).
 
             Evaluation:
-            - Mirror the corresponding outcomes using **past tense**.
-            - Begin each evaluation with the same **time-bound phrase** used in the outcome 
-            - Include observable data or patient responses that support your evaluation
-            - Support the evaluation with observed evidence.
+            - Mirror outcomes in **past tense**.
+            - Begin with the same time-bound phrase from the outcome.
+            - Include observable patient responses and evidence of progress.
 
             ---
 
@@ -208,33 +230,29 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             **Assessment:**
             * Subjective Data:
             - Example subjective data point 1.
-            - Example subjective data point 2.
             * Objective Data:
             - Example objective data point 1.
-            - Example objective data point 2.
 
             **Diagnosis:**
             [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics].
 
             **Outcomes:**
-            Within [Short-term Goal], the patient will be able to demonstrate the following:
+            Within [Short-term Goal], the patient will be able to:
             - Example short-term goal.
-            Within [Long-term Goal], the patient will be able to demonstrate the following:
+            Within [Long-term Goal], the patient will be able to:
             - Example long-term goal.
 
             **Interventions:**
             * Independent:
-            - Example independent intervention 1.
-            - Example independent intervention 2.
+            - Example intervention 1.
             * Dependent:
-            - Example dependent intervention 1.
+            - Example intervention 1.
             * Collaborative:
-            - Example collaborative intervention 1.
+            - Example intervention 1.
 
             **Rationale:**
             * Independent:
             - Example rationale for independent intervention 1.
-            - Example rationale for independent intervention 2.
             * Dependent:
             - Example rationale for dependent intervention 1.
             * Collaborative:
@@ -242,18 +260,17 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
             **Implementation:**
             * Independent:
-            - Example implementation for independent intervention 1.
-            - Example implementation for independent intervention 2.
+            - Example implementation result.
             * Dependent:
-            - Example implementation for dependent intervention 1.
+            - Example implementation result.
             * Collaborative:
-            - Example implementation for collaborative intervention 1.
+            - Example implementation result.
 
             **Evaluation:**
-            After [Short-term Goal], the patient was be able to demonstrate the following:
-            - Example evaluation for short-term goal.
-            After [Long-term Goal], the patient was be able to demonstrate the following:
-            - Example evaluation for long-term goal.
+            After [Short-term Goal], the patient was able to:
+            - Example evaluation result.
+            After [Long-term Goal], the patient was able to:
+            - Example evaluation result.
         """
         
         logger.info("Calling Gemini API...")
@@ -307,76 +324,74 @@ async def generate_explanation(request_data: Dict) -> Dict:
 
         # Create the enhanced explanation prompt for plain text response
         explanation_prompt = f"""
-        You are a nursing educator with expertise in NANDA-I, NIC, and NOC standards.
-        Your primary goal is to teach nursing students how to think critically and apply 
-        evidence-based reasoning when creating Nursing Care Plans (NCPs).
+            You are a nursing educator with expertise in NANDA-I, NIC, and NOC standards.
+            Your primary goal is to teach nursing students how to think critically and apply 
+            evidence-based reasoning when creating Nursing Care Plans (NCPs).
 
-        Ground all explanations in widely accepted nursing frameworks and references:
-        - NANDA-I taxonomy (2021–2023 updates)
-        - NIC and NOC 7th editions
-        - Ackley et al. (2022), Nursing Diagnosis Handbook
-        - Doenges et al. (2021), Nurse’s Pocket Guide
+            Ground all explanations in widely accepted nursing frameworks and references:
+            - NANDA-I taxonomy (2021–2023 updates)
+            - NIC and NOC 7th editions
+            - Ackley et al. (2022), Nursing Diagnosis Handbook
+            - Doenges et al. (2021), Nurse’s Pocket Guide
 
-        Important rules for evidence use:
-        - Attribute concepts in a general way (e.g., “According to Ackley (2022)...” or 
-        “NANDA-I defines impaired gas exchange as...”).
-        - Do NOT invent page numbers, direct quotations, or hollow citations.
-        - If unsure of exact source details, explain the principle clearly and attribute 
-        it broadly to NANDA-I, NIC, NOC, or standard nursing references.
-        - Explanations must remain factual, professional, and educational.
+            Important rules for evidence use:
+            - Attribute concepts in a general way (e.g., “According to Ackley (2022)...” or 
+            “NANDA-I defines impaired gas exchange as...”).
+            - Do NOT invent page numbers, direct quotations, or hollow citations.
+            - If unsure of exact source details, explain the principle clearly and attribute 
+            it broadly to NANDA-I, NIC, NOC, or standard nursing references.
+            - Explanations must remain factual, professional, and educational.
 
-        I will provide you with an NCP. For each section, generate explanations at three levels 
-        (Clinical Reasoning, Evidence-Based Support, and Student Guidance), each with a 
-        Summary and a Detailed version.
+            I will provide you with an NCP. For each section, generate explanations at three levels 
+            (Clinical Reasoning, Evidence-Based Support, and Student Guidance), each with a 
+            Summary and a Detailed version.
 
-        For each NCP section, use this EXACT format:
+            For each NCP section, use this EXACT format:
 
-        **SECTION_NAME:**
+            **SECTION_NAME:**
 
-        Clinical Reasoning Summary:
-        [2–3 sentences: concise explanation of why this decision was made]
+            Clinical Reasoning Summary:
+            [2–3 sentences: concise explanation of why this decision was made]
 
-        Clinical Reasoning Detailed:
-        [4–8 sentences: step-by-step reasoning process, including assessment priorities, 
-        differential considerations, and why certain options were chosen or excluded]
+            Clinical Reasoning Detailed:
+            [4–8 sentences: step-by-step reasoning process, including assessment priorities, 
+            differential considerations, and why certain options were chosen or excluded]
 
-        Evidence-Based Support Summary:
-        [2–3 sentences: key evidence points with clinical guidelines or standards]
+            Evidence-Based Support Summary:
+            [2–3 sentences: key evidence points with clinical guidelines or standards]
 
-        Evidence-Based Support Detailed:
-        [4–8 sentences: explain the rationale and connect it to NANDA-I, NIC, NOC, 
-        and standard nursing references such as Ackley (2022) or Doenges (2021). 
-        Do not fabricate citations; attribute concepts broadly.]
+            Evidence-Based Support Detailed:
+            [4–8 sentences: explain the rationale and connect it to NANDA-I, NIC, NOC, 
+            and standard nursing references such as Ackley (2022) or Doenges (2021). 
+            Do not fabricate citations; attribute concepts broadly.]
 
-        Student Guidance Summary:
-        [2–3 sentences: main learning takeaways for students]
+            Student Guidance Summary:
+            [2–3 sentences: main learning takeaways for students]
 
-        Student Guidance Detailed:
-        [4–8 sentences: practical learning pathway including reflection questions, 
-        case application examples, common mistakes to avoid, and skill-building exercises]
+            Student Guidance Detailed:
+            [4–8 sentences: practical learning pathway including reflection questions, 
+            case application examples, common mistakes to avoid, and skill-building exercises]
 
-        IMPORTANT RULES:
-        - Use the exact headers above
-        - Each explanation must be clear, professional, and educational
-        - Avoid special characters like quotes/apostrophes that may cause parsing issues
-        - If multiple valid options exist, explain why the chosen option is appropriate 
-        and what alternatives could be considered
+            IMPORTANT RULES:
+            - Use the exact headers above
+            - Each explanation must be clear, professional, and educational
+            - Avoid special characters like quotes/apostrophes that may cause parsing issues
+            - If multiple valid options exist, explain why the chosen option is appropriate 
+            and what alternatives could be considered
 
-        Here is the NCP data:
+            Here is the NCP data:
         """
 
         for section in available_sections:
             section_title = section.replace('_', ' ').title()
             section_content = ncp.get(section, 'Not provided')
             explanation_prompt += f"""
-        **{section_title.upper()}:**
-        {section_content}
-
-        """
+                **{section_title.upper()}:**
+                {section_content}
+            """
 
         explanation_prompt += """
-
-        Now provide explanations for each section in the exact format specified above.
+            Now provide explanations for each section in the exact format specified above.
         """
 
         # Generate explanation using Gemini
