@@ -1,11 +1,9 @@
 <script setup>
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { useToast } from '@/components/ui/toast/use-toast'
-import { ncpService } from '@/services/ncpService'
-import { formatNCPForDisplay, parseNCPSectionContent } from '@/utils/ncpUtils'
+import { useNCPComponent } from '@/utils/ncpComponentUtils'
 import { Edit, Save, X } from 'lucide-vue-next'
-import { computed, reactive, ref } from 'vue'
+import { toRef, watch } from 'vue'
 
 const emit = defineEmits(['ncp-updated', 'cancel-edit'])
 const props = defineProps({
@@ -19,109 +17,39 @@ const props = defineProps({
   },
 })
 
-const { toast } = useToast()
-const isEditing = ref(false)
-const isSaving = ref(false)
+const ncp = toRef(props, 'ncp')
+const format = toRef(props, 'format')
 
-// Editable columns (excluding assessment)
-const editableColumns = [
-  { key: 'diagnosis', label: 'Diagnosis' },
-  { key: 'outcomes', label: 'Outcomes' },
-  { key: 'interventions', label: 'Interventions' },
-  { key: 'rationale', label: 'Rationale' },
-  { key: 'implementation', label: 'Implementation' },
-  { key: 'evaluation', label: 'Evaluation' },
-]
+const {
+  isEditing,
+  isSaving,
+  formData,
+  columns,
+  editableColumnsInFormat,
+  formattedNCP,
+  startEditing,
+  cancelEditing,
+  saveChanges,
+} = useNCPComponent(ncp, format, emit)
 
-const allColumns = [
-  { key: 'assessment', label: 'Assessment' },
-  ...editableColumns,
-]
+watch(
+  () => props.ncp,
+  newNcp => {
+    if (newNcp && ncp.value !== newNcp) {
+      ncp.value = newNcp
+    }
+  },
+  { deep: true }
+)
 
-// Create reactive form data
-const formData = reactive({})
-
-const columns = computed(() => {
-  return allColumns.slice(0, parseInt(props.format))
-})
-
-const editableColumnsInFormat = computed(() => {
-  return editableColumns.filter(col =>
-    columns.value.some(c => c.key === col.key)
-  )
-})
-
-const initializeFormData = () => {
-  editableColumnsInFormat.value.forEach(column => {
-    formData[column.key] = props.ncp[column.key] || ''
-  })
-}
-
-const startEditing = () => {
-  isEditing.value = true
-  initializeFormData()
-}
-
-const cancelEditing = () => {
-  isEditing.value = false
-  emit('cancel-edit')
-}
-
-const saveChanges = async () => {
-  isSaving.value = true
-  try {
-    const updatedNCP = await ncpService.updateNCP(props.ncp.id, formData)
-
-    toast({
-      title: 'Success',
-      description: 'NCP updated successfully',
-    })
-
-    isEditing.value = false
-    emit('ncp-updated', updatedNCP)
-  } catch (error) {
-    toast({
-      title: 'Error',
-      description: error.message || 'Failed to update NCP',
-      variant: 'destructive',
-    })
-  } finally {
-    isSaving.value = false
-  }
-}
-
-const formatTextToLines = text => {
-  // Handle null, undefined, or non-string values
-  if (!text || typeof text !== 'string') return []
-
-  return text
-    .split('\n')
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-}
-
-const formattedNCP = computed(() => {
-  const formatted = {}
-  for (const key in props.ncp) {
-    if (
-      [
-        'assessment',
-        'diagnosis',
-        'outcomes',
-        'interventions',
-        'rationale',
-        'implementation',
-        'evaluation',
-      ].includes(key)
-    ) {
-      const structure = parseNCPSectionContent(props.ncp[key], key)
-      formatted[key] = formatNCPForDisplay(structure)
-    } else {
-      formatted[key] = formatTextToLines(props.ncp[key])
+watch(
+  () => props.format,
+  newFormat => {
+    if (newFormat && format.value !== newFormat) {
+      format.value = newFormat
     }
   }
-  return formatted
-})
+)
 </script>
 
 <template>

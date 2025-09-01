@@ -1,54 +1,39 @@
 <script setup>
 import NCPDisplay from '@/components/ncp/NCPDisplay.vue'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
-import { useToast } from '@/components/ui/toast/use-toast'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
-import { ncpService } from '@/services/ncpService'
-import { onMounted, ref } from 'vue'
+import { useNCPLoader, useNCPManagement } from '@/utils/ncpComponentUtils'
+import { onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const ncp = ref(null)
-const isLoading = ref(true)
-const format = ref('7')
-const { toast } = useToast()
+const { ncp, isLoading, format, loadNCP, refreshNCP } = useNCPLoader()
+const { handleNCPRenamed, handleNCPUpdated } = useNCPManagement(ncp)
+
+const onNCPRenamed = async updatedNCP => {
+  handleNCPRenamed(updatedNCP)
+  await refreshNCP()
+}
+
+const onNCPUpdated = async updatedNCP => {
+  handleNCPUpdated(updatedNCP)
+}
+
+watch(
+  () => route.params.id,
+  async newId => {
+    if (newId) {
+      await loadNCP(newId)
+    }
+  }
+)
 
 onMounted(async () => {
-  try {
-    const id = route.params.id
-    const result = await ncpService.getNCPById(id)
-    ncp.value = result
-    format.value = result.format_type || '7'
-  } catch {
-    toast({
-      title: 'Error',
-      description: 'Failed to load NCP. Please try again.',
-      variant: 'destructive',
-    })
-  } finally {
-    isLoading.value = false
+  const id = route.params.id
+  if (id) {
+    await loadNCP(id)
   }
 })
-
-// Handle NCP rename event from child component
-const handleNCPRenamed = updatedNCP => {
-  ncp.value = updatedNCP
-
-  // Update the page title if you're using it
-  if (typeof document !== 'undefined') {
-    document.title = `${updatedNCP.title} - AI NCP Generator`
-  }
-}
-
-// Handle NCP update event from child component
-const handleNCPUpdated = updatedNCP => {
-  ncp.value = updatedNCP
-
-  toast({
-    title: 'Success',
-    description: 'NCP updated successfully',
-  })
-}
 </script>
 
 <template>
@@ -70,8 +55,8 @@ const handleNCPUpdated = updatedNCP => {
         <NCPDisplay
           :ncp="ncp"
           :format="format"
-          @ncp-renamed="handleNCPRenamed"
-          @ncp-updated="handleNCPUpdated"
+          @ncp-renamed="onNCPRenamed"
+          @ncp-updated="onNCPUpdated"
         />
       </div>
     </div>
