@@ -5,7 +5,7 @@ import os
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-from utils import format_data, parse_ncp_response, validate_assessment_data
+from utils import format_data, parse_ncp_response, validate_assessment_data, parse_explanation_text
 import google.generativeai as genai
 import uvicorn
 
@@ -126,7 +126,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         #         "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
         #         "4. Monitor and document blood pressure, heart rate, respiratory rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
         #         "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
-        #         "4. Monitor and document blood pressure, heart rate, respiratory rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
+        #         "4. Monitor and document blood pressure, heart_rate, respiratory_rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
         #     ),
         #     'evaluation': (
         #         "\nShort-term Goal: Assess the patient's pain level using a pain scale (0-10) every 30 minutes after analgesic administration. If pain remains above 4/10 after 1 hour, notify the physician for further orders.\n\n"
@@ -404,7 +404,7 @@ async def generate_explanation(request_data: Dict) -> Dict:
         # Parse the AI response
         ai_explanation = response.text.strip()
         logger.info(f"Received AI explanation length: {len(ai_explanation)} characters")
-
+        
         # Parse the plain text response into our JSON structure
         explanations = parse_explanation_text(ai_explanation, available_sections)
         
@@ -415,119 +415,6 @@ async def generate_explanation(request_data: Dict) -> Dict:
     except Exception as e:
         logger.error(f"Error generating explanation: {str(e)}", exc_info=True)
         raise Exception(f"Failed to generate explanation: {str(e)}")
-
-def parse_explanation_text(text: str, available_sections: list) -> Dict:
-    """
-    Parse plain text AI response into structured explanation format.
-    """
-    explanations = {}
-    
-    # Split text into sections
-    lines = text.split('\n')
-    current_section = None
-    current_content = {}
-    current_type = None
-    current_text = []
-    
-    for line in lines:
-        line = line.strip()
-        
-        # Check if this is a section header
-        if line.startswith('**') and line.endswith(':**'):
-            # Save previous section if exists
-            if current_section and current_content:
-                explanations[current_section] = current_content
-            
-            # Start new section
-            section_name = line.replace('**', '').replace(':', '').strip().lower()
-            # Map section names back to our format
-            for available_section in available_sections:
-                if available_section.replace('_', ' ').lower() in section_name:
-                    current_section = available_section
-                    break
-            
-            current_content = {
-                'clinical_reasoning': {'summary': '', 'detailed': ''},
-                'evidence_based_support': {'summary': '', 'detailed': ''},
-                'student_guidance': {'summary': '', 'detailed': ''}
-            }
-            current_type = None
-            current_text = []
-            
-        # Check if this is an explanation type header
-        elif line.endswith(':') and any(key_phrase in line.lower() for key_phrase in [
-            'clinical reasoning summary',
-            'clinical reasoning detailed', 
-            'evidence-based support summary',
-            'evidence-based support detailed',
-            'student guidance summary',
-            'student guidance detailed'
-        ]):
-            # Save previous type content
-            if current_type and current_text and current_section:
-                content = ' '.join(current_text).strip()
-                if content:
-                    if 'clinical reasoning summary' in current_type:
-                        current_content['clinical_reasoning']['summary'] = content
-                    elif 'clinical reasoning detailed' in current_type:
-                        current_content['clinical_reasoning']['detailed'] = content
-                    elif 'evidence-based support summary' in current_type:
-                        current_content['evidence_based_support']['summary'] = content
-                    elif 'evidence-based support detailed' in current_type:
-                        current_content['evidence_based_support']['detailed'] = content
-                    elif 'student guidance summary' in current_type:
-                        current_content['student_guidance']['summary'] = content
-                    elif 'student guidance detailed' in current_type:
-                        current_content['student_guidance']['detailed'] = content
-            
-            # Start new type
-            current_type = line.lower()
-            current_text = []
-            
-        # Regular content line
-        elif line and current_section and current_type:
-            current_text.append(line)
-    
-    # Don't forget the last section
-    if current_section and current_content:
-        # Save the last type content
-        if current_type and current_text:
-            content = ' '.join(current_text).strip()
-            if content:
-                if 'clinical reasoning summary' in current_type:
-                    current_content['clinical_reasoning']['summary'] = content
-                elif 'clinical reasoning detailed' in current_type:
-                    current_content['clinical_reasoning']['detailed'] = content
-                elif 'evidence-based support summary' in current_type:
-                    current_content['evidence_based_support']['summary'] = content
-                elif 'evidence-based support detailed' in current_type:
-                    current_content['evidence_based_support']['detailed'] = content
-                elif 'student guidance summary' in current_type:
-                    current_content['student_guidance']['summary'] = content
-                elif 'student guidance detailed' in current_type:
-                    current_content['student_guidance']['detailed'] = content
-        
-        explanations[current_section] = current_content
-    
-    # Ensure all available sections have explanations (with fallbacks if needed)
-    for section in available_sections:
-        if section not in explanations:
-            explanations[section] = {
-                'clinical_reasoning': {
-                    'summary': f'Clinical reasoning for this {section.replace("_", " ")} component involves systematic analysis of patient data and evidence-based decision making.',
-                    'detailed': f'The {section.replace("_", " ")} component requires comprehensive clinical thinking, incorporating patient assessment data, nursing knowledge, and evidence-based guidelines to ensure safe and effective care delivery.'
-                },
-                'evidence_based_support': {
-                    'summary': f'Evidence-based nursing practice supports comprehensive {section.replace("_", " ")} documentation according to current standards.',
-                    'detailed': f'Current nursing literature and professional guidelines emphasize the importance of thorough {section.replace("_", " ")} documentation for quality patient outcomes and professional accountability.'
-                },
-                'student_guidance': {
-                    'summary': f'Students should understand the purpose and components of effective {section.replace("_", " ")}.',
-                    'detailed': f'Learning objectives include theoretical foundation, practical application, and competency demonstration in {section.replace("_", " ")}. Students should engage in guided practice and reflective learning.'
-                }
-            }
-    
-    return explanations
 
 if __name__ == "__main__":
     import uvicorn

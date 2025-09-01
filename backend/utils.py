@@ -121,3 +121,116 @@ def parse_ncp_response(text: str) -> Dict:
             sections[section] = "Not provided"
     
     return sections
+
+def parse_explanation_text(text: str, available_sections: list) -> Dict:
+    """
+    Parse plain text AI response into structured explanation format.
+    """
+    explanations = {}
+    
+    # Split text into sections
+    lines = text.split('\n')
+    current_section = None
+    current_content = {}
+    current_type = None
+    current_text = []
+    
+    for line in lines:
+        line = line.strip()
+        
+        # Check if this is a section header
+        if line.startswith('**') and line.endswith(':**'):
+            # Save previous section if exists
+            if current_section and current_content:
+                explanations[current_section] = current_content
+            
+            # Start new section
+            section_name = line.replace('**', '').replace(':', '').strip().lower()
+            # Map section names back to our format
+            for available_section in available_sections:
+                if available_section.replace('_', ' ').lower() in section_name:
+                    current_section = available_section
+                    break
+            
+            current_content = {
+                'clinical_reasoning': {'summary': '', 'detailed': ''},
+                'evidence_based_support': {'summary': '', 'detailed': ''},
+                'student_guidance': {'summary': '', 'detailed': ''}
+            }
+            current_type = None
+            current_text = []
+            
+        # Check if this is an explanation type header
+        elif line.endswith(':') and any(key_phrase in line.lower() for key_phrase in [
+            'clinical reasoning summary',
+            'clinical reasoning detailed', 
+            'evidence-based support summary',
+            'evidence-based support detailed',
+            'student guidance summary',
+            'student guidance detailed'
+        ]):
+            # Save previous type content
+            if current_type and current_text and current_section:
+                content = ' '.join(current_text).strip()
+                if content:
+                    if 'clinical reasoning summary' in current_type:
+                        current_content['clinical_reasoning']['summary'] = content
+                    elif 'clinical reasoning detailed' in current_type:
+                        current_content['clinical_reasoning']['detailed'] = content
+                    elif 'evidence-based support summary' in current_type:
+                        current_content['evidence_based_support']['summary'] = content
+                    elif 'evidence-based support detailed' in current_type:
+                        current_content['evidence_based_support']['detailed'] = content
+                    elif 'student guidance summary' in current_type:
+                        current_content['student_guidance']['summary'] = content
+                    elif 'student guidance detailed' in current_type:
+                        current_content['student_guidance']['detailed'] = content
+            
+            # Start new type
+            current_type = line.lower()
+            current_text = []
+            
+        # Regular content line
+        elif line and current_section and current_type:
+            current_text.append(line)
+    
+    # Don't forget the last section
+    if current_section and current_content:
+        # Save the last type content
+        if current_type and current_text:
+            content = ' '.join(current_text).strip()
+            if content:
+                if 'clinical reasoning summary' in current_type:
+                    current_content['clinical_reasoning']['summary'] = content
+                elif 'clinical reasoning detailed' in current_type:
+                    current_content['clinical_reasoning']['detailed'] = content
+                elif 'evidence-based support summary' in current_type:
+                    current_content['evidence_based_support']['summary'] = content
+                elif 'evidence-based support detailed' in current_type:
+                    current_content['evidence_based_support']['detailed'] = content
+                elif 'student guidance summary' in current_type:
+                    current_content['student_guidance']['summary'] = content
+                elif 'student guidance detailed' in current_type:
+                    current_content['student_guidance']['detailed'] = content
+        
+        explanations[current_section] = current_content
+    
+    # Ensure all available sections have explanations (with fallbacks if needed)
+    for section in available_sections:
+        if section not in explanations:
+            explanations[section] = {
+                'clinical_reasoning': {
+                    'summary': f'Clinical reasoning for this {section.replace("_", " ")} component involves systematic analysis of patient data and evidence-based decision making.',
+                    'detailed': f'The {section.replace("_", " ")} component requires comprehensive clinical thinking, incorporating patient assessment data, nursing knowledge, and evidence-based guidelines to ensure safe and effective care delivery.'
+                },
+                'evidence_based_support': {
+                    'summary': f'Evidence-based nursing practice supports comprehensive {section.replace("_", " ")} documentation according to current standards.',
+                    'detailed': f'Current nursing literature and professional guidelines emphasize the importance of thorough {section.replace("_", " ")} documentation for quality patient outcomes and professional accountability.'
+                },
+                'student_guidance': {
+                    'summary': f'Students should understand the purpose and components of effective {section.replace("_", " ")}.',
+                    'detailed': f'Learning objectives include theoretical foundation, practical application, and competency demonstration in {section.replace("_", " ")}. Students should engage in guided practice and reflective learning.'
+                }
+            }
+    
+    return explanations
