@@ -136,15 +136,16 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
         # Construct the prompt for the AI model
         prompt = f"""
-            You are a nursing educator with deep knowledge of NANDA-I, NIC, and NOC standards. 
+            You are a nursing educator with expert knowledge of NANDA-I, NIC, and NOC standards. 
             Base your care plan on established nursing textbooks, specifically:
             - Ackley, B. J., et al. (2022). Nursing Diagnosis Handbook, 12th Edition (with 2021–2023 NANDA-I updates)
             - Doenges, M. E., et al. (2021). Nurse’s Pocket Guide, 15th Edition
 
-            Use these as your guiding sources when structuring the Nursing Care Plan (NCP). 
-            IMPORTANT: Do NOT provide page numbers, direct quotations, or fabricated citations. 
-            Instead, reference standards generally (e.g., “According to NANDA-I classification” or “Based on Ackley, 2022”) 
-            to show evidence alignment without risk of false citations.
+            IMPORTANT: 
+            - Do NOT provide page numbers, direct quotations, or fabricated citations. 
+            - Instead, reference standards generally (e.g., “According to NANDA-I classification” or “Based on Ackley, 2022”). 
+            - Always ensure that Outcomes (NOC) and Interventions (NIC) are directly and logically linked to the selected Nursing Diagnosis (NANDA-I). 
+            - Do NOT invent outcomes or interventions outside NOC/NIC terminology.
 
             ---
 
@@ -160,117 +161,108 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
             Generate a complete Nursing Care Plan using the exact structure below:
 
-            1. Use **only** the specified section headings and format below.
-            2. Include all sections: **Assessment**, **Diagnosis**, **Outcomes**, **Interventions**, **Rationale**, **Implementation**, and **Evaluation**.
-            3. Use headings for each section (e.g., **Assessment:**, **Diagnosis:**).
-            4. Use bullet points (*) for lists and sub-bullet points (-) for nested items.
-            5. Ensure proper spacing and formatting for readability.
-            6. If a section is not applicable, explicitly state "Not applicable" under that section.
-            7. Do **not** include any introductions, explanations, examples, or general information outside the specified sections.
-            8. Maintain a professional, concise, and clinical tone throughout.
-            9. All content must align with NANDA-I diagnoses, NIC interventions, and NOC outcomes.
+            1. Use **only** the specified section headings and format below.  
+            2. Include all sections: **Assessment**, **Diagnosis**, **Outcomes**, **Interventions**, **Rationale**, **Implementation**, and **Evaluation**.  
+            3. Use bullet points (*) for lists and sub-bullets (-) for nested items.  
+            4. Ensure that Outcomes and Interventions clearly reference the Nursing Diagnosis.  
+            5. Maintain a professional, concise, and clinical tone throughout.  
 
             ---
 
-            Assessment:
+            **Assessment:**
             - Provide a concise, structured summary of key findings.
             - Clearly separate subjective and objective data.
 
-            
-            Diagnosis:
-            - Correctly format NANDA-I nursing diagnosis based on the assessment data. 
-            - Use the format: [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics]. 
-            - Ensure the diagnosis label matches NANDA-I terminology from Ackley (2022).
-            - Align with the patient’s assessment data and reflect evidence-based standards.
-            
+            **Diagnosis:**
+            - State the NANDA-I nursing diagnosis in the format: [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics].
+            - Ensure the diagnosis label matches official NANDA-I terminology.
+            - The diagnosis must directly reflect the given patient assessment data.
 
-            Outcomes:
-            - Generate outcomes that are directly derived from the given assessment data and the identified nursing diagnosis.  
-            - Distinguish clearly between **Short-Term Outcomes (STO)** and **Long-Term Outcomes (LTO)**.  
-                - Short-Term: Achievable within hours to 1–2 days, directly measurable, related to immediate physiological or safety needs.  
-                - Long-Term: Achievable over several days, before discharge, or at home, focusing on sustained health, knowledge, or lifestyle change.  
-            - Each outcome must:  
-                1. Use standardized **NOC terminology/labels**.  
-                2. Be stated as a **SMART goal** (specific, measurable, achievable, relevant, time-bound).  
-                3. Include at least **2–3 indicators with rating scales** (e.g., reports pain ≤ 3/10, oxygen saturation ≥ 95%).  
-                4. Match logically with the interventions and rationales provided.  
-            - Avoid vague terms like “improve” or “normalize” without measurable indicators.  
-            
+            **Outcomes:**
+            - All outcomes must be derived from the selected NANDA-I diagnosis. 
+            - Distinguish between **Short-Term Outcomes (STO)** and **Long-Term Outcomes (LTO)**.  
+                - Short-Term: Achievable within hours to 1–2 days.  
+                - Long-Term: Achievable over several days or before discharge.  
+            - Requirements:  
+                1. Use standardized **NOC labels**.  
+                2. Phrase as **SMART goals** (specific, measurable, achievable, relevant, time-bound).  
+                3. Include at least **2–3 NOC indicators with rating scales if applicable** (e.g., reports pain ≤ 3/10, oxygen saturation ≥ 95%).  
+                4. Explicitly state how each outcome addresses the diagnosis.  
 
-            
-            Interventions:
-            - Provide at least 3 evidence-based nursing interventions aligned with NIC taxonomy.  
-            - Organize into Independent, Dependent, and Collaborative actions where applicable.  
-            - For **Dependent Interventions**, explicitly include medication-related actions such as:
-                * Administering prescribed drugs (use generic names only; do not invent or prescribe new drugs).  
-                * Monitoring therapeutic effects and possible adverse reactions.  
-                * Educating the patient about proper use, timing, and side effects of medications.  
-            - Ensure interventions are consistent with Ackley (2022), Doenges (2021), and nursing practice standards.  
-            - Do NOT fabricate specific prescriptions or dosages; instead, reference the drug class or generic name (e.g., “Administer prescribed bronchodilator” rather than “Give 2mg Salbutamol”).  
+            **Interventions:**
+            - Provide at least 3–5 evidence-based interventions drawn from NIC taxonomy.  
+            - Organize into Independent, Dependent, and Collaborative actions.  
+            - Explicitly connect each intervention to both the Diagnosis and Outcomes (show why it addresses the problem and helps achieve the stated outcomes).  
+            - For Dependent Interventions:  
+                * Use generic names (e.g., “Administer prescribed bronchodilator”).  
+                * Do NOT fabricate dosages or specific prescriptions.  
 
+            **Rationale:**
+            - Provide a rationale for each intervention.  
+            - Justify why the intervention supports the selected diagnosis and contributes to achieving the specific NOC outcomes.  
 
-            Rationale:
-            - Provide a rationale for each intervention.
-            - Justify with clinical reasoning, nursing theory, or general textbook-based standards.
-            - Do not fabricate citations; instead, refer to established nursing guidelines.
+            **Implementation:**
+            - Describe implementation in **past tense**, as if performed.  
+            - Include observable patient responses or placeholder results (e.g., “Pain reduced to 3/10 after repositioning”).  
 
-            Implementation:
-            - Provide implementation steps for each intervention.
-            - Write in **past tense** as if performed, with placeholder results (e.g., “Pain reduced to 3/10”).
-
-            Evaluation:
-            - Mirror outcomes in **past tense**.
-            - Begin with the same time-bound phrase from the outcome.
-            - Include observable patient responses and evidence of progress.
+            **Evaluation:**
+            - Write in **past tense**.  
+            - Directly mirror the Outcomes and state whether they were met, partially met, or not met.  
+            - Tie each evaluation statement back to the diagnosis resolution or persistence.  
 
             ---
 
-            ### Example Format:
+            ### Example Format (abbreviated):
 
             **Assessment:**
             * Subjective Data:
-            - Example subjective data point 1.
+            - Example subjective data point.
             * Objective Data:
-            - Example objective data point 1.
+            - Example objective data point.
 
             **Diagnosis:**
-            [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics].
+            Activity Intolerance related to imbalance between oxygen supply and demand as evidenced by reports of fatigue and dyspnea on exertion.
 
             **Outcomes:**
-            Within [Short-term Goal], the patient will be able to:
-            - Example short-term goal.
-            Within [Long-term Goal], the patient will be able to:
-            - Example long-term goal.
+            * Short-Term (24–48 hours):
+            - Patient will demonstrate improved Activity Tolerance (NOC) as evidenced by:
+            - Endurance level rated ≥ 3/5
+            - Verbalizes energy-conservation techniques
+            * Long-Term (before discharge):
+            - Patient will achieve Energy Conservation (NOC) as evidenced by:
+            - Able to perform ADLs with minimal fatigue
+            - Oxygen saturation maintained ≥ 95% during activity
 
             **Interventions:**
             * Independent:
-            - Example intervention 1.
+            - Educate patient on pacing and energy conservation techniques.
             * Dependent:
-            - Example intervention 1.
+            - Administer prescribed bronchodilator therapy.
             * Collaborative:
-            - Example intervention 1.
+            - Refer to physical therapy for graded exercise program.
 
             **Rationale:**
             * Independent:
-            - Example rationale for independent intervention 1.
+            - Education promotes self-management, reducing fatigue and supporting endurance goals.
             * Dependent:
-            - Example rationale for dependent intervention 1.
+            - Medication improves oxygenation, enabling improved tolerance of activity.
             * Collaborative:
-            - Example rationale for collaborative intervention 1.
+            - Graded exercise enhances stamina, aligning with NOC goals.
 
             **Implementation:**
             * Independent:
-            - Example implementation result.
+            - Educated patient; patient verbalized understanding of 2 energy conservation techniques.
             * Dependent:
-            - Example implementation result.
+            - Administered bronchodilator; patient reported decreased dyspnea.
             * Collaborative:
-            - Example implementation result.
+            - Coordinated with PT; patient tolerated 10 minutes of ambulation with rest breaks.
 
             **Evaluation:**
-            After [Short-term Goal], the patient was able to:
-            - Example evaluation result.
-            After [Long-term Goal], the patient was able to:
-            - Example evaluation result.
+            * Short-Term:
+            - Within 48 hours, patient demonstrated improved endurance, rated 3/5, partially met.  
+            * Long-Term:
+            - Before discharge, patient tolerated ADLs without dyspnea, oxygen saturation ≥ 95%, goal met.
+
         """
         
         logger.info("Calling Gemini API...")
