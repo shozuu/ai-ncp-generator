@@ -24,7 +24,10 @@ import { toTypedSchema } from '@vee-validate/zod'
 import {
   Activity,
   Calendar,
+  ChevronDown,
   Heart,
+  PencilLine,
+  ShieldAlert,
   Stethoscope,
   Thermometer,
   User,
@@ -120,6 +123,92 @@ const expandedSections = ref({
   nurse_notes: false,
 })
 
+// Section configuration
+const sections = [
+  {
+    key: 'demographics',
+    title: 'Patient Demographics',
+    icon: User,
+    required: true,
+    type: 'demographics',
+  },
+  {
+    key: 'chief_complaint',
+    title: 'Chief Complaint',
+    icon: Stethoscope,
+    required: true,
+    type: 'single_input',
+    fieldName: 'chief_complaint',
+    label: 'What brings the patient in today?',
+    placeholder: 'Brief description of primary concern',
+  },
+  {
+    key: 'history',
+    title: 'History of Present Illness',
+    icon: Calendar,
+    required: false,
+    type: 'history',
+  },
+  {
+    key: 'medical_history',
+    title: 'Past Medical History',
+    icon: Heart,
+    required: false,
+    type: 'checkbox_with_other',
+    fieldName: 'medical_history',
+    otherFieldName: 'medical_history_other',
+    label: 'Medical History',
+    otherLabel: 'Other Medical History',
+    otherPlaceholder: 'Additional medical conditions',
+    options: medicalHistoryOptions,
+  },
+  {
+    key: 'vital_signs',
+    title: 'Vital Signs',
+    icon: Thermometer,
+    required: false,
+    type: 'vital_signs',
+  },
+  {
+    key: 'physical_exam',
+    title: 'Physical Examination Findings',
+    icon: Activity,
+    required: false,
+    type: 'checkbox_with_other',
+    fieldName: 'physical_exam',
+    otherFieldName: 'physical_exam_other',
+    label: 'Physical Examination Findings',
+    otherLabel: 'Other Physical Findings',
+    otherPlaceholder: 'Additional examination findings',
+    options: physicalExamOptions,
+  },
+  {
+    key: 'risk_factors',
+    title: 'Risk Factors',
+    icon: ShieldAlert,
+    required: false,
+    type: 'checkbox_with_other',
+    fieldName: 'risk_factors',
+    otherFieldName: 'risk_factors_other',
+    label: 'Risk Factors',
+    otherLabel: 'Other Risk Factors',
+    otherPlaceholder: 'Additional risk factors',
+    options: riskFactorsOptions,
+  },
+  {
+    key: 'nurse_notes',
+    title: "Nurse's Notes",
+    icon: PencilLine,
+    required: false,
+    type: 'textarea',
+    fieldName: 'nurse_notes',
+    label: 'Additional Notes',
+    placeholder: 'Any additional observations or notes...',
+    description:
+      'Include any additional relevant observations, patient behaviors, or contextual information.',
+  },
+]
+
 const toggleSection = section => {
   expandedSections.value[section] = !expandedSections.value[section]
 }
@@ -172,570 +261,416 @@ const onSubmit = form.handleSubmit(values => {
 
 <template>
   <form @submit="onSubmit" class="space-y-6">
-    <!-- Section 1: Patient Demographics -->
-    <div class="border rounded-lg">
+    <!-- Dynamic Sections Loop -->
+    <div
+      v-for="section in sections"
+      :key="section.key"
+      class="border rounded-lg overflow-hidden transition-all duration-200 hover:shadow-md"
+    >
+      <!-- Section Header (Universal) -->
       <button
         type="button"
-        @click="toggleSection('demographics')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
+        @click="toggleSection(section.key)"
+        class="w-full flex items-center justify-between p-4 hover:bg-muted/50 transition-colors duration-200"
       >
-        <div class="flex items-center gap-3">
-          <User class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">
-            Patient Demographics
-            <span class="text-destructive ml-1">*</span>
+        <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+          <component
+            :is="section.icon"
+            class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+          />
+          <h3 class="text-sm sm:text-lg font-semibold truncate">
+            {{ section.title }}
+            <span v-if="section.required" class="text-destructive ml-1">*</span>
           </h3>
         </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.demographics ? '−' : '+' }}
-        </div>
-      </button>
-
-      <div
-        v-if="expandedSections.demographics"
-        v-auto-animate
-        class="p-4 pt-0 space-y-4"
-      >
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <FormField
-            name="demographics.age"
-            v-slot="{ componentField, errorMessage }"
-          >
-            <FormItem>
-              <FormLabel>Age <span class="text-destructive">*</span></FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="Enter age"
-                  v-bind="componentField"
-                  min="0"
-                  max="150"
-                />
-              </FormControl>
-              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
-            </FormItem>
-          </FormField>
-
-          <FormField
-            name="demographics.sex"
-            v-slot="{ componentField, errorMessage }"
-          >
-            <FormItem>
-              <FormLabel>Sex <span class="text-destructive">*</span></FormLabel>
-              <Select v-bind="componentField">
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select sex" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="male">Male</SelectItem>
-                  <SelectItem value="female">Female</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
-            </FormItem>
-          </FormField>
-
-          <FormField name="demographics.occupation" v-slot="{ componentField }">
-            <FormItem>
-              <FormLabel>Occupation</FormLabel>
-              <FormControl>
-                <Input placeholder="Enter occupation" v-bind="componentField" />
-              </FormControl>
-            </FormItem>
-          </FormField>
-        </div>
-      </div>
-    </div>
-
-    <!-- Section 2: Chief Complaint -->
-    <div class="border rounded-lg">
-      <button
-        type="button"
-        @click="toggleSection('chief_complaint')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
-      >
-        <div class="flex items-center gap-3">
-          <Stethoscope class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">
-            Chief Complaint
-            <span class="text-destructive ml-1">*</span>
-          </h3>
-        </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.chief_complaint ? '−' : '+' }}
-        </div>
-      </button>
-
-      <div
-        v-if="expandedSections.chief_complaint"
-        v-auto-animate
-        class="p-4 pt-0"
-      >
-        <FormField
-          name="chief_complaint"
-          v-slot="{ componentField, errorMessage }"
+        <div
+          class="text-muted-foreground transition-transform duration-200 flex-shrink-0 ml-2"
+          :class="{ 'rotate-180': expandedSections[section.key] }"
         >
-          <FormItem>
-            <FormLabel
-              >What brings the patient in today?
-              <span class="text-destructive">*</span></FormLabel
+          <ChevronDown class="w-4 h-4" />
+        </div>
+      </button>
+
+      <!-- Section Content (Conditional based on type) -->
+      <div
+        class="transition-all duration-300 ease-in-out"
+        :class="{
+          'max-h-0 opacity-0': !expandedSections[section.key],
+          'max-h-[1000px] opacity-100': expandedSections[section.key],
+        }"
+      >
+        <!-- Demographics Section -->
+        <div
+          v-if="section.type === 'demographics'"
+          v-auto-animate
+          class="p-4 pt-0 space-y-4"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField
+              name="demographics.age"
+              v-slot="{ componentField, errorMessage }"
             >
-            <FormControl>
-              <Input
-                placeholder="Brief description of primary concern"
-                v-bind="componentField"
-              />
-            </FormControl>
-            <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
-          </FormItem>
-        </FormField>
-      </div>
-    </div>
+              <FormItem v-auto-animate>
+                <FormLabel
+                  >Age <span class="text-destructive">*</span></FormLabel
+                >
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="Enter age"
+                    v-bind="componentField"
+                    min="0"
+                    max="150"
+                  />
+                </FormControl>
+                <FormMessage v-if="errorMessage">{{
+                  errorMessage
+                }}</FormMessage>
+              </FormItem>
+            </FormField>
 
-    <!-- Section 3: History of Present Illness -->
-    <div class="border rounded-lg">
-      <button
-        type="button"
-        @click="toggleSection('history')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
-      >
-        <div class="flex items-center gap-3">
-          <Calendar class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">History of Present Illness</h3>
+            <FormField
+              name="demographics.sex"
+              v-slot="{ componentField, errorMessage }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel
+                  >Sex <span class="text-destructive">*</span></FormLabel
+                >
+                <Select v-bind="componentField">
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select sex" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="male">Male</SelectItem>
+                    <SelectItem value="female">Female</SelectItem>
+                  </SelectContent>
+                </Select>
+                <FormMessage v-if="errorMessage">{{
+                  errorMessage
+                }}</FormMessage>
+              </FormItem>
+            </FormField>
+
+            <FormField
+              name="demographics.occupation"
+              v-slot="{ componentField }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>Occupation</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter occupation"
+                    v-bind="componentField"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+          </div>
         </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.history ? '−' : '+' }}
-        </div>
-      </button>
 
-      <div
-        v-if="expandedSections.history"
-        v-auto-animate
-        class="p-4 pt-0 space-y-4"
-      >
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FormField name="history.onset_duration" v-slot="{ componentField }">
-            <FormItem>
-              <FormLabel>Onset & Duration</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="e.g., 3 days ago, sudden onset"
-                  v-bind="componentField"
-                />
-              </FormControl>
-            </FormItem>
-          </FormField>
-
-          <FormField name="history.severity" v-slot="{ componentField }">
-            <FormItem>
-              <FormLabel>Severity / Progression</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="e.g., worsening, stable, improving"
-                  v-bind="componentField"
-                />
-              </FormControl>
-            </FormItem>
-          </FormField>
-        </div>
-
-        <FormField
-          name="history.associated_symptoms"
-          v-slot="{ value, setValue }"
+        <!-- Single Input Section -->
+        <div
+          v-else-if="section.type === 'single_input'"
+          v-auto-animate
+          class="p-4 pt-0"
         >
-          <FormItem>
-            <FormLabel>Associated Symptoms</FormLabel>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div
-                v-for="symptom in associatedSymptomsOptions"
-                :key="symptom"
-                class="flex items-center space-x-2"
-              >
-                <Checkbox
-                  :id="symptom"
-                  :checked="value?.includes(symptom)"
-                  @update:checked="
-                    checked => {
-                      const currentValue = value || []
-                      if (checked) {
-                        setValue([...currentValue, symptom])
-                      } else {
-                        setValue(currentValue.filter(v => v !== symptom))
+          <FormField
+            :name="section.fieldName"
+            v-slot="{ componentField, errorMessage }"
+          >
+            <FormItem v-auto-animate>
+              <FormLabel>
+                {{ section.label }}
+                <span v-if="section.required" class="text-destructive">*</span>
+              </FormLabel>
+              <FormControl>
+                <Input
+                  :placeholder="section.placeholder"
+                  v-bind="componentField"
+                />
+              </FormControl>
+              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
+            </FormItem>
+          </FormField>
+        </div>
+
+        <!-- History Section -->
+        <div
+          v-else-if="section.type === 'history'"
+          v-auto-animate
+          class="p-4 pt-0 space-y-4"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <FormField
+              name="history.onset_duration"
+              v-slot="{ componentField }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>Onset & Duration</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g., 3 days ago, sudden onset"
+                    v-bind="componentField"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+
+            <FormField name="history.severity" v-slot="{ componentField }">
+              <FormItem v-auto-animate>
+                <FormLabel>Severity / Progression</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="e.g., worsening, stable, improving"
+                    v-bind="componentField"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+          </div>
+
+          <FormField
+            name="history.associated_symptoms"
+            v-slot="{ value, setValue }"
+          >
+            <FormItem v-auto-animate>
+              <FormLabel>Associated Symptoms</FormLabel>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <label
+                  v-for="symptom in associatedSymptomsOptions"
+                  :key="symptom"
+                  :for="`${section.key}-${symptom}`"
+                  class="flex items-center space-x-2 group hover:bg-muted/50 p-2 rounded-md transition-colors cursor-pointer"
+                >
+                  <Checkbox
+                    :id="`${section.key}-${symptom}`"
+                    :checked="value?.includes(symptom)"
+                    @update:checked="
+                      checked => {
+                        const currentValue = value || []
+                        if (checked) {
+                          setValue([...currentValue, symptom])
+                        } else {
+                          setValue(currentValue.filter(v => v !== symptom))
+                        }
                       }
-                    }
-                  "
-                />
-                <FormLabel :for="symptom" class="text-sm font-normal">
-                  {{ symptom }}
-                </FormLabel>
+                    "
+                  />
+                  <span
+                    class="text-sm font-normal select-none flex-1 group-hover:text-foreground transition-colors"
+                  >
+                    {{ symptom }}
+                  </span>
+                </label>
               </div>
-            </div>
-          </FormItem>
-        </FormField>
+            </FormItem>
+          </FormField>
 
-        <FormField name="history.other_symptoms" v-slot="{ componentField }">
-          <FormItem>
-            <FormLabel>Other Symptoms</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Additional symptoms not listed above"
-                v-bind="componentField"
-              />
-            </FormControl>
-          </FormItem>
-        </FormField>
-      </div>
-    </div>
-
-    <!-- Section 4: Past Medical History -->
-    <div class="border rounded-lg">
-      <button
-        type="button"
-        @click="toggleSection('medical_history')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
-      >
-        <div class="flex items-center gap-3">
-          <Heart class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">Past Medical History</h3>
+          <FormField name="history.other_symptoms" v-slot="{ componentField }">
+            <FormItem v-auto-animate>
+              <FormLabel>Other Symptoms</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Additional symptoms not listed above"
+                  v-bind="componentField"
+                />
+              </FormControl>
+            </FormItem>
+          </FormField>
         </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.medical_history ? '−' : '+' }}
-        </div>
-      </button>
 
-      <div
-        v-if="expandedSections.medical_history"
-        v-auto-animate
-        class="p-4 pt-0 space-y-4"
-      >
-        <FormField name="medical_history" v-slot="{ value, setValue }">
-          <FormItem>
-            <FormLabel>Medical History</FormLabel>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div
-                v-for="condition in medicalHistoryOptions"
-                :key="condition"
-                class="flex items-center space-x-2"
-              >
-                <Checkbox
-                  :id="condition"
-                  :checked="value?.includes(condition)"
-                  @update:checked="
-                    checked => {
-                      const currentValue = value || []
-                      if (checked) {
-                        setValue([...currentValue, condition])
-                      } else {
-                        setValue(currentValue.filter(v => v !== condition))
+        <!-- Vital Signs Section -->
+        <div
+          v-else-if="section.type === 'vital_signs'"
+          v-auto-animate
+          class="p-4 pt-0"
+        >
+          <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <FormField
+              name="vital_signs.HR"
+              v-slot="{ componentField, errorMessage }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>HR (bpm)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="80"
+                    v-bind="componentField"
+                    min="0"
+                    max="300"
+                  />
+                </FormControl>
+                <FormMessage v-if="errorMessage">{{
+                  errorMessage
+                }}</FormMessage>
+              </FormItem>
+            </FormField>
+
+            <FormField
+              name="vital_signs.BP"
+              v-slot="{ componentField, errorMessage }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>BP (mmHg)</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="120/80"
+                    v-bind="componentField"
+                    pattern="[0-9]+/[0-9]+"
+                    title="Enter blood pressure in format: 120/80"
+                  />
+                </FormControl>
+                <FormMessage v-if="errorMessage">{{
+                  errorMessage
+                }}</FormMessage>
+              </FormItem>
+            </FormField>
+
+            <FormField
+              name="vital_signs.RR"
+              v-slot="{ componentField, errorMessage }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>RR (/min)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="16"
+                    v-bind="componentField"
+                    min="0"
+                    max="60"
+                  />
+                </FormControl>
+                <FormMessage v-if="errorMessage">{{
+                  errorMessage
+                }}</FormMessage>
+              </FormItem>
+            </FormField>
+
+            <FormField
+              name="vital_signs.SpO2"
+              v-slot="{ componentField, errorMessage }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>SpO₂ (%)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    placeholder="98"
+                    v-bind="componentField"
+                    min="0"
+                    max="100"
+                  />
+                </FormControl>
+                <FormMessage v-if="errorMessage">{{
+                  errorMessage
+                }}</FormMessage>
+              </FormItem>
+            </FormField>
+
+            <FormField
+              name="vital_signs.Temp"
+              v-slot="{ componentField, errorMessage }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>Temp (°C)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    placeholder="37.0"
+                    v-bind="componentField"
+                    min="20"
+                    max="50"
+                  />
+                </FormControl>
+                <FormMessage v-if="errorMessage">{{
+                  errorMessage
+                }}</FormMessage>
+              </FormItem>
+            </FormField>
+          </div>
+        </div>
+
+        <!-- Checkbox with Other Section -->
+        <div
+          v-else-if="section.type === 'checkbox_with_other'"
+          v-auto-animate
+          class="p-4 pt-0 space-y-4"
+        >
+          <FormField :name="section.fieldName" v-slot="{ value, setValue }">
+            <FormItem v-auto-animate>
+              <FormLabel>{{ section.label }}</FormLabel>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <label
+                  v-for="option in section.options"
+                  :key="option"
+                  :for="`${section.key}-${option}`"
+                  class="flex items-center space-x-2 group hover:bg-muted/50 p-2 rounded-md transition-colors cursor-pointer"
+                >
+                  <Checkbox
+                    :id="`${section.key}-${option}`"
+                    :checked="value?.includes(option)"
+                    @update:checked="
+                      checked => {
+                        const currentValue = value || []
+                        if (checked) {
+                          setValue([...currentValue, option])
+                        } else {
+                          setValue(currentValue.filter(v => v !== option))
+                        }
                       }
-                    }
-                  "
-                />
-                <FormLabel :for="condition" class="text-sm font-normal">
-                  {{ condition }}
-                </FormLabel>
+                    "
+                  />
+                  <span
+                    class="text-sm font-normal select-none flex-1 group-hover:text-foreground transition-colors"
+                  >
+                    {{ option }}
+                  </span>
+                </label>
               </div>
-            </div>
-          </FormItem>
-        </FormField>
-
-        <FormField name="medical_history_other" v-slot="{ componentField }">
-          <FormItem>
-            <FormLabel>Other Medical History</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Additional medical conditions"
-                v-bind="componentField"
-              />
-            </FormControl>
-          </FormItem>
-        </FormField>
-      </div>
-    </div>
-
-    <!-- Section 5: Vital Signs -->
-    <div class="border rounded-lg">
-      <button
-        type="button"
-        @click="toggleSection('vital_signs')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
-      >
-        <div class="flex items-center gap-3">
-          <Thermometer class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">Vital Signs</h3>
-        </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.vital_signs ? '−' : '+' }}
-        </div>
-      </button>
-
-      <div v-if="expandedSections.vital_signs" v-auto-animate class="p-4 pt-0">
-        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          <FormField
-            name="vital_signs.HR"
-            v-slot="{ componentField, errorMessage }"
-          >
-            <FormItem>
-              <FormLabel>HR (bpm)</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="80"
-                  v-bind="componentField"
-                  min="0"
-                  max="300"
-                />
-              </FormControl>
-              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
             </FormItem>
           </FormField>
 
-          <FormField
-            name="vital_signs.BP"
-            v-slot="{ componentField, errorMessage }"
-          >
-            <FormItem>
-              <FormLabel>BP (mmHg)</FormLabel>
+          <FormField :name="section.otherFieldName" v-slot="{ componentField }">
+            <FormItem v-auto-animate>
+              <FormLabel>{{ section.otherLabel }}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="120/80"
+                  :placeholder="section.otherPlaceholder"
                   v-bind="componentField"
-                  pattern="[0-9]+/[0-9]+"
-                  title="Enter blood pressure in format: 120/80"
                 />
               </FormControl>
-              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
-            </FormItem>
-          </FormField>
-
-          <FormField
-            name="vital_signs.RR"
-            v-slot="{ componentField, errorMessage }"
-          >
-            <FormItem>
-              <FormLabel>RR (/min)</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="16"
-                  v-bind="componentField"
-                  min="0"
-                  max="60"
-                />
-              </FormControl>
-              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
-            </FormItem>
-          </FormField>
-
-          <FormField
-            name="vital_signs.SpO2"
-            v-slot="{ componentField, errorMessage }"
-          >
-            <FormItem>
-              <FormLabel>SpO₂ (%)</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="98"
-                  v-bind="componentField"
-                  min="0"
-                  max="100"
-                />
-              </FormControl>
-              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
-            </FormItem>
-          </FormField>
-
-          <FormField
-            name="vital_signs.Temp"
-            v-slot="{ componentField, errorMessage }"
-          >
-            <FormItem>
-              <FormLabel>Temp (°C)</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  step="0.1"
-                  placeholder="37.0"
-                  v-bind="componentField"
-                  min="20"
-                  max="50"
-                />
-              </FormControl>
-              <FormMessage v-if="errorMessage">{{ errorMessage }}</FormMessage>
             </FormItem>
           </FormField>
         </div>
-      </div>
-    </div>
 
-    <!-- Section 6: Physical Examination -->
-    <div class="border rounded-lg">
-      <button
-        type="button"
-        @click="toggleSection('physical_exam')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
-      >
-        <div class="flex items-center gap-3">
-          <Activity class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">Physical Examination Findings</h3>
-        </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.physical_exam ? '−' : '+' }}
-        </div>
-      </button>
-
-      <div
-        v-if="expandedSections.physical_exam"
-        v-auto-animate
-        class="p-4 pt-0 space-y-4"
-      >
-        <FormField name="physical_exam" v-slot="{ value, setValue }">
-          <FormItem>
-            <FormLabel>Physical Examination Findings</FormLabel>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div
-                v-for="finding in physicalExamOptions"
-                :key="finding"
-                class="flex items-center space-x-2"
-              >
-                <Checkbox
-                  :id="finding"
-                  :checked="value?.includes(finding)"
-                  @update:checked="
-                    checked => {
-                      const currentValue = value || []
-                      if (checked) {
-                        setValue([...currentValue, finding])
-                      } else {
-                        setValue(currentValue.filter(v => v !== finding))
-                      }
-                    }
-                  "
+        <!-- Textarea Section -->
+        <div
+          v-else-if="section.type === 'textarea'"
+          v-auto-animate
+          class="p-4 pt-0"
+        >
+          <FormField :name="section.fieldName" v-slot="{ componentField }">
+            <FormItem v-auto-animate>
+              <FormLabel>{{ section.label }}</FormLabel>
+              <FormControl>
+                <Textarea
+                  :placeholder="section.placeholder"
+                  v-bind="componentField"
+                  class="min-h-24"
                 />
-                <FormLabel :for="finding" class="text-sm font-normal">
-                  {{ finding }}
-                </FormLabel>
-              </div>
-            </div>
-          </FormItem>
-        </FormField>
-
-        <FormField name="physical_exam_other" v-slot="{ componentField }">
-          <FormItem>
-            <FormLabel>Other Physical Findings</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Additional examination findings"
-                v-bind="componentField"
-              />
-            </FormControl>
-          </FormItem>
-        </FormField>
-      </div>
-    </div>
-
-    <!-- Section 7: Risk Factors -->
-    <div class="border rounded-lg">
-      <button
-        type="button"
-        @click="toggleSection('risk_factors')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
-      >
-        <div class="flex items-center gap-3">
-          <Activity class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">Risk Factors</h3>
+              </FormControl>
+              <FormDescription v-if="section.description">
+                {{ section.description }}
+              </FormDescription>
+            </FormItem>
+          </FormField>
         </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.risk_factors ? '−' : '+' }}
-        </div>
-      </button>
-
-      <div
-        v-if="expandedSections.risk_factors"
-        v-auto-animate
-        class="p-4 pt-0 space-y-4"
-      >
-        <FormField name="risk_factors" v-slot="{ value, setValue }">
-          <FormItem>
-            <FormLabel>Risk Factors</FormLabel>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
-              <div
-                v-for="factor in riskFactorsOptions"
-                :key="factor"
-                class="flex items-center space-x-2"
-              >
-                <Checkbox
-                  :id="factor"
-                  :checked="value?.includes(factor)"
-                  @update:checked="
-                    checked => {
-                      const currentValue = value || []
-                      if (checked) {
-                        setValue([...currentValue, factor])
-                      } else {
-                        setValue(currentValue.filter(v => v !== factor))
-                      }
-                    }
-                  "
-                />
-                <FormLabel :for="factor" class="text-sm font-normal">
-                  {{ factor }}
-                </FormLabel>
-              </div>
-            </div>
-          </FormItem>
-        </FormField>
-
-        <FormField name="risk_factors_other" v-slot="{ componentField }">
-          <FormItem>
-            <FormLabel>Other Risk Factors</FormLabel>
-            <FormControl>
-              <Input
-                placeholder="Additional risk factors"
-                v-bind="componentField"
-              />
-            </FormControl>
-          </FormItem>
-        </FormField>
-      </div>
-    </div>
-
-    <!-- Section 8: Nurse's Notes -->
-    <div class="border rounded-lg">
-      <button
-        type="button"
-        @click="toggleSection('nurse_notes')"
-        class="w-full flex items-center justify-between p-4 hover:bg-muted transition-colors"
-      >
-        <div class="flex items-center gap-3">
-          <Activity class="w-5 h-5 text-primary" />
-          <h3 class="text-lg font-semibold">Nurse's Notes</h3>
-        </div>
-        <div class="text-muted-foreground">
-          {{ expandedSections.nurse_notes ? '−' : '+' }}
-        </div>
-      </button>
-
-      <div v-if="expandedSections.nurse_notes" v-auto-animate class="p-4 pt-0">
-        <FormField name="nurse_notes" v-slot="{ componentField }">
-          <FormItem>
-            <FormLabel>Additional Notes</FormLabel>
-            <FormControl>
-              <Textarea
-                placeholder="Any additional observations or notes..."
-                v-bind="componentField"
-                class="min-h-24"
-              />
-            </FormControl>
-            <FormDescription>
-              Include any additional relevant observations, patient behaviors,
-              or contextual information.
-            </FormDescription>
-          </FormItem>
-        </FormField>
       </div>
     </div>
 
