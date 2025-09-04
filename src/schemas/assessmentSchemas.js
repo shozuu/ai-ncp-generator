@@ -221,3 +221,78 @@ export const assistantModeSchema = z.object({
       ),
   }),
 })
+
+export const comprehensiveAssessmentSchema = z.object({
+  demographics: z.object({
+    age: z
+      .number()
+      .min(0, 'Age cannot be negative')
+      .max(150, 'Age seems unusually high'),
+    sex: z.enum(['male', 'female'], {
+      required_error: 'Sex is required',
+      invalid_type_error: 'Please select a valid sex',
+    }),
+    occupation: z.string().optional(),
+  }),
+  chief_complaint: z
+    .string()
+    .min(1, 'Chief complaint is required')
+    .max(200, 'Chief complaint should be brief and concise'),
+  history: z.object({
+    onset_duration: z
+      .string()
+      .max(100, 'Onset duration should be concise')
+      .optional(),
+    severity: z
+      .string()
+      .max(100, 'Severity description should be concise')
+      .optional(),
+    associated_symptoms: z.array(z.string()).optional(),
+    other_symptoms: z
+      .string()
+      .max(200, 'Other symptoms description should be concise')
+      .optional(),
+  }),
+  medical_history: z.array(z.string()).optional(),
+  medical_history_other: z
+    .string()
+    .max(200, 'Medical history should be concise')
+    .optional(),
+  vital_signs: z.object({
+    HR: z
+      .number()
+      .min(0, 'Heart rate cannot be negative')
+      .max(300, 'Heart rate seems unusually high')
+      .optional(),
+    BP: z
+      .string()
+      .regex(/^$|^\d{2,3}\/\d{2,3}$/, 'Blood pressure format should be: 120/80')
+      .optional(),
+    RR: z
+      .number()
+      .min(0, 'Respiratory rate cannot be negative')
+      .max(60, 'Respiratory rate seems unusually high')
+      .optional(),
+    SpO2: z
+      .number()
+      .min(0, 'Oxygen saturation cannot be negative')
+      .max(100, 'Oxygen saturation cannot exceed 100%')
+      .optional(),
+    Temp: z
+      .number()
+      .min(20, 'Temperature seems unusually low')
+      .max(50, 'Temperature seems unusually high')
+      .optional(),
+  }),
+  physical_exam: z.array(z.string()).optional(),
+  physical_exam_other: z
+    .string()
+    .max(300, 'Physical exam findings should be concise')
+    .optional(),
+  risk_factors: z.array(z.string()).optional(),
+  risk_factors_other: z
+    .string()
+    .max(200, 'Risk factors should be concise')
+    .optional(),
+  nurse_notes: z.string().max(500, 'Nurse notes should be concise').optional(),
+})
