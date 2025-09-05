@@ -32,11 +32,30 @@ export const ncpService = {
       return generatedNCP
     } catch (error) {
       console.error('NCP Generation Error:', error.response?.data || error) // debug log
-      throw new Error(
-        error.response?.data?.detail?.message ||
-          error.response?.data?.detail ||
-          'Failed to generate NCP'
-      )
+
+      // Extract detailed error information from backend
+      const errorDetail = error.response?.data?.detail
+      let errorMessage = 'Failed to generate NCP'
+      let suggestion = ''
+
+      if (errorDetail) {
+        if (typeof errorDetail === 'string') {
+          errorMessage = errorDetail
+        } else if (errorDetail.message) {
+          errorMessage = errorDetail.message
+          if (errorDetail.suggestion) {
+            suggestion = errorDetail.suggestion
+          }
+        }
+      }
+
+      // Format the error message for frontend display
+      let finalMessage = errorMessage
+      if (suggestion) {
+        finalMessage += ` ${suggestion}`
+      }
+
+      throw new Error(finalMessage)
     }
   },
 
@@ -141,5 +160,45 @@ export const ncpService = {
     // trigger the soft delete
     const { error } = await supabase.from('ncps').delete().eq('id', ncpId)
     if (error) throw error
+  },
+
+  async parseManualAssessment(manualData) {
+    try {
+      console.log('Parsing manual assessment data:', manualData)
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/parse-manual-assessment`,
+        manualData,
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+
+      return response.data
+    } catch (error) {
+      console.error(
+        'Manual Assessment Parsing Error:',
+        error.response?.data || error
+      )
+
+      // Extract detailed error information from backend
+      const errorDetail = error.response?.data?.detail
+      let errorMessage = 'Failed to parse manual assessment'
+
+      if (errorDetail) {
+        if (typeof errorDetail === 'string') {
+          errorMessage = errorDetail
+        } else if (errorDetail.message && errorDetail.error) {
+          errorMessage = `error: ${errorDetail.error}`
+          if (errorDetail.suggestion) {
+            errorMessage += ` suggestion: ${errorDetail.suggestion}`
+          }
+        } else if (errorDetail.message) {
+          errorMessage = errorDetail.message
+        }
+      }
+
+      throw new Error(errorMessage)
+    }
   },
 }
