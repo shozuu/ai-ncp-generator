@@ -214,7 +214,6 @@ const toggleSection = section => {
 }
 
 const onSubmit = form.handleSubmit(values => {
-  // Clean and format the data for the backend
   const formattedData = {
     demographics: {
       age: values.demographics?.age ? Number(values.demographics.age) : null,
@@ -233,7 +232,9 @@ const onSubmit = form.handleSubmit(values => {
       ].filter(Boolean),
       other_symptoms: values.history?.other_symptoms || '',
     },
-    medical_history: values.medical_history || [],
+    medical_history: Array.isArray(values.medical_history)
+      ? values.medical_history
+      : [],
     medical_history_other: values.medical_history_other || '',
     vital_signs: {
       HR: values.vital_signs?.HR ? Number(values.vital_signs.HR) : null,
@@ -242,14 +243,15 @@ const onSubmit = form.handleSubmit(values => {
       SpO2: values.vital_signs?.SpO2 ? Number(values.vital_signs.SpO2) : null,
       Temp: values.vital_signs?.Temp ? Number(values.vital_signs.Temp) : null,
     },
-    physical_exam: values.physical_exam || [],
+    physical_exam: Array.isArray(values.physical_exam)
+      ? values.physical_exam
+      : [],
     physical_exam_other: values.physical_exam_other || '',
-    risk_factors: values.risk_factors || [],
+    risk_factors: Array.isArray(values.risk_factors) ? values.risk_factors : [],
     risk_factors_other: values.risk_factors_other || '',
     nurse_notes: values.nurse_notes || '',
   }
 
-  console.log('Structured Assessment Data:', formattedData)
   emit('submit', formattedData)
 })
 </script>
@@ -427,10 +429,7 @@ const onSubmit = form.handleSubmit(values => {
             </FormField>
           </div>
 
-          <FormField
-            name="history.associated_symptoms"
-            v-slot="{ value, setValue }"
-          >
+          <FormField name="history.associated_symptoms" v-slot="{ value }">
             <FormItem v-auto-animate>
               <FormLabel>Associated Symptoms</FormLabel>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -442,14 +441,24 @@ const onSubmit = form.handleSubmit(values => {
                 >
                   <Checkbox
                     :id="`history-${symptom}`"
-                    :checked="(value || []).includes(symptom)"
-                    @update:checked="
+                    :model-value="(value || []).includes(symptom)"
+                    @update:model-value="
                       checked => {
                         const currentValue = value || []
                         if (checked) {
-                          setValue([...currentValue, symptom])
+                          const newValue = [...currentValue, symptom]
+                          form.setFieldValue(
+                            'history.associated_symptoms',
+                            newValue
+                          )
                         } else {
-                          setValue(currentValue.filter(v => v !== symptom))
+                          const newValue = currentValue.filter(
+                            v => v !== symptom
+                          )
+                          form.setFieldValue(
+                            'history.associated_symptoms',
+                            newValue
+                          )
                         }
                       }
                     "
@@ -597,7 +606,7 @@ const onSubmit = form.handleSubmit(values => {
           v-auto-animate
           class="p-4 pt-0 space-y-4"
         >
-          <FormField :name="section.fieldName" v-slot="{ value, setValue }">
+          <FormField :name="section.fieldName" v-slot="{ value }">
             <FormItem v-auto-animate>
               <FormLabel>{{ section.label }}</FormLabel>
               <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -609,14 +618,18 @@ const onSubmit = form.handleSubmit(values => {
                 >
                   <Checkbox
                     :id="`${section.key}-${option}`"
-                    :checked="(value || []).includes(option)"
-                    @update:checked="
+                    :model-value="(value || []).includes(option)"
+                    @update:model-value="
                       checked => {
                         const currentValue = value || []
                         if (checked) {
-                          setValue([...currentValue, option])
+                          const newValue = [...currentValue, option]
+                          form.setFieldValue(section.fieldName, newValue)
                         } else {
-                          setValue(currentValue.filter(v => v !== option))
+                          const newValue = currentValue.filter(
+                            v => v !== option
+                          )
+                          form.setFieldValue(section.fieldName, newValue)
                         }
                       }
                     "
