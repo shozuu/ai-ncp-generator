@@ -72,7 +72,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
     """
     try:
         # Log the incoming request structure
-        logger.info(f"Received assessment data for NCP generation")
+        logger.info(f"Received assessment data for NCP generation: {assessment_data}")
 
         # Validate incoming data - handle validation errors specifically
         try:
@@ -94,7 +94,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         # Format assessment data based on the structure
         try:
             formatted_assessment = format_structured_data(assessment_data)
-            logger.info(f"Successfully formatted assessment data")
+            logger.info(f"Successfully formatted assessment data: {formatted_assessment}")
         except Exception as format_error:
             logger.error(f"Error formatting data: {str(format_error)}")
             raise HTTPException(

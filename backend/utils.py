@@ -28,19 +28,64 @@ def validate_assessment_data(data: Dict):
             bool(chief_complaint)
         ])
         
-        # Check if we have any clinical data at all
-        has_clinical_data = (
-            demographics.get('occupation', '').strip() or
-            any(v for v in data.get('history', {}).values() if v is not None and str(v).strip() and v != []) or
-            data.get('medical_history') or
-            data.get('medical_history_other', '').strip() or
-            any(v for v in data.get('vital_signs', {}).values() if v is not None and str(v).strip()) or
-            data.get('physical_exam') or
-            data.get('physical_exam_other', '').strip() or
-            data.get('risk_factors') or
-            data.get('risk_factors_other', '').strip() or
-            data.get('nurse_notes', '').strip()
+        # comprehensive check for clinical data
+        def has_meaningful_value(value):
+            """Check if a value is meaningful (not None, empty string, or empty array)"""
+            if value is None:
+                return False
+            if isinstance(value, str):
+                return bool(value.strip())
+            if isinstance(value, list):
+                return len(value) > 0
+            if isinstance(value, (int, float)):
+                return True
+            return bool(value)
+        
+        # Check each category of clinical data
+        has_occupation = has_meaningful_value(demographics.get('occupation'))
+        
+        # Check history - any field with meaningful data
+        history = data.get('history', {})
+        has_history = any(has_meaningful_value(v) for v in history.values())
+        
+        # Check medical history
+        has_med_history = (
+            has_meaningful_value(data.get('medical_history')) or 
+            has_meaningful_value(data.get('medical_history_other'))
         )
+        
+        # Check vital signs - any field with meaningful data
+        vitals = data.get('vital_signs', {})
+        has_vitals = any(has_meaningful_value(v) for v in vitals.values())
+        
+        # Check physical exam
+        has_physical_exam = (
+            has_meaningful_value(data.get('physical_exam')) or 
+            has_meaningful_value(data.get('physical_exam_other'))
+        )
+        
+        # Check risk factors
+        has_risk_factors = (
+            has_meaningful_value(data.get('risk_factors')) or 
+            has_meaningful_value(data.get('risk_factors_other'))
+        )
+        
+        # Check nurse notes
+        has_nurse_notes = has_meaningful_value(data.get('nurse_notes'))
+        
+        # Count total clinical data categories
+        clinical_data_categories = [
+            has_occupation,
+            has_history,
+            has_med_history,
+            has_vitals,
+            has_physical_exam,
+            has_risk_factors,
+            has_nurse_notes
+        ]
+        
+        clinical_data_count = sum(clinical_data_categories)
+        has_clinical_data = clinical_data_count > 0
         
         # Determine the mode based on completeness and data richness
         if required_fields_present == 3:
@@ -59,19 +104,7 @@ def validate_assessment_data(data: Dict):
         # Apply validation based on detected mode
         if mode == "pure_manual":
             # For pure manual mode, require at least 2 different types of clinical data
-            has_sufficient_clinical_data = (
-                sum([
-                    bool(demographics.get('occupation', '').strip()),
-                    bool(any(v for v in data.get('history', {}).values() if v is not None and str(v).strip() and v != [])),
-                    bool(data.get('medical_history') or data.get('medical_history_other', '').strip()),
-                    bool(any(v for v in data.get('vital_signs', {}).values() if v is not None and str(v).strip())),
-                    bool(data.get('physical_exam') or data.get('physical_exam_other', '').strip()),
-                    bool(data.get('risk_factors') or data.get('risk_factors_other', '').strip()),
-                    bool(data.get('nurse_notes', '').strip())
-                ]) >= 2
-            )
-            
-            if not has_sufficient_clinical_data:
+            if clinical_data_count < 2:
                 raise ValueError("Unable to extract sufficient clinical information from the provided assessment data. Please ensure your manual input includes clear details about patient symptoms, vital signs, physical findings, medical history, or other relevant clinical information.")
             
             logger.info("Pure manual mode assessment detected - proceeding with available clinical data")
@@ -80,10 +113,10 @@ def validate_assessment_data(data: Dict):
             # For partial manual mode, be more lenient - require at least ONE key clinical component
             has_key_clinical_component = (
                 chief_complaint or  # Has chief complaint
-                any(v for v in data.get('history', {}).values() if v is not None and str(v).strip() and v != []) or  # Has history
-                any(v for v in data.get('vital_signs', {}).values() if v is not None and str(v).strip()) or  # Has vital signs
-                data.get('physical_exam') or data.get('physical_exam_other', '').strip() or  # Has physical exam
-                data.get('nurse_notes', '').strip()  # Has nurse notes
+                has_history or  # Has history
+                has_vitals or  # Has vital signs
+                has_physical_exam or  # Has physical exam
+                has_nurse_notes  # Has nurse notes
             )
             
             if not has_key_clinical_component:
@@ -102,24 +135,11 @@ def validate_assessment_data(data: Dict):
             if not chief_complaint:
                 raise ValueError("Chief complaint is required. Please provide the main reason for the patient's visit or switch to Manual Mode for free-text input.")
             
-            # For assistant mode, still check for additional clinical data beyond required fields
-            has_additional_data = (
-                demographics.get('occupation', '').strip() or
-                any(v for v in data.get('history', {}).values() if v is not None and str(v).strip() and v != []) or
-                data.get('medical_history') or
-                data.get('medical_history_other', '').strip() or
-                any(v for v in data.get('vital_signs', {}).values() if v is not None and str(v).strip()) or
-                data.get('physical_exam') or
-                data.get('physical_exam_other', '').strip() or
-                data.get('risk_factors') or
-                data.get('risk_factors_other', '').strip() or
-                data.get('nurse_notes', '').strip()
-            )
-            
-            if not has_additional_data:
+            # For assistant mode, require at least 1 additional clinical data category
+            if clinical_data_count < 1:
                 raise ValueError("Please provide additional clinical information beyond the required fields. Include at least some history, vital signs, physical exam findings, or other relevant clinical data to generate a meaningful care plan.")
             
-            logger.info("Assistant mode assessment detected - all required fields present")
+            logger.info(f"Assistant mode assessment detected - all required fields present with {clinical_data_count} additional clinical data categories")
             
         else:  # mode == "invalid"
             raise ValueError("No meaningful clinical information found. Please provide patient assessment data including symptoms, vital signs, physical findings, or other relevant clinical information.")
