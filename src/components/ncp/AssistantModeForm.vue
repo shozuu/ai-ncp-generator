@@ -41,8 +41,8 @@ const form = useForm({
   validationSchema: toTypedSchema(comprehensiveAssessmentSchema),
   initialValues: {
     demographics: {
-      age: undefined,
-      sex: undefined,
+      age: null,
+      sex: '',
       occupation: '',
     },
     chief_complaint: '',
@@ -55,11 +55,11 @@ const form = useForm({
     medical_history: [],
     medical_history_other: '',
     vital_signs: {
-      HR: undefined,
+      HR: null,
       BP: '',
-      RR: undefined,
-      SpO2: undefined,
-      Temp: undefined,
+      RR: null,
+      SpO2: null,
+      Temp: null,
     },
     physical_exam: [],
     physical_exam_other: '',
@@ -217,40 +217,35 @@ const onSubmit = form.handleSubmit(values => {
   // Clean and format the data for the backend
   const formattedData = {
     demographics: {
-      age: values.demographics.age,
-      sex: values.demographics.sex,
-      occupation: values.demographics.occupation || '',
+      age: values.demographics?.age ? Number(values.demographics.age) : null,
+      sex: values.demographics?.sex || '',
+      occupation: values.demographics?.occupation || '',
     },
-    chief_complaint: values.chief_complaint,
+    chief_complaint: values.chief_complaint || '',
     history: {
-      onset_duration: values.history.onset_duration || '',
-      severity: values.history.severity || '',
+      onset_duration: values.history?.onset_duration || '',
+      severity: values.history?.severity || '',
       associated_symptoms: [
-        ...(values.history.associated_symptoms || []),
-        ...(values.history.other_symptoms
+        ...(values.history?.associated_symptoms || []),
+        ...(values.history?.other_symptoms
           ? [values.history.other_symptoms]
           : []),
       ].filter(Boolean),
+      other_symptoms: values.history?.other_symptoms || '',
     },
-    medical_history: [
-      ...(values.medical_history || []),
-      ...(values.medical_history_other ? [values.medical_history_other] : []),
-    ].filter(Boolean),
+    medical_history: values.medical_history || [],
+    medical_history_other: values.medical_history_other || '',
     vital_signs: {
-      HR: values.vital_signs.HR,
-      BP: values.vital_signs.BP || '',
-      RR: values.vital_signs.RR,
-      SpO2: values.vital_signs.SpO2,
-      Temp: values.vital_signs.Temp,
+      HR: values.vital_signs?.HR ? Number(values.vital_signs.HR) : null,
+      BP: values.vital_signs?.BP || '',
+      RR: values.vital_signs?.RR ? Number(values.vital_signs.RR) : null,
+      SpO2: values.vital_signs?.SpO2 ? Number(values.vital_signs.SpO2) : null,
+      Temp: values.vital_signs?.Temp ? Number(values.vital_signs.Temp) : null,
     },
-    physical_exam: [
-      ...(values.physical_exam || []),
-      ...(values.physical_exam_other ? [values.physical_exam_other] : []),
-    ].filter(Boolean),
-    risk_factors: [
-      ...(values.risk_factors || []),
-      ...(values.risk_factors_other ? [values.risk_factors_other] : []),
-    ].filter(Boolean),
+    physical_exam: values.physical_exam || [],
+    physical_exam_other: values.physical_exam_other || '',
+    risk_factors: values.risk_factors || [],
+    risk_factors_other: values.risk_factors_other || '',
     nurse_notes: values.nurse_notes || '',
   }
 
@@ -442,12 +437,12 @@ const onSubmit = form.handleSubmit(values => {
                 <label
                   v-for="symptom in associatedSymptomsOptions"
                   :key="symptom"
-                  :for="`${section.key}-${symptom}`"
+                  :for="`history-${symptom}`"
                   class="flex items-center space-x-2 group hover:bg-muted/50 p-2 rounded-md transition-colors cursor-pointer"
                 >
                   <Checkbox
-                    :id="`${section.key}-${symptom}`"
-                    :checked="value?.includes(symptom)"
+                    :id="`history-${symptom}`"
+                    :checked="(value || []).includes(symptom)"
                     @update:checked="
                       checked => {
                         const currentValue = value || []
@@ -614,7 +609,7 @@ const onSubmit = form.handleSubmit(values => {
                 >
                   <Checkbox
                     :id="`${section.key}-${option}`"
-                    :checked="value?.includes(option)"
+                    :checked="(value || []).includes(option)"
                     @update:checked="
                       checked => {
                         const currentValue = value || []
