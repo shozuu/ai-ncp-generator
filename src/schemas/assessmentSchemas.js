@@ -227,7 +227,9 @@ export const comprehensiveAssessmentSchema = z.object({
     age: z
       .number()
       .min(0, 'Age cannot be negative')
-      .max(150, 'Age seems unusually high'),
+      .max(150, 'Age seems unusually high')
+      .nullable()
+      .optional(),
     sex: z.enum(['male', 'female'], {
       required_error: 'Sex is required',
       invalid_type_error: 'Please select a valid sex',
@@ -263,6 +265,7 @@ export const comprehensiveAssessmentSchema = z.object({
       .number()
       .min(0, 'Heart rate cannot be negative')
       .max(300, 'Heart rate seems unusually high')
+      .nullable()
       .optional(),
     BP: z
       .string()
@@ -272,16 +275,19 @@ export const comprehensiveAssessmentSchema = z.object({
       .number()
       .min(0, 'Respiratory rate cannot be negative')
       .max(60, 'Respiratory rate seems unusually high')
+      .nullable()
       .optional(),
     SpO2: z
       .number()
       .min(0, 'Oxygen saturation cannot be negative')
       .max(100, 'Oxygen saturation cannot exceed 100%')
+      .nullable()
       .optional(),
     Temp: z
       .number()
       .min(20, 'Temperature seems unusually low')
       .max(50, 'Temperature seems unusually high')
+      .nullable()
       .optional(),
   }),
   physical_exam: z.array(z.string()).optional(),
