@@ -9,6 +9,7 @@ from utils import format_structured_data, parse_ncp_response, validate_assessmen
 import google.generativeai as genai
 import uvicorn
 from lookup_service import lookup_service
+from diagnosis_matcher import diagnosis_matcher
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -576,6 +577,327 @@ async def test_lookup() -> Dict:
                 "error_type": "lookup_test_error",
                 "message": f"Failed to test lookup table: {str(e)}",
                 "suggestion": "Check if the lookup table file exists in Supabase storage and has the correct format."
+            }
+        )
+
+@app.post("/api/suggest-diagnoses")
+async def suggest_diagnoses(assessment_data: Dict) -> Dict:
+    """
+    Suggest nursing diagnoses based on assessment data using hybrid approach.
+    """
+    try:
+        logger.info("Starting diagnosis suggestion process")
+        
+        # Validate assessment data
+        try:
+            validate_assessment_data(assessment_data)
+        except ValueError as validation_error:
+            logger.error(f"Assessment data validation failed: {str(validation_error)}")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": str(validation_error),
+                    "error_type": "validation_error",
+                    "suggestion": "Please review your assessment data and ensure it contains sufficient clinical information."
+                }
+            )
+        
+        # Stage 1: Find candidate diagnoses using smart filtering
+        candidate_diagnoses = diagnosis_matcher.find_candidate_diagnoses(assessment_data, top_n=10)
+        
+        if not candidate_diagnoses:
+            logger.warning("No candidate diagnoses found")
+            return {
+                "selected_diagnoses": [],
+                "message": "No matching diagnoses found for the provided assessment data"
+            }
+        
+        # Stage 2: Use AI to select the best diagnosis from candidates
+        formatted_assessment = format_structured_data(assessment_data)
+        
+        # Format candidate diagnoses for AI
+        candidates_text = ""
+        for i, candidate in enumerate(candidate_diagnoses, 1):
+            candidates_text += f"""
+                **Candidate {i}: {candidate['diagnosis']}**
+                Definition: {candidate['definition']}
+                Defining Characteristics: {', '.join(candidate['defining_characteristics'])}
+                Related Factors: {', '.join(candidate['related_factors'])}
+                Risk Factors: {', '.join(candidate['risk_factors'])}
+                Suggested Outcomes: {', '.join(candidate['suggested_outcomes'])}
+                Suggested Interventions: {', '.join(candidate['suggested_interventions'])}
+
+            """
+        
+        ai_prompt = f"""
+            You are a nursing expert with comprehensive knowledge of NANDA-I nursing diagnoses. 
+            Your task is to analyze the patient assessment data and select the most appropriate 
+            nursing diagnosis from the provided candidates.
+
+            **PATIENT ASSESSMENT DATA:**
+            {formatted_assessment}
+
+            **CANDIDATE DIAGNOSES:**
+            {candidates_text}
+
+            **INSTRUCTIONS:**
+            1. Carefully analyze the patient assessment data
+            2. Compare it against each candidate diagnosis
+            3. Consider the defining characteristics, related factors, and risk factors
+            4. Select the TOP 3 most appropriate diagnoses in order of relevance
+            5. For each selected diagnosis, provide:
+            - The exact diagnosis name
+            - Justification for why it matches the assessment data
+            - Confidence level (High/Medium/Low)
+
+            **OUTPUT FORMAT:**
+            Return ONLY a valid JSON object with this structure:
+
+            {{
+                "selected_diagnoses": [
+                    {{
+                        "diagnosis": "exact diagnosis name",
+                        "definition": "definition from candidate",
+                        "justification": "detailed explanation of why this diagnosis fits",
+                        "confidence": "High/Medium/Low",
+                        "defining_characteristics": ["list from candidate"],
+                        "related_factors": ["list from candidate"],
+                        "risk_factors": ["list from candidate"],
+                        "suggested_outcomes": ["list from candidate"],
+                        "suggested_interventions": ["list from candidate"]
+                    }}
+                ]
+            }}
+
+            Ensure the response is valid JSON with no additional text.
+        """
+        
+        logger.info("Calling AI for final diagnosis selection")
+        response = model.generate_content(ai_prompt)
+        
+        if not response or not response.text:
+            raise Exception("No response from AI model")
+        
+        # Parse AI response with improved error handling
+        import json
+        import re
+        
+        raw_response = response.text.strip()
+        logger.info(f"Raw AI response length: {len(raw_response)} characters")
+        
+        try:
+            # Clean and extract JSON
+            cleaned_response = raw_response.encode('utf-8').decode('utf-8-sig')
+            
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
+            if json_match:
+                cleaned_response = json_match.group(1)
+            
+            start_brace = cleaned_response.find('{')
+            end_brace = cleaned_response.rfind('}')
+            
+            if start_brace != -1 and end_brace != -1:
+                json_part = cleaned_response[start_brace:end_brace+1]
+                result = json.loads(json_part)
+                
+                logger.info(f"Successfully suggested {len(result.get('selected_diagnoses', []))} diagnoses")
+                return result
+            else:
+                raise ValueError("Could not extract valid JSON from AI response")
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)}")
+            raise Exception("Failed to parse AI response into valid JSON format")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in diagnosis suggestion: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Failed to suggest diagnoses",
+                "error_type": "diagnosis_suggestion_error",
+                "suggestion": "Please try again. If the problem persists, contact support."
+            }
+        )
+
+@app.post("/api/find-candidate-diagnoses")
+async def find_candidate_diagnoses(assessment_data: Dict) -> Dict:
+    """
+    Find candidate diagnoses using smart filtering (Stage 1 of hybrid approach).
+    """
+    try:
+        logger.info("Starting candidate diagnosis finding process")
+        
+        # Validate assessment data
+        try:
+            validate_assessment_data(assessment_data)
+        except ValueError as validation_error:
+            logger.error(f"Assessment data validation failed: {str(validation_error)}")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": str(validation_error),
+                    "error_type": "validation_error",
+                    "suggestion": "Please review your assessment data and ensure it contains sufficient clinical information."
+                }
+            )
+        
+        # Find candidate diagnoses using smart filtering
+        candidate_diagnoses = diagnosis_matcher.find_candidate_diagnoses(assessment_data, top_n=10)
+        
+        if not candidate_diagnoses:
+            logger.warning("No candidate diagnoses found")
+            return {
+                "candidate_diagnoses": [],
+                "message": "No matching diagnoses found for the provided assessment data",
+                "total_candidates": 0
+            }
+        
+        logger.info(f"Found {len(candidate_diagnoses)} candidate diagnoses")
+        
+        return {
+            "candidate_diagnoses": candidate_diagnoses,
+            "total_candidates": len(candidate_diagnoses),
+            "message": f"Successfully found {len(candidate_diagnoses)} candidate diagnoses"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error finding candidate diagnoses: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Failed to find candidate diagnoses",
+                "error_type": "candidate_finding_error",
+                "suggestion": "Please try again. If the problem persists, contact support."
+            }
+        )
+
+@app.post("/api/select-final-diagnosis")
+async def select_final_diagnosis(request_data: Dict) -> Dict:
+    """
+    Use AI to select the best diagnosis from candidate diagnoses (Stage 2 of hybrid approach).
+    """
+    try:
+        logger.info("Starting AI diagnosis selection process")
+        
+        assessment_data = request_data.get('assessment_data')
+        candidate_diagnoses = request_data.get('candidate_diagnoses')
+        
+        if not assessment_data or not candidate_diagnoses:
+            raise ValueError("Both assessment data and candidate diagnoses are required")
+        
+        # Format assessment data
+        formatted_assessment = format_structured_data(assessment_data)
+        
+        # Format candidate diagnoses for AI
+        candidates_text = ""
+        for i, candidate in enumerate(candidate_diagnoses, 1):
+            candidates_text += f"""
+                **Candidate {i}: {candidate['diagnosis']}**
+                Definition: {candidate['definition']}
+                Defining Characteristics: {', '.join(candidate['defining_characteristics'])}
+                Related Factors: {', '.join(candidate['related_factors'])}
+                Risk Factors: {', '.join(candidate['risk_factors'])}
+                Suggested Outcomes: {', '.join(candidate['suggested_outcomes'])}
+                Suggested Interventions: {', '.join(candidate['suggested_interventions'])}
+            """
+        
+        ai_prompt = f"""
+            You are a nursing expert with comprehensive knowledge of NANDA-I nursing diagnoses. 
+            Your task is to analyze the patient assessment data and select the most appropriate 
+            nursing diagnosis from the provided candidates.
+
+            **PATIENT ASSESSMENT DATA:**
+            {formatted_assessment}
+
+            **CANDIDATE DIAGNOSES:**
+            {candidates_text}
+
+            **INSTRUCTIONS:**
+            1. Carefully analyze the patient assessment data
+            2. Compare it against each candidate diagnosis
+            3. Consider the defining characteristics, related factors, and risk factors
+            4. Select the TOP 1 most appropriate diagnosis
+            5. Provide:
+            - The exact diagnosis name
+            - Detailed justification for why it matches the assessment data
+            - Confidence level (High/Medium/Low)
+            - How well it matches the patient's presentation
+
+            **OUTPUT FORMAT:**
+            Return ONLY a valid JSON object with this structure:
+
+            {{
+                "selected_diagnosis": {{
+                    "diagnosis": "exact diagnosis name",
+                    "definition": "definition from candidate",
+                    "justification": "detailed explanation of why this diagnosis fits the patient assessment",
+                    "confidence": "High/Medium/Low",
+                    "match_score": "percentage or description of how well this matches",
+                    "defining_characteristics": ["list from candidate"],
+                    "related_factors": ["list from candidate"],
+                    "risk_factors": ["list from candidate"],
+                    "suggested_outcomes": ["list from candidate"],
+                    "suggested_interventions": ["list from candidate"]
+                }},
+                "reasoning": "step-by-step explanation of the selection process",
+                "alternatives_considered": ["list of other diagnoses that were considered but not selected"]
+            }}
+
+            Ensure the response is valid JSON with no additional text.
+        """
+        
+        logger.info("Calling AI for final diagnosis selection")
+        response = model.generate_content(ai_prompt)
+        
+        if not response or not response.text:
+            raise Exception("No response from AI model")
+        
+        # Parse AI response
+        import json
+        import re
+        
+        raw_response = response.text.strip()
+        logger.info(f"Raw AI response length: {len(raw_response)} characters")
+        
+        try:
+            # Clean and extract JSON
+            cleaned_response = raw_response.encode('utf-8').decode('utf-8-sig')
+            
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
+            if json_match:
+                cleaned_response = json_match.group(1)
+            
+            start_brace = cleaned_response.find('{')
+            end_brace = cleaned_response.rfind('}')
+            
+            if start_brace != -1 and end_brace != -1:
+                json_part = cleaned_response[start_brace:end_brace+1]
+                result = json.loads(json_part)
+                
+                logger.info(f"Successfully selected final diagnosis: {result.get('selected_diagnosis', {}).get('diagnosis', 'Unknown')}")
+                return result
+            else:
+                raise ValueError("Could not extract valid JSON from AI response")
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)}")
+            raise Exception("Failed to parse AI response into valid JSON format")
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in AI diagnosis selection: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Failed to select final diagnosis",
+                "error_type": "ai_selection_error",
+                "suggestion": "Please try again. If the problem persists, contact support."
             }
         )
 
