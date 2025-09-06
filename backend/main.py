@@ -8,6 +8,7 @@ from dotenv import load_dotenv
 from utils import format_structured_data, parse_ncp_response, validate_assessment_data, parse_explanation_text
 import google.generativeai as genai
 import uvicorn
+from lookup_service import lookup_service
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -550,6 +551,31 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
                 "message": "Failed to parse manual assessment", 
                 "error": str(e),
                 "suggestion": "Please ensure your manual input contains clear, detailed clinical information including symptoms, vital signs, and examination findings."
+            }
+        )
+
+@app.post("/api/test-lookup")
+async def test_lookup() -> Dict:
+    """
+    Test the lookup table connection and functionality.
+    """
+    try:
+        lookup_data = lookup_service.load_lookup_table()
+        
+        return {
+            "status": "success",
+            "message": f"Successfully loaded {len(lookup_data)} entries from lookup table",
+            "sample_entry": lookup_data[0] if lookup_data else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Lookup test failed: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error_type": "lookup_test_error",
+                "message": f"Failed to test lookup table: {str(e)}",
+                "suggestion": "Check if the lookup table file exists in Supabase storage and has the correct format."
             }
         )
 
