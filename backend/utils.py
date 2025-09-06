@@ -87,7 +87,7 @@ def validate_assessment_data(data: Dict):
         has_clinical_data = clinical_data_count > 0
         
         # Determine the mode based on completeness and data richness
-        if required_fields_present == 3:
+        if required_fields_present == 2:  
             # All required fields present - likely Assistant Mode
             mode = "assistant"
         elif required_fields_present == 0 and has_clinical_data:
@@ -121,7 +121,7 @@ def validate_assessment_data(data: Dict):
             if not has_key_clinical_component:
                 raise ValueError("Insufficient clinical information found. Please provide at least a chief complaint, patient history, vital signs, physical examination findings, or detailed nurse notes.")
             
-            logger.info(f"Partial manual mode assessment detected ({required_fields_present}/3 required fields) - proceeding with available clinical data")
+            logger.info(f"Partial manual mode assessment detected ({required_fields_present}/2 required fields) - proceeding with available clinical data") 
             
         elif mode == "assistant":
             # For assistant mode, enforce required fields but age is optional
