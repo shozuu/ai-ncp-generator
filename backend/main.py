@@ -449,7 +449,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
 
             **AVAILABLE OPTIONS FOR CATEGORIZATION:**
             - Associated Symptoms: Shortness of breath, Chest pain, Fatigue, Dizziness, Nausea/vomiting
-            - Medical History: Hypertension, Diabetes mellitus, COPD/asthma, Heart disease, Kidney disease, Immunocompromised condition
+            - Medical History: Hypertension, Diabetes mellitus, COPD, Asthma, Heart disease, Kidney disease, Immunocompromised condition
             - Physical Exam: Respiratory: Crackles, Respiratory: Wheezing, Respiratory: Diminished breath sounds, Cardiac: Irregular rhythm, Cardiac: Edema, Cardiac: Cyanosis, Mobility: Limited ROM, Mobility: Bedridden, Mobility: Weak gait, Skin: Intact, Skin: Pressure ulcer, Skin: Pallor
             - Risk Factors: Surgery (recent), Indwelling catheter, Prolonged immobility, Smoking, Malnutrition, Advanced age
 

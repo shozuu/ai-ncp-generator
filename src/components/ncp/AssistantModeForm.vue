@@ -81,7 +81,8 @@ const associatedSymptomsOptions = [
 const medicalHistoryOptions = [
   'Hypertension',
   'Diabetes mellitus',
-  'COPD/asthma',
+  'COPD',
+  'Asthma',
   'Heart disease',
   'Kidney disease',
   'Immunocompromised condition',
