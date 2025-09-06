@@ -308,9 +308,7 @@ const onSubmit = form.handleSubmit(values => {
               v-slot="{ componentField, errorMessage }"
             >
               <FormItem v-auto-animate>
-                <FormLabel
-                  >Age <span class="text-destructive">*</span></FormLabel
-                >
+                <FormLabel>Age</FormLabel>
                 <FormControl>
                   <Input
                     type="number"

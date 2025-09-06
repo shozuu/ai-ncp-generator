@@ -23,7 +23,6 @@ def validate_assessment_data(data: Dict):
         
         # Count how many required fields are present
         required_fields_present = sum([
-            age is not None,
             bool(sex),
             bool(chief_complaint)
         ])
@@ -34,9 +33,9 @@ def validate_assessment_data(data: Dict):
             if value is None:
                 return False
             if isinstance(value, str):
-                return bool(value.strip())
+                return len(value.strip()) > 0
             if isinstance(value, list):
-                return len(value) > 0
+                return len(value) > 0 and any(item.strip() if isinstance(item, str) else item for item in value)
             if isinstance(value, (int, float)):
                 return True
             return bool(value)
@@ -125,10 +124,7 @@ def validate_assessment_data(data: Dict):
             logger.info(f"Partial manual mode assessment detected ({required_fields_present}/3 required fields) - proceeding with available clinical data")
             
         elif mode == "assistant":
-            # For assistant mode, enforce all required fields strictly
-            if age is None:
-                raise ValueError("Patient age is required. Please provide the patient's age or switch to Manual Mode if age information is not available.")
-            
+            # For assistant mode, enforce required fields but age is optional
             if not sex:
                 raise ValueError("Patient sex is required. Please provide the patient's sex or switch to Manual Mode if this information is not available.")
             
@@ -139,7 +135,7 @@ def validate_assessment_data(data: Dict):
             if clinical_data_count < 1:
                 raise ValueError("Please provide additional clinical information beyond the required fields. Include at least some history, vital signs, physical exam findings, or other relevant clinical data to generate a meaningful care plan.")
             
-            logger.info(f"Assistant mode assessment detected - all required fields present with {clinical_data_count} additional clinical data categories")
+            logger.info(f"Assistant mode assessment detected - required fields present with {clinical_data_count} additional clinical data categories")
             
         else:  # mode == "invalid"
             raise ValueError("No meaningful clinical information found. Please provide patient assessment data including symptoms, vital signs, physical findings, or other relevant clinical information.")

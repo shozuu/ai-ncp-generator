@@ -229,7 +229,8 @@ export const comprehensiveAssessmentSchema = z.object({
       .min(0, 'Age cannot be negative')
       .max(150, 'Age seems unusually high')
       .nullable()
-      .optional(),
+      .optional()
+      .or(z.literal('')),
     sex: z.enum(['male', 'female'], {
       required_error: 'Sex is required',
       invalid_type_error: 'Please select a valid sex',
