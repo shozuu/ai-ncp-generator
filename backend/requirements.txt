@@ -1,5 +1,7 @@
-fastapi==0.110.0
-uvicorn==0.27.1
-openai==1.12.0
-google-generativeai==0.3.2
-python-dotenv==1.0.1
+fastapi
+uvicorn
+openai
+google-generativeai
+python-dotenv
+supabase
+python-multipart
