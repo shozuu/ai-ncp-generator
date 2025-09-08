@@ -579,7 +579,9 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         
         # Stage 1: Find candidate diagnoses using smart filtering
         candidate_diagnoses = diagnosis_matcher.find_candidate_diagnoses(assessment_data, top_n=10)
-        
+
+        logger.info(f"candidates: {candidate_diagnoses}")
+
         if not candidate_diagnoses:
             logger.warning("No candidate diagnoses found")
             return {
@@ -603,45 +605,33 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
                 Suggested Interventions: {', '.join(candidate['suggested_interventions'])}
 
             """
-        
-        ai_prompt = f"""
-            You are a nursing expert with comprehensive knowledge of NANDA-I nursing diagnoses. 
-            Your task is to analyze the patient assessment data and select the most appropriate 
-            nursing diagnosis from the provided candidates.
 
-            **PATIENT ASSESSMENT DATA:**
+        logger.info(f"Prepared candidate diagnoses for AI evaluation: {candidates_text}")
+
+        ai_prompt = f"""
+            You are a nursing educator AI with deep knowledge of NANDA-I (2021–2023), NIC, and NOC standards.  
+            Your task is to select the single best nursing diagnosis for a patient, based strictly on the provided assessment data and the candidate diagnoses from the official lookup table provided as the candidates list.
+
+            # Rules
+            - You must choose **only ONE** diagnosis from the provided candidate list.  
+            - Do NOT invent a diagnosis that is not in the candidate list.  
+            - Outcomes and interventions must come from the candidate entry’s `suggested_outcomes` and `suggested_interventions`.  
+            - If they are empty, leave them as an empty list (`[]`).  
+            - Base your decision strictly on the patient’s assessment data.  
+            - Return the result as strict JSON, no extra text.
+
+            # Patient Assessment (JSON)
             {formatted_assessment}
 
-            **CANDIDATE DIAGNOSES:**
+            # Candidate Diagnoses (JSON)
             {candidates_text}
 
-            **INSTRUCTIONS:**
-            1. Carefully analyze the patient assessment data
-            2. Compare it against each candidate diagnosis
-            3. Consider the defining characteristics, related factors, and risk factors
-            4. Select the TOP 3 most appropriate diagnoses in order of relevance
-            5. For each selected diagnosis, provide:
-            - The exact diagnosis name
-            - Justification for why it matches the assessment data
-            - Confidence level (High/Medium/Low)
-
-            **OUTPUT FORMAT:**
-            Return ONLY a valid JSON object with this structure:
-
+            # Expected Output (JSON)
             {{
-                "selected_diagnoses": [
-                    {{
-                        "diagnosis": "exact diagnosis name",
-                        "definition": "definition from candidate",
-                        "justification": "detailed explanation of why this diagnosis fits",
-                        "confidence": "High/Medium/Low",
-                        "defining_characteristics": ["list from candidate"],
-                        "related_factors": ["list from candidate"],
-                        "risk_factors": ["list from candidate"],
-                        "suggested_outcomes": ["list from candidate"],
-                        "suggested_interventions": ["list from candidate"]
-                    }}
-                ]
+                "diagnosis": "string",          
+                "reasoning": "string",         
+                "outcomes": ["string"],         
+                "interventions": ["string"]
             }}
 
             Ensure the response is valid JSON with no additional text.
@@ -658,7 +648,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         import re
         
         raw_response = response.text.strip()
-        logger.info(f"Raw AI response length: {len(raw_response)} characters")
+        logger.info(f"Raw AI response: {raw_response}")
         
         try:
             # Clean and extract JSON
@@ -683,9 +673,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         except json.JSONDecodeError as e:
             logger.error(f"JSON parsing error: {str(e)}")
             raise Exception("Failed to parse AI response into valid JSON format")
-            
-    except HTTPException:
-        raise
+        
     except Exception as e:
         logger.error(f"Error in diagnosis suggestion: {str(e)}", exc_info=True)
         raise HTTPException(
