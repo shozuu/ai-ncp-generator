@@ -201,4 +201,55 @@ export const ncpService = {
       throw new Error(errorMessage)
     }
   },
+
+  async suggestDiagnoses(assessmentData) {
+    try {
+      console.log(
+        'Sending assessment data for diagnosis suggestion:',
+        assessmentData
+      )
+
+      const response = await axios.post(
+        `${API_BASE_URL}/api/suggest-diagnoses`,
+        assessmentData,
+        {
+          headers: { 'Content-Type': 'application/json' },
+        }
+      )
+
+      const suggestedDiagnoses = response.data
+      console.log('Received suggested diagnoses:', suggestedDiagnoses)
+
+      return suggestedDiagnoses
+    } catch (error) {
+      console.error(
+        'Diagnosis Suggestion Error:',
+        error.response?.data || error
+      )
+
+      // Extract detailed error information from backend
+      const errorDetail = error.response?.data?.detail
+      let errorMessage = 'Failed to suggest diagnoses'
+      let suggestion = ''
+
+      if (errorDetail) {
+        if (typeof errorDetail === 'string') {
+          errorMessage = errorDetail
+        } else if (errorDetail.message) {
+          errorMessage = errorDetail.message
+          if (errorDetail.suggestion) {
+            suggestion = errorDetail.suggestion
+          }
+        }
+      }
+
+      // Format the error message for frontend display
+      let finalMessage = errorMessage
+      if (suggestion) {
+        finalMessage += ` ${suggestion}`
+      }
+
+      throw new Error(finalMessage)
+    }
+  },
 }
