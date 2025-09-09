@@ -27,7 +27,6 @@ class DiagnosisMatcher:
             generation_config = {
                 "temperature": 0.3,  # Lower temperature for more consistent keyword extraction
                 "top_p": 1,
-                "top_k": 1,
                 "max_output_tokens": 1024,
             }
             self.model = genai.GenerativeModel(
@@ -50,38 +49,28 @@ class DiagnosisMatcher:
 
             # Create AI prompt for keyword extraction
             keyword_prompt = f"""
-            You are a clinical terminology expert. Your task is to extract relevant medical and nursing keywords from patient assessment data that would be useful for matching against nursing diagnoses.
+            You are a clinical terminology expert.  
+                Your task is to extract clinically relevant keywords from the following patient assessment data.  
+                The keywords will be compared directly against a nursing diagnosis lookup table (NANDA-I, NIC, NOC).  
 
-            **ASSESSMENT DATA:**
-            {formatted_assessment}
+                # Rules
+                - Output MUST be a JSON array only (no explanations, no extra text).  
+                - Maximum 20 keywords.  
+                - Each keyword should be 1–3 words.  
+                - Normalize to standard clinical terminology whenever possible (e.g., "shortness of breath" → "dyspnea").  
+                - Remove duplicates.  
+                - Use lowercase.  
+                - Focus ONLY on terms that could match lookup fields:  
+                - Defining characteristics (symptoms, signs)  
+                - Related factors (etiologies, causes)  
+                - Risk factors (predispositions, comorbidities)  
+                - Ignore non-clinical or narrative words (e.g., "patient", "reports", "yesterday").  
 
-            **INSTRUCTIONS:**
-            1. Extract clinically relevant keywords and phrases (1-3 words max)
-            2. Focus on symptoms, conditions, findings, and clinical descriptors
-            3. Normalize medical terminology (e.g., "shortness of breath" → "dyspnea")
-            4. Include both lay terms and medical terms when relevant
-            5. Prioritize keywords that would appear in nursing diagnosis criteria
-            6. EXCLUDE non-clinical words, patient identifiers, temporal words
+                # Input: Patient Assessment JSON
+                {formatted_assessment}
 
-            **EXAMPLES OF GOOD KEYWORDS:**
-            - "dyspnea", "chest pain", "hypertension", "crackles"
-            - "anxiety", "fatigue", "tachycardia", "edema"
-            - "acute", "chronic", "severe", "sudden onset"
-            - "COPD", "diabetes", "infection", "surgery", etc.
-
-            **EXAMPLES TO EXCLUDE:**
-            - "patient", "client", "reports", "states", "yesterday", "walking"
-
-            **OUTPUT FORMAT:**
-            Return ONLY a JSON array of keywords:
-            ["keyword1", "keyword2", "keyword3", ...]
-
-            **RULES:**
-            - Maximum 20 keywords
-            - Each keyword should be 1-3 words maximum
-            - Use lowercase
-            - No duplicates
-            - Focus ONLY on clinically significant terms
+                # Output format:
+                ["keyword1", "keyword2", "keyword3", ...]
             """
 
             logger.info("Calling AI for keyword extraction...")
