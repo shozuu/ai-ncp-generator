@@ -5,9 +5,11 @@ import os
 import logging
 from pathlib import Path
 from dotenv import load_dotenv
-from utils import format_data, parse_ncp_response, validate_assessment_data, parse_explanation_text
+from utils import format_structured_data, parse_ncp_response, validate_assessment_data, parse_explanation_text
 import google.generativeai as genai
 import uvicorn
+from lookup_service import lookup_service
+from diagnosis_matcher import diagnosis_matcher
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -72,78 +74,49 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
     """
     try:
         # Log the incoming request structure
-        logger.info(f"Received assessment data: {assessment_data}")
+        logger.info(f"Received assessment data for NCP generation: {assessment_data}")
 
-        # Validate incoming data
-        validate_assessment_data(assessment_data)
-
-        # Format assessment data
+        # Validate incoming data - handle validation errors specifically
         try:
-            formatted_subjective = format_data(assessment_data['subjective'])
-            formatted_objective = format_data(assessment_data['objective'])
+            validate_assessment_data(assessment_data)
+        except ValueError as validation_error:
+            # Log the specific validation error
+            logger.error(f"Assessment data validation failed: {str(validation_error)}")
+            
+            # Return the specific validation error message to frontend
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": str(validation_error),
+                    "error_type": "validation_error",
+                    "suggestion": "Please review your assessment data and ensure it contains sufficient clinical information."
+                }
+            )
+
+        # Format assessment data based on the structure
+        try:
+            formatted_assessment = format_structured_data(assessment_data)
+            logger.info(f"Successfully formatted assessment data: {formatted_assessment}")
         except Exception as format_error:
             logger.error(f"Error formatting data: {str(format_error)}")
-            raise ValueError(f"Error formatting assessment data: {str(format_error)}")
-        
-        # Dummy data to return to the frontend
-        # dummy_ncp = {
-        #     'assessment': (
-        #         '\nSubjective Data:\n'
-        #         '- Reports severe throbbing headache (8/10).\n'
-        #         '- Reports nausea and dizziness this morning.\n'
-        #         '- Complains of photophobia.\n\n'
-        #         'Objective Data:\n'
-        #         '- Facial grimacing during head movement.\n'
-        #         '- BP: 140/90 mmHg.\n'
-        #         '- Temperature: 38.5°C.\n'
-        #         '- PERL.\n'
-        #     ),
-        #     'diagnosis': (
-        #         '\nAcute Pain related to physiological factors (possible migraine) as evidenced by reports of severe throbbing headache (8/10), facial grimacing, and elevated blood pressure.\n'
-        #         'Diagnosis type: Actual.\n'
-        #     ),
-        #     'outcomes': (
-        #         '\nShort-term Goal: Patient will report a decrease in headache pain to a level of 4/10 or less within 2 hours of intervention.\n\n'
-        #         'Long-term Goal: Patient will verbalize understanding of headache triggers and management strategies and demonstrate adherence to the treatment plan prior to discharge within 3 days.\n'
-        #     ),
-        #     'interventions': (
-        #         "\n1. Administer prescribed analgesic medication.\n"
-        #         "2. Provide a dark, quiet, and cool environment.\n"
-        #         "3. Apply a cool compress to the patient's forehead.\n"
-        #         "4. Monitor vital signs, particularly blood pressure and temperature, every 4 hours.\n"
-        #     ),
-        #     'rationale': (
-        #         "\n1. Analgesics block pain pathways and reduce pain perception.\n"
-        #         "2. Reducing environmental stimuli minimizes triggers for headache exacerbation and promotes comfort.\n"
-        #         "3. Cool compresses can constrict blood vessels, potentially reducing throbbing pain associated with headaches.\n"
-        #         "4. Monitoring vital signs allows for early detection of complications or changes in the patient's condition.\n"
-        #     ),
-        #     'implementation': (
-        #         "\n1. Administer prescribed analgesic (e.g., acetaminophen 650mg PO stat, as per physician order). RN responsible. Document medication administration and patient response.\n"
-        #         "2. Dim lights, close curtains, and minimize noise in the patient's room. RN responsible.\n"
-        #         "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
-        #         "4. Monitor and document blood pressure, heart rate, respiratory rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
-        #         "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
-        #         "4. Monitor and document blood pressure, heart rate, respiratory rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
-        #         "3. Apply a cool compress to the patient's forehead for 20 minutes. Repeat every 2 hours as needed. RN/PCA responsible.\n"
-        #         "4. Monitor and document blood pressure, heart_rate, respiratory_rate, and temperature every 4 hours. RN responsible. Report any significant changes to the physician.\n"
-        #     ),
-        #     'evaluation': (
-        #         "\nShort-term Goal: Assess the patient's pain level using a pain scale (0-10) every 30 minutes after analgesic administration. If pain remains above 4/10 after 1 hour, notify the physician for further orders.\n\n"
-        #         "Long-term Goal: Evaluate patient's understanding of headache triggers and management strategies through verbal questioning and observation of self-care behaviors prior to discharge. If the patient does not demonstrate adequate understanding, provide additional education and resources."
-        #     ),
-        # }
-
-        # Construct the prompt for the AI model
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": f"Error formatting assessment data: {str(format_error)}",
+                    "error_type": "formatting_error",
+                    "suggestion": "Please check the structure of your assessment data."
+                }
+            )
+    
         prompt = f"""
             You are a nursing educator with expert knowledge of NANDA-I, NIC, and NOC standards. 
             Base your care plan on established nursing textbooks, specifically:
             - Ackley, B. J., et al. (2022). Nursing Diagnosis Handbook, 12th Edition (with 2021–2023 NANDA-I updates)
-            - Doenges, M. E., et al. (2021). Nurse’s Pocket Guide, 15th Edition
+            - Doenges, M. E., et al. (2021). Nurse's Pocket Guide, 15th Edition
 
             IMPORTANT: 
             - Do NOT provide page numbers, direct quotations, or fabricated citations. 
-            - Instead, reference standards generally (e.g., “According to NANDA-I classification” or “Based on Ackley, 2022”). 
+            - Instead, reference standards generally (e.g., "According to NANDA-I classification" or "Based on Ackley, 2022"). 
             - Always ensure that Outcomes (NOC) and Interventions (NIC) are directly and logically linked to the selected Nursing Diagnosis (NANDA-I). 
             - Do NOT invent outcomes or interventions outside NOC/NIC terminology.
 
@@ -151,11 +124,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
             PATIENT ASSESSMENT DATA
 
-            Subjective Data:
-            {formatted_subjective}
-
-            Objective Data:
-            {formatted_objective}
+            {formatted_assessment}
 
             ---
 
@@ -265,30 +234,59 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
         """
         
-        logger.info("Calling Gemini API...")
-        response = model.generate_content(prompt)
-
-        # logger.info("Returning dummy NCP data to the frontend.") # remove this
-        # return dummy_ncp  # Return dummy data instead of querying the Gemini API
+        logger.info("Calling API for NCP generation...")
+        
+        try:
+            response = model.generate_content(prompt)
+        except Exception as api_error:
+            logger.error(f"API error: {str(api_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": "AI service is currently unavailable",
+                    "error_type": "api_error",
+                    "suggestion": "Please try again in a few moments. If the problem persists, contact support."
+                }
+            )
 
         # Check for errors in the response
         if hasattr(response, '_error') and response._error:
-            raise ValueError(f"Gemini API error: {response._error}")
+            raise ValueError(f"AI model error: {response._error}")
 
         # Parse and validate the response
-        ncp_text = response.text
-        logger.info(f"Raw Gemini response: {ncp_text}")
-        sections = parse_ncp_response(ncp_text)
+        try:
+            ncp_text = response.text
+            sections = parse_ncp_response(ncp_text)
 
-        if not all(sections.values()):
-            raise ValueError("Generated NCP is missing required sections")
+            if not all(sections.values()):
+                raise ValueError("Generated NCP is missing required sections")
 
-        return sections # This is sent back to the frontend
+            logger.info("Successfully generated NCP")
+            return sections
+        except Exception as parse_error:
+            logger.error(f"Error parsing NCP response: {str(parse_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": "Failed to parse AI response into proper format",
+                    "error_type": "parsing_error",
+                    "suggestion": "The AI response was malformed. Please try generating the NCP again."
+                }
+            )
+        
+    except HTTPException:
+        # Re-raise HTTP exceptions (they already have proper detail format)
+        raise
     except Exception as e:
-        logger.error(f"Error generating NCP: {str(e)}", exc_info=True)
+        # Catch any other unexpected errors
+        logger.error(f"Unexpected error generating NCP: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail={"message": "Failed to generate NCP", "error": str(e)}
+            detail={
+                "message": "An unexpected error occurred during NCP generation",
+                "error_type": "unknown_error", 
+                "suggestion": "Please try again. If the problem persists, contact support."
+            }
         )
 
 @app.post("/api/generate-explanation")
@@ -407,6 +405,285 @@ async def generate_explanation(request_data: Dict) -> Dict:
     except Exception as e:
         logger.error(f"Error generating explanation: {str(e)}", exc_info=True)
         raise Exception(f"Failed to generate explanation: {str(e)}")
+
+@app.post("/api/parse-manual-assessment")
+async def parse_manual_assessment(request_data: Dict) -> Dict:
+    """
+    Parse manual mode assessment data into structured format using AI.
+    """
+    try:
+        subjective_data = request_data.get('subjective', [])
+        objective_data = request_data.get('objective', [])
+        
+        if not subjective_data or not objective_data:
+            raise ValueError("Both subjective and objective data are required")
+        
+        logger.info("Parsing manual assessment data into structured format")
+        
+        # Create formatted text for the AI
+        subjective_text = '\n'.join(f"- {item}" for item in subjective_data)
+        objective_text = '\n'.join(f"- {item}" for item in objective_data)
+        
+        # Create the parsing prompt (same as before)
+        parsing_prompt = f"""
+            You are a nursing assessment data parser. Your task is to analyze free-text nursing assessment data and extract structured information that fits into predefined categories.
+
+            Given the following subjective and objective data, extract and categorize the information into the JSON structure provided below. If information for a category is not available or cannot be determined from the given data, leave those fields empty or with default values.
+
+            **SUBJECTIVE DATA:**
+            {subjective_text}
+
+            **OBJECTIVE DATA:**
+            {objective_text}
+
+            **INSTRUCTIONS:**
+            1. Extract demographics information (age, sex, occupation) if mentioned
+            2. Identify the main chief complaint or primary concern
+            3. Look for history details (onset, duration, severity, progression)
+            4. Extract associated symptoms from the available options or identify others
+            5. Identify past medical history conditions
+            6. Extract vital signs data (HR, BP, RR, SpO2, Temperature)
+            7. Identify physical examination findings
+            8. Look for risk factors
+            9. Capture any additional nurse notes or observations
+
+            **AVAILABLE OPTIONS FOR CATEGORIZATION:**
+            - Associated Symptoms: Shortness of breath, Chest pain, Fatigue, Dizziness, Nausea/vomiting
+            - Medical History: Hypertension, Diabetes mellitus, COPD, Asthma, Heart disease, Kidney disease, Immunocompromised condition
+            - Physical Exam: Respiratory: Crackles, Respiratory: Wheezing, Respiratory: Diminished breath sounds, Cardiac: Irregular rhythm, Cardiac: Edema, Cardiac: Cyanosis, Mobility: Limited ROM, Mobility: Bedridden, Mobility: Weak gait, Skin: Intact, Skin: Pressure ulcer, Skin: Pallor
+            - Risk Factors: Surgery (recent), Indwelling catheter, Prolonged immobility, Smoking, Malnutrition, Advanced age
+
+            **OUTPUT FORMAT:**
+            Return ONLY a valid JSON object with this exact structure (no additional text or explanation):
+
+            {{
+                "demographics": {{
+                    "age": null,
+                    "sex": "",
+                    "occupation": ""
+                }},
+                "chief_complaint": "",
+                "history": {{
+                    "onset_duration": "",
+                    "severity": "",
+                    "associated_symptoms": [],
+                    "other_symptoms": ""
+                }},
+                "medical_history": [],
+                "medical_history_other": "",
+                "vital_signs": {{
+                    "HR": null,
+                    "BP": "",
+                    "RR": null,
+                    "SpO2": null,
+                    "Temp": null
+                }},
+                "physical_exam": [],
+                "physical_exam_other": "",
+                "risk_factors": [],
+                "risk_factors_other": "",
+                "nurse_notes": ""
+            }}
+
+            **RULES:**
+            - Use null for numeric fields when no data is available
+            - Use empty strings for text fields when no data is available
+            - Use empty arrays for list fields when no data is available
+            - If symptoms/conditions don't match the predefined options, put them in the "other" fields
+            - Extract only factual information present in the data
+            - Do not make assumptions or add information not explicitly stated
+        """
+        
+        logger.info("Calling API for manual data parsing...")
+        response = model.generate_content(parsing_prompt)
+        
+        if not response or not response.text:
+            raise Exception("No response from AI model")
+        
+        # Enhanced JSON parsing with better error handling
+        import json
+        import re
+        
+        raw_response = response.text
+        logger.info(f"Raw AI response: '{raw_response}'")
+        
+        try:
+            # Clean the response text
+            cleaned_response = raw_response.strip()
+            
+            # Remove any potential BOM or invisible characters
+            cleaned_response = cleaned_response.encode('utf-8').decode('utf-8-sig')
+            
+            # Try to extract JSON if it's wrapped in code blocks or has extra text
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
+            if json_match:
+                cleaned_response = json_match.group(1)
+                logger.info("Extracted JSON from code blocks")
+            
+            # Find the first { and last } to extract just the JSON part
+            start_brace = cleaned_response.find('{')
+            end_brace = cleaned_response.rfind('}')
+            
+            if start_brace != -1 and end_brace != -1 and start_brace < end_brace:
+                json_part = cleaned_response[start_brace:end_brace+1]
+                logger.info(f"Extracted JSON part")
+                
+                # Try parsing the extracted JSON
+                parsed_data = json.loads(json_part)
+                logger.info(f"Successfully parsed manual assessment data")
+                return parsed_data
+            else:
+                logger.error("Could not find valid JSON structure in response")
+                raise json.JSONDecodeError("No valid JSON structure found", cleaned_response, 0)
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON decode error: {str(e)}")
+            logger.error(f"Failed to parse response: '{raw_response}'")
+            
+            # Return default structure with error indication
+            logger.warning("Returning default empty structure due to parsing failure")
+            raise Exception("Failed to parse AI response into structured format. The AI may have returned malformed data.")
+    
+    except Exception as e:
+        logger.error(f"Error parsing manual assessment: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Failed to parse manual assessment", 
+                "error": str(e),
+                "suggestion": "Please ensure your manual input contains clear, detailed clinical information including symptoms, vital signs, and examination findings."
+            }
+        )
+
+@app.post("/api/suggest-diagnoses")
+async def suggest_diagnoses(assessment_data: Dict) -> Dict:
+    """
+    Suggest nursing diagnoses based on assessment data using hybrid approach.
+    """
+    try:
+        logger.info("Starting diagnosis suggestion process")
+        
+        # Validate assessment data
+        try:
+            validate_assessment_data(assessment_data)
+        except ValueError as validation_error:
+            logger.error(f"Assessment data validation failed: {str(validation_error)}")
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": str(validation_error),
+                    "error_type": "validation_error",
+                    "suggestion": "Please review your assessment data and ensure it contains sufficient clinical information."
+                }
+            )
+        
+        # Stage 1: Find candidate diagnoses using smart filtering
+        candidate_diagnoses = diagnosis_matcher.find_candidate_diagnoses(assessment_data, top_n=10)
+
+        logger.info(f"candidates: {candidate_diagnoses}")
+
+        if not candidate_diagnoses:
+            logger.warning("No candidate diagnoses found")
+            return {
+                "selected_diagnoses": [],
+                "message": "No matching diagnoses found for the provided assessment data"
+            }
+        
+        # Stage 2: Use AI to select the best diagnosis from candidates
+        formatted_assessment = format_structured_data(assessment_data)
+        
+        # Format candidate diagnoses for AI
+        candidates_text = ""
+        for i, candidate in enumerate(candidate_diagnoses, 1):
+            candidates_text += f"""
+                **Candidate {i}: {candidate['diagnosis']}**
+                Definition: {candidate['definition']}
+                Defining Characteristics: {', '.join(candidate['defining_characteristics'])}
+                Related Factors: {', '.join(candidate['related_factors'])}
+                Risk Factors: {', '.join(candidate['risk_factors'])}
+                Suggested Outcomes: {', '.join(candidate['suggested_outcomes'])}
+                Suggested Interventions: {', '.join(candidate['suggested_interventions'])}
+
+            """
+
+        logger.info(f"Prepared candidate diagnoses for AI evaluation: {candidates_text}")
+
+        ai_prompt = f"""
+            You are a nursing educator AI with deep knowledge of NANDA-I (2021–2023), NIC, and NOC standards.  
+            Your task is to select the single best nursing diagnosis for a patient, based strictly on the provided assessment data and the candidate diagnoses from the official lookup table provided as the candidates list.
+
+            # Rules
+            - You must choose **only ONE** diagnosis from the provided candidate list.  
+            - Do NOT invent a diagnosis that is not in the candidate list.  
+            - Outcomes and interventions must come from the candidate entry’s `suggested_outcomes` and `suggested_interventions`.  
+            - If they are empty, leave them as an empty list (`[]`).  
+            - Base your decision strictly on the patient’s assessment data.  
+            - Return the result as strict JSON, no extra text.
+
+            # Patient Assessment (JSON)
+            {formatted_assessment}
+
+            # Candidate Diagnoses (JSON)
+            {candidates_text}
+
+            # Expected Output (JSON)
+            {{
+                "diagnosis": "string",          
+                "reasoning": "string",         
+                "outcomes": ["string"],         
+                "interventions": ["string"]
+            }}
+
+            Ensure the response is valid JSON with no additional text.
+        """
+        
+        logger.info("Calling AI for final diagnosis selection")
+        response = model.generate_content(ai_prompt)
+        
+        if not response or not response.text:
+            raise Exception("No response from AI model")
+        
+        # Parse AI response with improved error handling
+        import json
+        import re
+        
+        raw_response = response.text.strip()
+        logger.info(f"Raw AI response: {raw_response}")
+        
+        try:
+            # Clean and extract JSON
+            cleaned_response = raw_response.encode('utf-8').decode('utf-8-sig')
+            
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
+            if json_match:
+                cleaned_response = json_match.group(1)
+            
+            start_brace = cleaned_response.find('{')
+            end_brace = cleaned_response.rfind('}')
+            
+            if start_brace != -1 and end_brace != -1:
+                json_part = cleaned_response[start_brace:end_brace+1]
+                result = json.loads(json_part)
+                
+                logger.info(f"Successfully suggested {len(result.get('selected_diagnoses', []))} diagnoses")
+                return result
+            else:
+                raise ValueError("Could not extract valid JSON from AI response")
+                
+        except json.JSONDecodeError as e:
+            logger.error(f"JSON parsing error: {str(e)}")
+            raise Exception("Failed to parse AI response into valid JSON format")
+        
+    except Exception as e:
+        logger.error(f"Error in diagnosis suggestion: {str(e)}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": "Failed to suggest diagnoses",
+                "error_type": "diagnosis_suggestion_error",
+                "suggestion": "Please try again. If the problem persists, contact support."
+            }
+        )
 
 if __name__ == "__main__":
     import uvicorn

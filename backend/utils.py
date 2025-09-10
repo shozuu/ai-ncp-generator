@@ -5,53 +5,145 @@ import logging
 logger = logging.getLogger(__name__)
 
 def validate_assessment_data(data: Dict):
-    # Validate the incoming assessment data.
-
-    # Check if 'subjective' and 'objective' keys exist
-    if not all(key in data for key in ['subjective', 'objective']):
-        raise ValueError("Missing required 'subjective' or 'objective' data")
-
-    # Validate 'subjective' field
-    if not isinstance(data['subjective'], (list, dict)):
-        raise ValueError("'subjective' must be a list (manual mode) or a dictionary (assistant mode)")
-
-    # Validate 'objective' field
-    if not isinstance(data['objective'], (list, dict)):
-        raise ValueError("'objective' must be a list (manual mode) or a dictionary (assistant mode)")
-
-    # Additional validation for manual mode (list)
-    if isinstance(data['subjective'], list) and not all(isinstance(item, str) for item in data['subjective']):
-        raise ValueError("All items in 'subjective' (manual mode) must be strings")
-    if isinstance(data['objective'], list) and not all(isinstance(item, str) for item in data['objective']):
-        raise ValueError("All items in 'objective' (manual mode) must be strings")
-
-    # Additional validation for assistant mode (dict)
-    if isinstance(data['subjective'], dict):
-        for key, value in data['subjective'].items():
-            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-                raise ValueError(f"All items in 'subjective.{key}' (assistant mode) must be strings")
-    if isinstance(data['objective'], dict):
-        for key, value in data['objective'].items():
-            if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
-                raise ValueError(f"All items in 'objective.{key}' (assistant mode) must be strings")
-
-def format_data(data) -> str:
-    # Format assessment data into a string.
-    # Handles both manual and assistant modes.
+    """Validate the incoming assessment data (enhanced version)."""
     
-    if isinstance(data, list):  # Manual mode (list/array)
-        # Join each item in the array as a bullet point
-        return '\n'.join(f"- {item}" for item in data)
-    elif isinstance(data, dict):  # Assistant mode (dict/object)
-        # Iterate through each key and its values in the object
-        formatted = []
-        for key, values in data.items():
-            if isinstance(values, list):  # Ensure the value is a list
-                formatted.append(f"{key.capitalize()}:")
-                formatted.extend(f"- {item}" for item in values)
-        return '\n'.join(formatted)
-    else:
-        raise ValueError("Invalid data format for assessment data")
+    # Check if this is the new structured format
+    if 'demographics' in data and 'chief_complaint' in data:
+        required_keys = ['demographics', 'chief_complaint', 'history', 'medical_history', 
+                        'vital_signs', 'physical_exam', 'risk_factors', 'nurse_notes']
+        
+        if not all(key in data for key in required_keys):
+            raise ValueError(f"Missing required keys in structured data. Expected: {required_keys}")
+        
+        # Check demographics and chief complaint
+        demographics = data.get('demographics', {})
+        chief_complaint = data.get('chief_complaint', '').strip()
+        age = demographics.get('age')
+        sex = demographics.get('sex', '').strip()
+        
+        # Count how many required fields are present
+        required_fields_present = sum([
+            bool(sex),
+            bool(chief_complaint)
+        ])
+        
+        # comprehensive check for clinical data
+        def has_meaningful_value(value):
+            """Check if a value is meaningful (not None, empty string, or empty array)"""
+            if value is None:
+                return False
+            if isinstance(value, str):
+                return len(value.strip()) > 0
+            if isinstance(value, list):
+                return len(value) > 0 and any(item.strip() if isinstance(item, str) else item for item in value)
+            if isinstance(value, (int, float)):
+                return True
+            return bool(value)
+        
+        # Check each category of clinical data
+        has_occupation = has_meaningful_value(demographics.get('occupation'))
+        
+        # Check history - any field with meaningful data
+        history = data.get('history', {})
+        has_history = any(has_meaningful_value(v) for v in history.values())
+        
+        # Check medical history
+        has_med_history = (
+            has_meaningful_value(data.get('medical_history')) or 
+            has_meaningful_value(data.get('medical_history_other'))
+        )
+        
+        # Check vital signs - any field with meaningful data
+        vitals = data.get('vital_signs', {})
+        has_vitals = any(has_meaningful_value(v) for v in vitals.values())
+        
+        # Check physical exam
+        has_physical_exam = (
+            has_meaningful_value(data.get('physical_exam')) or 
+            has_meaningful_value(data.get('physical_exam_other'))
+        )
+        
+        # Check risk factors
+        has_risk_factors = (
+            has_meaningful_value(data.get('risk_factors')) or 
+            has_meaningful_value(data.get('risk_factors_other'))
+        )
+        
+        # Check nurse notes
+        has_nurse_notes = has_meaningful_value(data.get('nurse_notes'))
+        
+        # Count total clinical data categories
+        clinical_data_categories = [
+            has_occupation,
+            has_history,
+            has_med_history,
+            has_vitals,
+            has_physical_exam,
+            has_risk_factors,
+            has_nurse_notes
+        ]
+        
+        clinical_data_count = sum(clinical_data_categories)
+        has_clinical_data = clinical_data_count > 0
+        
+        # Determine the mode based on completeness and data richness
+        if required_fields_present == 2:  
+            # All required fields present - likely Assistant Mode
+            mode = "assistant"
+        elif required_fields_present == 0 and has_clinical_data:
+            # No required fields but has clinical data - likely Pure Manual Mode
+            mode = "pure_manual"
+        elif required_fields_present > 0 and has_clinical_data:
+            # Some required fields present - likely Partial Manual Mode
+            mode = "partial_manual"
+        else:
+            # No required fields and no clinical data - Invalid
+            mode = "invalid"
+        
+        # Apply validation based on detected mode
+        if mode == "pure_manual":
+            # For pure manual mode, require at least 2 different types of clinical data
+            if clinical_data_count < 2:
+                raise ValueError("Unable to extract sufficient clinical information from the provided assessment data. Please ensure your manual input includes clear details about patient symptoms, vital signs, physical findings, medical history, or other relevant clinical information.")
+            
+            logger.info("Pure manual mode assessment detected - proceeding with available clinical data")
+            
+        elif mode == "partial_manual":
+            # For partial manual mode, be more lenient - require at least ONE key clinical component
+            has_key_clinical_component = (
+                chief_complaint or  # Has chief complaint
+                has_history or  # Has history
+                has_vitals or  # Has vital signs
+                has_physical_exam or  # Has physical exam
+                has_nurse_notes  # Has nurse notes
+            )
+            
+            if not has_key_clinical_component:
+                raise ValueError("Insufficient clinical information found. Please provide at least a chief complaint, patient history, vital signs, physical examination findings, or detailed nurse notes.")
+            
+            logger.info(f"Partial manual mode assessment detected ({required_fields_present}/2 required fields) - proceeding with available clinical data") 
+            
+        elif mode == "assistant":
+            # For assistant mode, enforce required fields but age is optional
+            if not sex:
+                raise ValueError("Patient sex is required. Please provide the patient's sex or switch to Manual Mode if this information is not available.")
+            
+            if not chief_complaint:
+                raise ValueError("Chief complaint is required. Please provide the main reason for the patient's visit or switch to Manual Mode for free-text input.")
+            
+            # For assistant mode, require at least 1 additional clinical data category
+            if clinical_data_count < 1:
+                raise ValueError("Please provide additional clinical information beyond the required fields. Include at least some history, vital signs, physical exam findings, or other relevant clinical data to generate a meaningful care plan.")
+            
+            logger.info(f"Assistant mode assessment detected - required fields present with {clinical_data_count} additional clinical data categories")
+            
+        else:  # mode == "invalid"
+            raise ValueError("No meaningful clinical information found. Please provide patient assessment data including symptoms, vital signs, physical findings, or other relevant clinical information.")
+        
+        logger.info("Structured assessment data validation passed")
+        return True
+    
+    raise ValueError("Invalid data format. Expected structured format with demographics and chief complaint.")
 
 def parse_ncp_response(text: str) -> Dict:
     """
@@ -234,3 +326,75 @@ def parse_explanation_text(text: str, available_sections: list) -> Dict:
             }
     
     return explanations
+
+def format_structured_data(structured_data) -> str:
+    """Format structured assessment data into a string for AI processing."""
+    formatted_sections = []
+    
+    # Demographics
+    demographics = structured_data.get('demographics', {})
+    if any(demographics.values()):
+        demo_info = []
+        if demographics.get('age'): demo_info.append(f"Age: {demographics['age']}")
+        if demographics.get('sex'): demo_info.append(f"Sex: {demographics['sex']}")
+        if demographics.get('occupation'): demo_info.append(f"Occupation: {demographics['occupation']}")
+        if demo_info:
+            formatted_sections.append(f"Demographics:\n- {'; '.join(demo_info)}")
+    
+    # Chief Complaint
+    if structured_data.get('chief_complaint'):
+        formatted_sections.append(f"Chief Complaint:\n- {structured_data['chief_complaint']}")
+    
+    # History
+    history = structured_data.get('history', {})
+    if any(history.values()):
+        history_info = []
+        if history.get('onset_duration'): history_info.append(f"Onset/Duration: {history['onset_duration']}")
+        if history.get('severity'): history_info.append(f"Severity: {history['severity']}")
+        if history.get('associated_symptoms'): 
+            history_info.append(f"Associated symptoms: {', '.join(history['associated_symptoms'])}")
+        if history.get('other_symptoms'): history_info.append(f"Other symptoms: {history['other_symptoms']}")
+        if history_info:
+            formatted_sections.append(f"History of Present Illness:\n- {'; '.join(history_info)}")
+    
+    # Medical History
+    med_history = structured_data.get('medical_history', [])
+    med_history_other = structured_data.get('medical_history_other', '')
+    if med_history or med_history_other:
+        history_items = med_history.copy()
+        if med_history_other: history_items.append(med_history_other)
+        formatted_sections.append(f"Past Medical History:\n- {', '.join(history_items)}")
+    
+    # Vital Signs
+    vitals = structured_data.get('vital_signs', {})
+    if any(v for v in vitals.values() if v is not None and v != ''):
+        vital_info = []
+        if vitals.get('HR'): vital_info.append(f"HR: {vitals['HR']} bpm")
+        if vitals.get('BP'): vital_info.append(f"BP: {vitals['BP']} mmHg")
+        if vitals.get('RR'): vital_info.append(f"RR: {vitals['RR']}/min")
+        if vitals.get('SpO2'): vital_info.append(f"SpO2: {vitals['SpO2']}%")
+        if vitals.get('Temp'): vital_info.append(f"Temp: {vitals['Temp']}°C")
+        if vital_info:
+            formatted_sections.append(f"Vital Signs:\n- {'; '.join(vital_info)}")
+    
+    # Physical Exam
+    phys_exam = structured_data.get('physical_exam', [])
+    phys_exam_other = structured_data.get('physical_exam_other', '')
+    if phys_exam or phys_exam_other:
+        exam_items = phys_exam.copy()
+        if phys_exam_other: exam_items.append(phys_exam_other)
+        formatted_sections.append(f"Physical Examination:\n- {'; '.join(exam_items)}")
+    
+    # Risk Factors
+    risk_factors = structured_data.get('risk_factors', [])
+    risk_factors_other = structured_data.get('risk_factors_other', '')
+    if risk_factors or risk_factors_other:
+        risk_items = risk_factors.copy()
+        if risk_factors_other: risk_items.append(risk_factors_other)
+        formatted_sections.append(f"Risk Factors:\n- {', '.join(risk_items)}")
+    
+    # Nurse Notes
+    if structured_data.get('nurse_notes'):
+        formatted_sections.append(f"Nurse Notes:\n- {structured_data['nurse_notes']}")
+    
+    return '\n\n'.join(formatted_sections)

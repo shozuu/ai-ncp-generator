@@ -58,28 +58,59 @@ const handleAssessmentSubmit = async formData => {
       ...formData,
       format: selectedFormat.value,
     }
+
     await ncpService.generateNCP(assessmentData)
     const ncps = await ncpService.getUserNCPs()
     const latestNCP = ncps[0]
+
     toast({
       title: 'Success',
       description: 'NCP generated successfully',
     })
+
     router.push(`/ncps/${latestNCP.id}`)
   } catch (error) {
-    if (error.name === 'CancelledError' || error.message === 'cancelled') {
-      toast({
-        title: 'Cancelled',
-        description: 'NCP generation was cancelled.',
-        variant: 'default',
-      })
-    } else {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
-      })
+    console.error('Generation error:', error)
+
+    // Determine error title and description based on error content
+    let errorTitle = 'Generation Failed'
+    let errorDescription =
+      error.message || 'Failed to generate nursing care plan'
+
+    // Check for specific validation errors
+    if (error.message) {
+      if (error.message.includes('age is required')) {
+        errorTitle = 'Missing Required Information'
+        errorDescription =
+          "Patient age is required. Please ensure your assessment data includes the patient's age, or switch to Assistant Mode for structured input."
+      } else if (error.message.includes('sex is required')) {
+        errorTitle = 'Missing Required Information'
+        errorDescription =
+          "Patient sex is required. Please ensure your assessment data includes the patient's sex, or switch to Assistant Mode for structured input."
+      } else if (error.message.includes('chief complaint is required')) {
+        errorTitle = 'Missing Required Information'
+        errorDescription =
+          "Chief complaint is required. Please ensure your assessment data includes the main reason for the patient's visit."
+      } else if (
+        error.message.includes(
+          'Unable to extract meaningful clinical information'
+        )
+      ) {
+        errorTitle = 'Insufficient Clinical Data'
+        errorDescription =
+          'Unable to extract sufficient clinical information from your input. Please provide more detailed patient symptoms, vital signs, physical findings, or medical history.'
+      } else if (error.message.includes('parsing')) {
+        errorTitle = 'Data Processing Error'
+        errorDescription =
+          'Failed to process your assessment data. Please check your input format and ensure it contains clear clinical information.'
+      }
     }
+
+    toast({
+      title: errorTitle,
+      description: errorDescription,
+      variant: 'destructive',
+    })
   } finally {
     isLoading.value = false
   }

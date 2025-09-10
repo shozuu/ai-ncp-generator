@@ -58,7 +58,7 @@ const handleCardClick = value => {
         class="relative flex cursor-pointer rounded-lg border p-4 transition hover:border-primary"
         :class="{
           'bg-primary/10 border-primary': selectedFormat === format.value,
-          'border-muted': selectedFormat !== format.value,
+          'border': selectedFormat !== format.value,
         }"
         @click="handleCardClick(format.value)"
         :aria-selected="selectedFormat === format.value"
