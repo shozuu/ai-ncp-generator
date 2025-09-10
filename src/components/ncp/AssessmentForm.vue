@@ -63,8 +63,49 @@ const handleSubmit = async data => {
       }
     }
 
-    // Emit the structured data
-    emit('submit', structuredData)
+    // Call suggest_diagnoses API before emitting
+    try {
+      toast({
+        title: 'Analyzing Assessment',
+        description: 'Finding relevant nursing diagnoses...',
+      })
+
+      console.log(
+        'Calling suggest diagnoses with structured data:',
+        structuredData
+      )
+      const suggestedDiagnoses =
+        await ncpService.suggestDiagnoses(structuredData)
+
+      console.log('Received suggested diagnoses:', suggestedDiagnoses)
+
+      // Add the suggested diagnoses to the structured data
+      const dataWithDiagnoses = {
+        ...structuredData,
+        suggestedDiagnoses: suggestedDiagnoses,
+      }
+
+      toast({
+        title: 'Assessment Complete',
+        description: `Found ${suggestedDiagnoses.diagnosis ? '1 recommended' : 'no'} nursing diagnosis`,
+      })
+
+      // Emit the structured data with suggested diagnoses
+      // emit('submit', dataWithDiagnoses)
+      // emit('submit', structuredData)
+    } catch (diagnosisError) {
+      console.error('Diagnosis suggestion error:', diagnosisError)
+
+      // Show diagnosis error but still allow NCP generation
+      toast({
+        title: 'Diagnosis Suggestion Failed',
+        description: `${diagnosisError.message || 'Could not suggest diagnoses'} - Proceeding with NCP generation...`,
+        variant: 'destructive',
+      })
+
+      // Still emit the structured data even if diagnosis suggestion fails
+      emit('submit', structuredData)
+    }
   } catch (error) {
     console.error('Assessment submission error:', error)
 
