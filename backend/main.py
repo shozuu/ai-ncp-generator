@@ -8,8 +8,7 @@ from dotenv import load_dotenv
 from utils import format_structured_data, parse_ncp_response, validate_assessment_data, parse_explanation_text
 import google.generativeai as genai
 import uvicorn
-from lookup_service import lookup_service
-from diagnosis_matcher import diagnosis_matcher
+from diagnosis_matcher import create_vector_diagnosis_matcher
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -558,10 +557,10 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
 @app.post("/api/suggest-diagnoses")
 async def suggest_diagnoses(assessment_data: Dict) -> Dict:
     """
-    Suggest nursing diagnoses based on assessment data using hybrid approach.
+    Suggest nursing diagnoses based on assessment data using vector similarity search.
     """
     try:
-        logger.info("Starting diagnosis suggestion process")
+        logger.info("Starting vector-based diagnosis suggestion process")
         
         # Validate assessment data
         try:
@@ -577,105 +576,37 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
                 }
             )
         
-        # Stage 1: Find candidate diagnoses using smart filtering
-        candidate_diagnoses = diagnosis_matcher.find_candidate_diagnoses(assessment_data, top_n=10)
-
-        logger.info(f"candidates: {candidate_diagnoses}")
-
-        if not candidate_diagnoses:
-            logger.warning("No candidate diagnoses found")
+        # Initialize vector diagnosis matcher
+        matcher = await create_vector_diagnosis_matcher()
+        
+        # Step 1: Find candidate diagnoses using vector similarity
+        candidates = await matcher.find_candidate_diagnoses(
+            assessment_data, 
+            top_n=10, 
+            similarity_threshold=0.3
+        )
+        
+        if not candidates:
+            logger.warning("No candidate diagnoses found above similarity threshold")
             return {
-                "selected_diagnoses": [],
-                "message": "No matching diagnoses found for the provided assessment data"
+                "diagnosis": None,
+                "definition": None,
+                "defining_characteristics": [],
+                "related_factors": [],
+                "risk_factors": [],
+                "suggested_outcomes": [],
+                "suggested_interventions": [],
+                "reasoning": "No matching diagnoses found for the provided assessment data."
             }
         
-        # Stage 2: Use AI to select the best diagnosis from candidates
-        formatted_assessment = format_structured_data(assessment_data)
+        # Step 2: Use AI to select the best diagnosis
+        result = await matcher.select_best_diagnosis(assessment_data, candidates)
         
-        # Format candidate diagnoses for AI
-        candidates_text = ""
-        for i, candidate in enumerate(candidate_diagnoses, 1):
-            candidates_text += f"""
-                **Candidate {i}: {candidate['diagnosis']}**
-                Definition: {candidate['definition']}
-                Defining Characteristics: {', '.join(candidate['defining_characteristics'])}
-                Related Factors: {', '.join(candidate['related_factors'])}
-                Risk Factors: {', '.join(candidate['risk_factors'])}
-                Suggested Outcomes: {', '.join(candidate['suggested_outcomes'])}
-                Suggested Interventions: {', '.join(candidate['suggested_interventions'])}
-
-            """
-
-        logger.info(f"Prepared candidate diagnoses for AI evaluation: {candidates_text}")
-
-        ai_prompt = f"""
-            You are a nursing educator AI with deep knowledge of NANDA-I (2021–2023), NIC, and NOC standards.  
-            Your task is to select the single best nursing diagnosis for a patient, based strictly on the provided assessment data and the candidate diagnoses from the official lookup table provided as the candidates list.
-
-            # Rules
-            - You must choose **only ONE** diagnosis from the provided candidate list.  
-            - Do NOT invent a diagnosis that is not in the candidate list.  
-            - Outcomes and interventions must come from the candidate entry’s `suggested_outcomes` and `suggested_interventions`.  
-            - If they are empty, leave them as an empty list (`[]`).  
-            - Base your decision strictly on the patient’s assessment data.  
-            - Return the result as strict JSON, no extra text.
-
-            # Patient Assessment (JSON)
-            {formatted_assessment}
-
-            # Candidate Diagnoses (JSON)
-            {candidates_text}
-
-            # Expected Output (JSON)
-            {{
-                "diagnosis": "string",          
-                "reasoning": "string",         
-                "outcomes": ["string"],         
-                "interventions": ["string"]
-            }}
-
-            Ensure the response is valid JSON with no additional text.
-        """
-        
-        logger.info("Calling AI for final diagnosis selection")
-        response = model.generate_content(ai_prompt)
-        
-        if not response or not response.text:
-            raise Exception("No response from AI model")
-        
-        # Parse AI response with improved error handling
-        import json
-        import re
-        
-        raw_response = response.text.strip()
-        logger.info(f"Raw AI response: {raw_response}")
-        
-        try:
-            # Clean and extract JSON
-            cleaned_response = raw_response.encode('utf-8').decode('utf-8-sig')
-            
-            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
-            if json_match:
-                cleaned_response = json_match.group(1)
-            
-            start_brace = cleaned_response.find('{')
-            end_brace = cleaned_response.rfind('}')
-            
-            if start_brace != -1 and end_brace != -1:
-                json_part = cleaned_response[start_brace:end_brace+1]
-                result = json.loads(json_part)
-                
-                logger.info(f"Successfully suggested {len(result.get('selected_diagnoses', []))} diagnoses")
-                return result
-            else:
-                raise ValueError("Could not extract valid JSON from AI response")
-                
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON parsing error: {str(e)}")
-            raise Exception("Failed to parse AI response into valid JSON format")
+        logger.info(f"Successfully selected diagnosis: {result}")
+        return result
         
     except Exception as e:
-        logger.error(f"Error in diagnosis suggestion: {str(e)}", exc_info=True)
+        logger.error(f"Error in vector diagnosis suggestion: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={
