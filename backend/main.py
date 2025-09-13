@@ -809,8 +809,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
     
     formatted_assessment = format_structured_data(assessment_data)
     
-    # Create the
-    # structured prompt
+    # Create the structured prompt with improved rationale format
     ncp_prompt = f"""
         You are a nursing educator expert in NANDA-I, NIC, and NOC standards. Generate a complete Nursing Care Plan based on the provided assessment data and selected nursing diagnosis.
 
@@ -836,6 +835,9 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         7. SMART outcomes: Follow SMART criteria for all outcome statements
         8. Return ONLY valid JSON with no additional text
 
+        **RATIONALE GUIDELINES:**
+        When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook, Doenges, M. E., et al. (2021). Nurse's Pocket Guide, 15th Edition, NIC/NOC textbooks, official NIC/NOC classifications, CDC/WHO guidelines). Do not cite page numbers or overly specific details — keep citations broad but verifiable.
+
         **OUTPUT FORMAT (JSON ONLY):**
         {{
             "assessment": {{
@@ -843,33 +845,36 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 "objective": ["List of objective findings from assessment data"]
             }},
             "diagnosis": {{
-                "statement": "Complete NANDA-I diagnosis statement with related to and as evidenced by",
-                "definition": "Definition of the diagnosis",
-                "defining_characteristics": ["List of defining characteristics present in this patient"],
-                "related_factors": ["List of related factors applicable to this patient"]
+                "statement": "Complete NANDA-I diagnosis statement: [Diagnosis] related to [etiology] as evidenced by [defining characteristics]"
             }},
             "outcomes": {{
-                "short_term": [
-                    {{
-                        "outcome": "SMART NOC outcome statement adapted to patient following structure: The patient will [action verb] [condition/modifiers] [criterion of desired performance]",
-                        "timeframe": "Clinically appropriate timeframe based on diagnosis nature and patient condition"
+                "short_term": {{
+                    "timeframes": {{
+                        "within 24 hours": [
+                            "The patient will demonstrate proper inhaler technique independently",
+                            "The patient will verbalize understanding of energy conservation techniques"
+                        ],
+                        "within 48 hours": [
+                            "The patient will maintain oxygen saturation ≥ 95% during activity"
+                        ]
                     }}
-                ],
-                "long_term": [
-                    {{
-                        "outcome": "SMART NOC outcome statement adapted to patient following structure: The patient will [action verb] [condition/modifiers] [criterion of desired performance]", 
-                        "timeframe": "Clinically appropriate timeframe based on diagnosis nature and patient condition"
+                }},
+                "long_term": {{
+                    "timeframes": {{
+                        "within 5 days": [
+                            "The patient will ambulate 100 feet without dyspnea",
+                            "The patient will perform ADLs independently"
+                        ],
+                        "before discharge": [
+                            "The patient will demonstrate medication self-administration"
+                        ]
                     }}
-                ]
+                }}
             }},
             "interventions": {{
                 "independent": [
                     {{
                         "id": "ind_1",
-                        "intervention": "NIC intervention adapted to patient specifics"
-                    }},
-                    {{
-                        "id": "ind_2", 
                         "intervention": "NIC intervention adapted to patient specifics"
                     }}
                 ],
@@ -889,20 +894,16 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
             "rationale": {{
                 "interventions": {{
                     "ind_1": {{
-                        "rationale": "Why this intervention addresses the diagnosis and supports outcomes",
-                        "evidence": "NANDA-I/NIC/NOC standard or nursing reference supporting this intervention"
-                    }},
-                    "ind_2": {{
-                        "rationale": "Why this intervention addresses the diagnosis and supports outcomes", 
-                        "evidence": "NANDA-I/NIC/NOC standard or nursing reference supporting this intervention"
+                        "rationale": "Cleaning the wound with antiseptic reduces microbial load and prevents infection development",
+                        "evidence": "(Ackley et al., 2022; NANDA-I, 2021–2023)"
                     }},
                     "dep_1": {{
-                        "rationale": "Why this dependent intervention is necessary",
-                        "evidence": "Medical/nursing standard supporting this intervention"
+                        "rationale": "Verifying immunization history ensures protection against tetanus",
+                        "evidence": "(CDC, 2024)"
                     }},
                     "col_1": {{
-                        "rationale": "Why collaboration is needed for this intervention",
-                        "evidence": "Professional standard or guideline supporting collaboration"
+                        "rationale": "Providing accurate health teaching decreases anxiety by reducing uncertainty",
+                        "evidence": "(Moorhead et al., 2022)"
                     }}
                 }}
             }},
@@ -910,117 +911,90 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 "independent": [
                     {{
                         "id": "ind_1",
-                        "action_taken": "Specific action performed in past tense with details",
-                        "patient_response": "Observable patient response or reaction to this specific intervention",
-                        "notes": "Additional implementation notes or modifications made during execution"
-                    }},
-                    {{
-                        "id": "ind_2",
-                        "action_taken": "Specific action performed in past tense with details",
-                        "patient_response": "Observable patient response or reaction to this specific intervention", 
-                        "notes": "Additional implementation notes or modifications made during execution"
+                        "action_taken": "Educated patient on inhaler technique using demonstration method; patient successfully returned demonstration with 100% accuracy"
                     }}
                 ],
                 "dependent": [
                     {{
-                        "id": "dep_1",
-                        "action_taken": "Specific dependent action performed in past tense with details",
-                        "patient_response": "Observable patient response or reaction to this specific intervention",
-                        "notes": "Additional implementation notes or modifications made during execution"
+                        "id": "dep_1", 
+                        "action_taken": "Administered prescribed bronchodilator as ordered; patient reported decreased dyspnea within 15 minutes"
                     }}
                 ],
                 "collaborative": [
                     {{
                         "id": "col_1",
-                        "action_taken": "Specific collaborative action performed in past tense with details",
-                        "patient_response": "Observable patient response or reaction to this specific intervention",
-                        "notes": "Additional implementation notes or modifications made during execution"
+                        "action_taken": "Coordinated with respiratory therapist for pulmonary rehabilitation evaluation; appointment scheduled for next day"
                     }}
                 ]
             }},
             "evaluation": {{
-                "short_term": [
-                    {{
-                        "outcome_reference": "Reference to the specific short-term outcome being evaluated",
-                        "status": "Met/Partially Met/Not Met",
-                        "evidence": "Specific measurable evidence supporting the evaluation status",
-                        "rationale": "Clinical reasoning for why the outcome was evaluated as met/partially met/not met"
+                "short_term": {{
+                    "Met": {{
+                        "after 24 hours of nursing interventions, the patient": [
+                            "Demonstrated correct inhaler technique independently with 100% accuracy",
+                            "Verbalized 3 energy conservation techniques accurately"
+                        ]
+                    }},
+                    "Partially Met": {{
+                        "after 48 hours of nursing interventions, the patient": [
+                            "Maintained SpO2 ≥ 95% at rest but dropped to 92% during ambulation"
+                        ]
                     }}
-                ],
-                "long_term": [
-                    {{
-                        "outcome_reference": "Reference to the specific long-term outcome being evaluated",
-                        "status": "Met/Partially Met/Not Met", 
-                        "evidence": "Specific measurable evidence supporting the evaluation status",
-                        "rationale": "Clinical reasoning for why the outcome was evaluated as met/partially met/not met"
+                }},
+                "long_term": {{
+                    "Met": {{
+                        "after 5 days of nursing interventions, the patient": [
+                            "Ambulated 100 feet without dyspnea or oxygen desaturation",
+                            "Performed all ADLs independently without fatigue"
+                        ]
                     }}
-                ],
-                "plan_modifications": ["Any needed modifications to the care plan based on evaluation results"],
-                "next_steps": ["Recommended follow-up actions or continued monitoring"]
+                }}
             }}
         }}
 
-        **IMPORTANT GUIDELINES:**
+        **ENHANCED GUIDELINES:**
 
-        **Outcomes - SMART Criteria:**
-        - **Specific**: Clearly define what the patient will accomplish
-        - **Measurable**: Include quantifiable indicators or observable behaviors
-        - **Attainable**: Realistic based on patient condition and diagnosis
-        - **Relevant**: Directly addresses the nursing diagnosis
-        - **Time-bound**: Include appropriate timeframe based on clinical judgment
+        **Evidence References - Approved Sources and Format:**
+        Use these citation formats for evidence:
+        - "(NANDA-I, 2021–2023)" - for nursing diagnoses and defining characteristics
+        - "(Ackley et al., 2022)" - for nursing diagnosis handbook references
+        - "(Moorhead et al., 2022)" - for NOC outcomes
+        - "(Butcher et al., 2022)" - for NIC interventions
+        - "(Doenges et al., 2021)" - for nursing care plan references
+        - "(CDC, 2024)" - for public health guidelines
+        - "(WHO, 2024)" - for international health standards
+        - "(American Nurses Association, 2021)" - for nursing practice standards
+        - "(Joint Commission, 2024)" - for patient safety standards
+        - Provide sources that are verifiable and widely recognized in nursing practice
+        
+        **Rationale Format Examples:**
+        - rationale: "Monitoring vital signs every 4 hours detects early signs of respiratory compromise"
+        - evidence: "(Ackley et al., 2022; NANDA-I, 2021–2023)"
+        
+        - rationale: "Teaching proper medication administration ensures patient safety and compliance"
+        - evidence: "(Moorhead et al., 2022)"
+        
+        - rationale: "nic intervention: teaching: individual (5606)"
+        - evidence: "(Butcher et al., 2022)"
 
-        **Outcome Statement Structure:**
-        - **Subject**: "The patient will..." (always patient-centered)
-        - **Verb**: Use action verbs (demonstrate, verbalize, maintain, perform, report, etc.)
-        - **Condition/Modifiers**: Specify circumstances (with assistance, independently, during ambulation, etc.)
-        - **Criterion**: Quantify performance standard (pain level ≤ 3/10, SpO2 ≥ 95%, walk 50 feet, etc.)
+        **AVOID:**
+        - Specific page numbers or direct quotations
+        - Fabricated study names or authors
+        - Specific journal citations with volumes/issues
+        - Made-up statistics or data
+        - Overly specific details in citations
 
-        **Timeframe Guidelines:**
-        - **Short-term**: Based on diagnosis urgency and complexity (hours to days)
-        - **Long-term**: Based on recovery trajectory and discharge planning (days to weeks)
-        - **Acute conditions**: Shorter timeframes (hours to 2-3 days)
-        - **Chronic conditions**: Longer timeframes (days to weeks)
-        - **Risk diagnoses**: Variable based on risk level and intervention needs
-        - If short-term outcomes aren't clinically appropriate, use empty array []
-        - If long-term outcomes aren't clinically appropriate, use empty array []
-        - Ensure at least one outcome type (short-term OR long-term) is provided
-
-        **Examples of SMART Outcomes:**
-        - "The patient will demonstrate proper inhaler technique independently within 24 hours"
-        - "The patient will maintain oxygen saturation ≥ 95% on room air within 48 hours"
-        - "The patient will verbalize 3 pain management strategies before discharge"
-        - "The patient will ambulate 100 feet with minimal assistance within 72 hours"
-
-        **Interventions:**
-        - Use only applicable intervention categories (independent/dependent/collaborative)
-        - If a category is not needed for this specific diagnosis/patient, use empty array []
-        - Ensure at least one intervention category has content
-        - Independent interventions are highly encouraged as they demonstrate nursing autonomy
-        - Include dependent/collaborative only when clinically necessary
-
-        **Rationale:**
-        - Focus solely on intervention-specific rationales
-        - Each intervention must have corresponding rationale with evidence reference
-        - Use intervention IDs to clearly link interventions with their rationales
-
-        **Implementation:**
-        - Mirror the interventions structure but in past tense
-        - Document actual actions performed with specific details
-        - Include realistic patient responses (these are template scenarios since actual responses require nursing assessment)
-        - Provide plausible implementation scenarios that nurses can reference
-
-        **Evaluation:**
-        - Mirror the outcomes structure but in past tense
-        - Evaluate each outcome as Met/Partially Met/Not Met with specific evidence
-        - Provide realistic evaluation scenarios (these are templates since actual evaluation requires nursing judgment)
-        - Include clinical reasoning for evaluation decisions
-
-        **Evidence References:**
-        - Reference NANDA-I, NOC, NIC, or standard nursing texts generally
-        - Avoid specific page numbers or fabricated citations
-
-        Generate the complete NCP following this exact JSON structure with SMART outcomes that include clinically appropriate timeframes determined by the nature of the diagnosis and patient condition.
-    """
+        **Outcomes Grouping Rules:**
+        - Group outcomes by identical timeframes
+        - Use clinically appropriate timeframes (within 2 hours, within 24 hours, within 48 hours, within 5 days, before discharge, etc.)
+        - Ensure each timeframe group has related, achievable outcomes
+        
+        **Evaluation Grouping Rules:**
+        - Group by status (Met, Partially Met, Not Met)
+        - Within each status, group by timeframe
+        - List specific evidence under each timeframe-status combination
+        - Use past tense and measurable evidence
+        """
     
     # Retry logic
     for attempt in range(max_retries):
