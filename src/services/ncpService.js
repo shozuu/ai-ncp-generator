@@ -6,36 +6,56 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 export const ncpService = {
-  async generateNCP(assessmentData) {
+  async generateComprehensiveNCP(assessmentData) {
     try {
-      console.log('Sending assessment data:', assessmentData) // debug log
+      console.log(
+        'Generating comprehensive NCP with structured data:',
+        assessmentData
+      )
 
-      // generate ncp via existing fastapi
       const response = await axios.post(
-        `${API_BASE_URL}/api/generate-ncp`,
+        `${API_BASE_URL}/api/suggest-diagnoses`,
         assessmentData,
         {
           headers: { 'Content-Type': 'application/json' },
         }
       )
 
-      const generatedNCP = response.data
+      const result = response.data
+      console.log('Received comprehensive result:', result)
 
-      // save to supabase with the user's preferred format
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (user) {
-        await this.saveNCP(generatedNCP, assessmentData)
+      if (result.ncp) {
+        // Transform the structured JSON to our display format
+        const transformedNCP = this.transformStructuredNCP(result.ncp)
+
+        // Save to Supabase with the user's preferred format
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (user) {
+          await this.saveStructuredNCP(transformedNCP, result, assessmentData)
+        }
+
+        return {
+          diagnosis: result,
+          ncp: transformedNCP,
+          originalStructuredNCP: result.ncp, // Keep original for reference
+        }
+      } else {
+        // Only diagnosis was generated
+        return {
+          diagnosis: result,
+          ncp: null,
+        }
       }
-
-      return generatedNCP
     } catch (error) {
-      console.error('NCP Generation Error:', error.response?.data || error) // debug log
+      console.error(
+        'Comprehensive generation error:',
+        error.response?.data || error
+      )
 
-      // Extract detailed error information from backend
       const errorDetail = error.response?.data?.detail
-      let errorMessage = 'Failed to generate NCP'
+      let errorMessage = 'Failed to generate diagnosis and NCP'
       let suggestion = ''
 
       if (errorDetail) {
@@ -49,7 +69,6 @@ export const ncpService = {
         }
       }
 
-      // Format the error message for frontend display
       let finalMessage = errorMessage
       if (suggestion) {
         finalMessage += ` ${suggestion}`
@@ -59,13 +78,246 @@ export const ncpService = {
     }
   },
 
-  async saveNCP(ncpData, assessmentData, title = null) {
+  // Transform structured JSON NCP to display format
+  transformStructuredNCP(structuredNCP) {
+    try {
+      const transformed = {}
+
+      // Assessment
+      if (structuredNCP.assessment) {
+        const assessment = structuredNCP.assessment
+        let assessmentText = ''
+
+        if (assessment.subjective && assessment.subjective.length > 0) {
+          assessmentText += '**Subjective Data:**\n'
+          assessment.subjective.forEach(item => {
+            assessmentText += `- ${item}\n`
+          })
+          assessmentText += '\n'
+        }
+
+        if (assessment.objective && assessment.objective.length > 0) {
+          assessmentText += '**Objective Data:**\n'
+          assessment.objective.forEach(item => {
+            assessmentText += `- ${item}\n`
+          })
+        }
+
+        transformed.assessment = assessmentText.trim()
+      }
+
+      // Diagnosis
+      if (structuredNCP.diagnosis?.statement) {
+        transformed.diagnosis = structuredNCP.diagnosis.statement
+      }
+
+      // Outcomes
+      if (structuredNCP.outcomes) {
+        let outcomesText = ''
+
+        if (structuredNCP.outcomes.short_term?.timeframes) {
+          outcomesText += '**Short-Term Outcomes:**\n'
+          Object.entries(structuredNCP.outcomes.short_term.timeframes).forEach(
+            ([timeframe, outcomes]) => {
+              outcomesText += `* ${timeframe}:\n`
+              outcomes.forEach(outcome => {
+                outcomesText += `  - ${outcome}\n`
+              })
+            }
+          )
+          outcomesText += '\n'
+        }
+
+        if (structuredNCP.outcomes.long_term?.timeframes) {
+          outcomesText += '**Long-Term Outcomes:**\n'
+          Object.entries(structuredNCP.outcomes.long_term.timeframes).forEach(
+            ([timeframe, outcomes]) => {
+              outcomesText += `* ${timeframe}:\n`
+              outcomes.forEach(outcome => {
+                outcomesText += `  - ${outcome}\n`
+              })
+            }
+          )
+        }
+
+        transformed.outcomes = outcomesText.trim()
+      }
+
+      // Interventions
+      if (structuredNCP.interventions) {
+        let interventionsText = ''
+
+        if (structuredNCP.interventions.independent?.length > 0) {
+          interventionsText += '**Independent:**\n'
+          structuredNCP.interventions.independent.forEach(intervention => {
+            interventionsText += `- ${intervention.intervention}\n`
+          })
+          interventionsText += '\n'
+        }
+
+        if (structuredNCP.interventions.dependent?.length > 0) {
+          interventionsText += '**Dependent:**\n'
+          structuredNCP.interventions.dependent.forEach(intervention => {
+            interventionsText += `- ${intervention.intervention}\n`
+          })
+          interventionsText += '\n'
+        }
+
+        if (structuredNCP.interventions.collaborative?.length > 0) {
+          interventionsText += '**Collaborative:**\n'
+          structuredNCP.interventions.collaborative.forEach(intervention => {
+            interventionsText += `- ${intervention.intervention}\n`
+          })
+        }
+
+        transformed.interventions = interventionsText.trim()
+      }
+
+      // Rationale
+      if (structuredNCP.rationale?.interventions) {
+        let rationaleText = ''
+
+        // Group rationales by intervention type
+        const independent = structuredNCP.interventions?.independent || []
+        const dependent = structuredNCP.interventions?.dependent || []
+        const collaborative = structuredNCP.interventions?.collaborative || []
+
+        if (independent.length > 0) {
+          rationaleText += '**Independent:**\n'
+          independent.forEach(intervention => {
+            const rationale =
+              structuredNCP.rationale.interventions[intervention.id]
+            if (rationale) {
+              rationaleText += `- ${rationale.rationale}`
+              if (rationale.evidence) {
+                rationaleText += ` ${rationale.evidence}`
+              }
+              rationaleText += '\n'
+            }
+          })
+          rationaleText += '\n'
+        }
+
+        if (dependent.length > 0) {
+          rationaleText += '**Dependent:**\n'
+          dependent.forEach(intervention => {
+            const rationale =
+              structuredNCP.rationale.interventions[intervention.id]
+            if (rationale) {
+              rationaleText += `- ${rationale.rationale}`
+              if (rationale.evidence) {
+                rationaleText += ` ${rationale.evidence}`
+              }
+              rationaleText += '\n'
+            }
+          })
+          rationaleText += '\n'
+        }
+
+        if (collaborative.length > 0) {
+          rationaleText += '**Collaborative:**\n'
+          collaborative.forEach(intervention => {
+            const rationale =
+              structuredNCP.rationale.interventions[intervention.id]
+            if (rationale) {
+              rationaleText += `- ${rationale.rationale}`
+              if (rationale.evidence) {
+                rationaleText += ` ${rationale.evidence}`
+              }
+              rationaleText += '\n'
+            }
+          })
+        }
+
+        transformed.rationale = rationaleText.trim()
+      }
+
+      // Implementation
+      if (structuredNCP.implementation) {
+        let implementationText = ''
+
+        if (structuredNCP.implementation.independent?.length > 0) {
+          implementationText += '**Independent:**\n'
+          structuredNCP.implementation.independent.forEach(impl => {
+            implementationText += `- ${impl.action_taken}\n`
+          })
+          implementationText += '\n'
+        }
+
+        if (structuredNCP.implementation.dependent?.length > 0) {
+          implementationText += '**Dependent:**\n'
+          structuredNCP.implementation.dependent.forEach(impl => {
+            implementationText += `- ${impl.action_taken}\n`
+          })
+          implementationText += '\n'
+        }
+
+        if (structuredNCP.implementation.collaborative?.length > 0) {
+          implementationText += '**Collaborative:**\n'
+          structuredNCP.implementation.collaborative.forEach(impl => {
+            implementationText += `- ${impl.action_taken}\n`
+          })
+        }
+
+        transformed.implementation = implementationText.trim()
+      }
+
+      // Evaluation
+      if (structuredNCP.evaluation) {
+        let evaluationText = ''
+
+        if (structuredNCP.evaluation.short_term) {
+          evaluationText += '**Short-Term:**\n'
+          Object.entries(structuredNCP.evaluation.short_term).forEach(
+            ([status, statusData]) => {
+              evaluationText += `* ${status}:\n`
+              Object.entries(statusData).forEach(([timeframe, outcomes]) => {
+                evaluationText += `  - ${timeframe}:\n`
+                outcomes.forEach(outcome => {
+                  evaluationText += `    • ${outcome}\n`
+                })
+              })
+            }
+          )
+          evaluationText += '\n'
+        }
+
+        if (structuredNCP.evaluation.long_term) {
+          evaluationText += '**Long-Term:**\n'
+          Object.entries(structuredNCP.evaluation.long_term).forEach(
+            ([status, statusData]) => {
+              evaluationText += `* ${status}:\n`
+              Object.entries(statusData).forEach(([timeframe, outcomes]) => {
+                evaluationText += `  - ${timeframe}:\n`
+                outcomes.forEach(outcome => {
+                  evaluationText += `    • ${outcome}\n`
+                })
+              })
+            }
+          )
+        }
+
+        transformed.evaluation = evaluationText.trim()
+      }
+
+      return transformed
+    } catch (error) {
+      console.error('Error transforming structured NCP:', error)
+      throw new Error('Failed to transform structured NCP data for display')
+    }
+  },
+
+  async saveStructuredNCP(
+    ncpData,
+    diagnosisResult,
+    assessmentData,
+    title = null
+  ) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
-    // Use the new default title function instead of date-based title
     const ncpTitle = title || generateDefaultNCPTitle()
 
     const { data, error } = await supabase
@@ -81,6 +333,7 @@ export const ncpService = {
           rationale: ncpData.rationale,
           implementation: ncpData.implementation,
           evaluation: ncpData.evaluation,
+          reasoning: diagnosisResult.reasoning,
           format_type: assessmentData.format || '7',
         },
       ])
@@ -96,7 +349,6 @@ export const ncpService = {
     } = await supabase.auth.getUser()
     if (!user) throw new Error('User not authenticated')
 
-    // Only update editable columns (excluding assessment)
     const updateData = {}
 
     if (ncpData.diagnosis !== undefined)
@@ -157,7 +409,6 @@ export const ncpService = {
   },
 
   async deleteNCP(ncpId) {
-    // trigger the soft delete
     const { error } = await supabase.from('ncps').delete().eq('id', ncpId)
     if (error) throw error
   },
@@ -181,7 +432,6 @@ export const ncpService = {
         error.response?.data || error
       )
 
-      // Extract detailed error information from backend
       const errorDetail = error.response?.data?.detail
       let errorMessage = 'Failed to parse manual assessment'
 
@@ -199,79 +449,6 @@ export const ncpService = {
       }
 
       throw new Error(errorMessage)
-    }
-  },
-
-  async suggestDiagnoses(assessmentData) {
-    try {
-      console.log(
-        'Sending assessment data for comprehensive NCP generation:',
-        assessmentData
-      )
-
-      const response = await axios.post(
-        `${API_BASE_URL}/api/suggest-diagnoses`,
-        assessmentData,
-        {
-          headers: { 'Content-Type': 'application/json' },
-        }
-      )
-
-      const result = response.data
-      console.log('Received comprehensive result:', result)
-
-      // Check if NCP was generated successfully
-      if (result.ncp) {
-        console.log('NCP generated successfully')
-        return {
-          diagnosis: {
-            diagnosis: result.diagnosis,
-            definition: result.definition,
-            defining_characteristics: result.defining_characteristics,
-            related_factors: result.related_factors,
-            risk_factors: result.risk_factors,
-            suggested_outcomes: result.suggested_outcomes,
-            suggested_interventions: result.suggested_interventions,
-            reasoning: result.reasoning,
-          },
-          ncp: result.ncp,
-        }
-      } else {
-        console.log('Only diagnosis suggested, no NCP generated')
-        return {
-          diagnosis: result,
-          ncp: null,
-        }
-      }
-    } catch (error) {
-      console.error(
-        'Comprehensive generation error:',
-        error.response?.data || error
-      )
-
-      // Extract detailed error information from backend
-      const errorDetail = error.response?.data?.detail
-      let errorMessage = 'Failed to generate diagnosis and NCP'
-      let suggestion = ''
-
-      if (errorDetail) {
-        if (typeof errorDetail === 'string') {
-          errorMessage = errorDetail
-        } else if (errorDetail.message) {
-          errorMessage = errorDetail.message
-          if (errorDetail.suggestion) {
-            suggestion = errorDetail.suggestion
-          }
-        }
-      }
-
-      // Format the error message for frontend display
-      let finalMessage = errorMessage
-      if (suggestion) {
-        finalMessage += ` ${suggestion}`
-      }
-
-      throw new Error(finalMessage)
     }
   },
 }
