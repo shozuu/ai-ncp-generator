@@ -423,11 +423,11 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         subjective_text = '\n'.join(f"- {item}" for item in subjective_data)
         objective_text = '\n'.join(f"- {item}" for item in objective_data)
         
-        # Create the parsing prompt (same as before)
+        # parsing prompt with cultural/religious and additional vitals handling
         parsing_prompt = f"""
-            You are a nursing assessment data parser. Your task is to analyze free-text nursing assessment data and extract structured information that fits into predefined categories.
+            You are a clinical nursing assessment parser with expertise in standardizing patient data for NANDA-I diagnosis matching. Your task is to extract and structure nursing assessment data in a format that will be embedded and matched against a comprehensive nursing diagnosis database.
 
-            Given the following subjective and objective data, extract and categorize the information into the JSON structure provided below. If information for a category is not available or cannot be determined from the given data, leave those fields empty or with default values.
+            **CRITICAL IMPORTANCE:** The structured data you create will be converted to embeddings and queried against a database containing NANDA-I nursing diagnoses. Consistency, accuracy, and use of standard clinical terminology is essential for proper diagnosis matching.
 
             **SUBJECTIVE DATA:**
             {subjective_text}
@@ -435,31 +435,112 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             **OBJECTIVE DATA:**
             {objective_text}
 
-            **INSTRUCTIONS:**
-            1. Extract demographics information (age, sex, occupation) if mentioned
-            2. Identify the main chief complaint or primary concern
-            3. Look for history details (onset, duration, severity, progression)
-            4. Extract associated symptoms from the available options or identify others
-            5. Identify past medical history conditions
-            6. Extract vital signs data (HR, BP, RR, SpO2, Temperature)
-            7. Identify physical examination findings
-            8. Look for risk factors
-            9. Capture any additional nurse notes or observations
+            **STANDARDIZATION GUIDELINES:**
+            
+            **Demographics:**
+            - Age: Extract exact numeric age if stated
+            - Sex: Use only "male" or "female" (lowercase)
+            - Occupation: Extract if mentioned, otherwise leave empty
+            - Religion: Extract if mentioned (e.g., "Catholic", "Muslim", "Jewish", "Buddhist", "None", etc.)
+            - Cultural_background: Extract ethnicity, cultural identity, or cultural practices if mentioned
+            - Language: Extract primary language if mentioned (especially if non-English)
 
-            **AVAILABLE OPTIONS FOR CATEGORIZATION:**
-            - Associated Symptoms: Shortness of breath, Chest pain, Fatigue, Dizziness, Nausea/vomiting
-            - Medical History: Hypertension, Diabetes mellitus, COPD, Asthma, Heart disease, Kidney disease, Immunocompromised condition
-            - Physical Exam: Respiratory: Crackles, Respiratory: Wheezing, Respiratory: Diminished breath sounds, Cardiac: Irregular rhythm, Cardiac: Edema, Cardiac: Cyanosis, Mobility: Limited ROM, Mobility: Bedridden, Mobility: Weak gait, Skin: Intact, Skin: Pressure ulcer, Skin: Pallor
-            - Risk Factors: Surgery (recent), Indwelling catheter, Prolonged immobility, Smoking, Malnutrition, Advanced age
+            **Chief Complaint:**
+            - Use the patient's primary concern or reason for visit
+            - Keep it concise but descriptive (e.g., "Shortness of breath for 3 days")
+            - Avoid overly technical rephrasing - use patient's own words when appropriate
+
+            **History - Use Standard Clinical Terminology:**
+            - Onset/Duration: Be specific about timing (e.g., "3 days ago", "sudden onset", "gradual over 2 weeks")
+            - Severity: Use standard descriptors ("mild", "moderate", "severe" or numeric scales if mentioned)
+            - Associated Symptoms: Match to these EXACT terms when applicable:
+              * "Shortness of breath"
+              * "Chest pain" 
+              * "Fatigue"
+              * "Dizziness"
+              * "Nausea/vomiting"
+            - Other symptoms not in the list go in "other_symptoms"
+
+            **Medical History - Use EXACT Standard Terms:**
+            - "Hypertension"
+            - "Diabetes mellitus" 
+            - "COPD"
+            - "Asthma"
+            - "Heart disease"
+            - "Kidney disease"
+            - "Immunocompromised condition"
+            - Non-matching conditions go in "medical_history_other"
+
+            **Vital Signs - Standard Format:**
+            - HR: Integer only (e.g., 88)
+            - BP: "systolic/diastolic" format only (e.g., "120/80")
+            - RR: Integer only (e.g., 18)
+            - SpO2: Integer only (e.g., 95)
+            - Temp: Decimal number (e.g., 37.2)
+            - **Additional Vitals**: For any other vital signs mentioned (CVP, MAP, PAWP, etc.), include in "additional_vitals" with descriptive labels
+
+            **Physical Exam - Use EXACT Standard Terms:**
+            - "Respiratory: Crackles"
+            - "Respiratory: Wheezing"
+            - "Respiratory: Diminished breath sounds"
+            - "Cardiac: Irregular rhythm"
+            - "Cardiac: Edema"
+            - "Cardiac: Cyanosis"
+            - "Mobility: Limited ROM"
+            - "Mobility: Bedridden"
+            - "Mobility: Weak gait"
+            - "Skin: Intact"
+            - "Skin: Pressure ulcer"
+            - "Skin: Pallor"
+            - Non-matching findings go in "physical_exam_other"
+
+            **Risk Factors - Use EXACT Standard Terms:**
+            - "Surgery (recent)"
+            - "Indwelling catheter"
+            - "Prolonged immobility"
+            - "Smoking"
+            - "Malnutrition"
+            - "Advanced age"
+            - Non-matching factors go in "risk_factors_other"
+
+            **Cultural/Religious Considerations:**
+            - Extract any cultural practices that may affect care (dietary restrictions, prayer times, family involvement preferences)
+            - Note religious considerations that may impact treatment decisions
+            - Include language barriers or communication preferences
+            - Document cultural beliefs about health, illness, or treatment
+
+            **Nurse Notes:**
+            - Include any additional observations, patient statements, or clinical notes that don't fit other categories
+            - Maintain clinical language and objectivity
+            - Include cultural observations that may be relevant to care planning
+
+            **EXTRACTION RULES:**
+            1. **Exact Term Matching**: When information matches predefined categories, use the EXACT terminology provided
+            2. **Standard Clinical Language**: Use conventional medical/nursing terminology
+            3. **Cultural Sensitivity**: Extract cultural/religious information objectively and respectfully
+            4. **No Assumptions**: Extract only what is explicitly stated or clearly implied
+            5. **Consistent Formatting**: Follow the specified formats strictly
+            6. **Comprehensive Capture**: Don't miss important clinical or cultural details
+            7. **Objective Language**: Use professional, clinical language throughout
+
+            **EMBEDDING OPTIMIZATION:**
+            - The final structured data will be formatted as: "Age: X | Sex: X | Religion: X | Cultural Background: X | Chief Complaint: X | History of Present Illness: X | Past Medical History: X | Vitals: X | Additional Vitals: X | Exam: X | Risk Factors: X | Cultural Considerations: X | Notes: X"
+            - Ensure each section contributes meaningful clinical information for diagnosis matching
+            - Use terminology that nursing diagnoses databases would recognize
+            - Maintain consistency with how similar cases would be described
+            - Cultural information should be included when relevant to care planning or diagnosis
 
             **OUTPUT FORMAT:**
-            Return ONLY a valid JSON object with this exact structure (no additional text or explanation):
+            Return ONLY a valid JSON object with this exact structure:
 
             {{
                 "demographics": {{
                     "age": null,
                     "sex": "",
-                    "occupation": ""
+                    "occupation": "",
+                    "religion": "",
+                    "cultural_background": "",
+                    "language": ""
                 }},
                 "chief_complaint": "",
                 "history": {{
@@ -475,22 +556,53 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
                     "BP": "",
                     "RR": null,
                     "SpO2": null,
-                    "Temp": null
+                    "Temp": null,
+                    "additional_vitals": {{}}
                 }},
                 "physical_exam": [],
                 "physical_exam_other": "",
                 "risk_factors": [],
                 "risk_factors_other": "",
+                "cultural_considerations": {{
+                    "dietary_restrictions": "",
+                    "religious_practices": "",
+                    "communication_preferences": "",
+                    "family_involvement": "",
+                    "health_beliefs": "",
+                    "other_considerations": ""
+                }},
                 "nurse_notes": ""
             }}
 
-            **RULES:**
-            - Use null for numeric fields when no data is available
-            - Use empty strings for text fields when no data is available
-            - Use empty arrays for list fields when no data is available
-            - If symptoms/conditions don't match the predefined options, put them in the "other" fields
-            - Extract only factual information present in the data
-            - Do not make assumptions or add information not explicitly stated
+            **ADDITIONAL VITALS EXAMPLES:**
+            - "additional_vitals": {{"CVP": "8 mmHg", "MAP": "85 mmHg", "PAWP": "12 mmHg", "ICP": "15 mmHg", "Pain_Scale": "6/10"}}
+            - Include any specialized measurements like glucose levels, pain scales, or hemodynamic parameters
+
+            **CULTURAL CONSIDERATIONS EXAMPLES:**
+            - dietary_restrictions: "Halal diet", "Kosher diet", "Vegetarian", "No pork products"
+            - religious_practices: "Prayer 5 times daily", "Sabbath observance Friday evening to Saturday", "Daily meditation"
+            - communication_preferences: "Male healthcare providers preferred", "Family translator needed", "Speaks limited English"
+            - family_involvement: "Daughter is primary decision maker", "Extended family involvement in care decisions"
+            - health_beliefs: "Believes illness is spiritual test", "Prefers traditional remedies alongside medical treatment"
+
+            **QUALITY CHECKLIST:**
+            Before finalizing your response, verify:
+            ✓ All predefined terms are used EXACTLY as specified
+            ✓ Vital signs follow exact format requirements
+            ✓ Additional vitals are properly captured in the additional_vitals object
+            ✓ Cultural/religious information is extracted respectfully and objectively
+            ✓ Clinical terminology is standard and consistent
+            ✓ No important clinical or cultural information is omitted
+            ✓ All sections contribute meaningful data for diagnosis matching
+            ✓ Language is professional and objective
+            ✓ JSON structure is complete and valid
+
+            **EXAMPLES OF GOOD EXTRACTION:**
+            - Demographics: age: 45, sex: "female", religion: "Catholic", cultural_background: "Hispanic/Latino", language: "Spanish (primary)"
+            - Vital Signs: HR: 92, BP: "140/90", RR: 24, SpO2: 94, additional_vitals: {{"Pain": "7/10", "Glucose": "180 mg/dL"}}
+            - Cultural Considerations: dietary_restrictions: "No pork products", religious_practices: "Daily rosary prayer", communication_preferences: "Prefers Spanish-speaking staff"
+
+            Process the assessment data now, ensuring maximum consistency, cultural sensitivity, and clinical accuracy for optimal diagnosis database matching.
         """
         
         logger.info("Calling API for manual data parsing...")
@@ -499,7 +611,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         if not response or not response.text:
             raise Exception("No response from AI model")
         
-        # Enhanced JSON parsing with better error handling
+        # Enhanced JSON parsing
         import json
         import re
         
@@ -557,10 +669,10 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
 @app.post("/api/suggest-diagnoses")
 async def suggest_diagnoses(assessment_data: Dict) -> Dict:
     """
-    Suggest nursing diagnoses based on assessment data using vector similarity search.
+    Suggest nursing diagnoses and generate complete NCP based on assessment data.
     """
     try:
-        logger.info("Starting vector-based diagnosis suggestion process")
+        logger.info("Starting comprehensive NCP generation process")
         
         # Validate assessment data
         try:
@@ -576,10 +688,8 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
                 }
             )
         
-        # Initialize vector diagnosis matcher
+        # Step 1: Find and select best diagnosis
         matcher = await create_vector_diagnosis_matcher()
-        
-        # Step 1: Find candidate diagnoses using vector similarity
         candidates = await matcher.find_candidate_diagnoses(
             assessment_data, 
             top_n=10, 
@@ -596,25 +706,378 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
                 "risk_factors": [],
                 "suggested_outcomes": [],
                 "suggested_interventions": [],
-                "reasoning": "No matching diagnoses found for the provided assessment data."
+                "reasoning": "No matching diagnoses found for the provided assessment data.",
+                "ncp": None
             }
         
-        # Step 2: Use AI to select the best diagnosis
-        result = await matcher.select_best_diagnosis(assessment_data, candidates)
+        selected_diagnosis = await matcher.select_best_diagnosis(assessment_data, candidates)
+        logger.info(f"Successfully selected diagnosis: {selected_diagnosis.get('diagnosis')}")
         
-        logger.info(f"Successfully selected diagnosis: {result}")
-        return result
+        # Step 2: Generate complete NCP based on selected diagnosis
+        try:
+            ncp_data = await generate_structured_ncp(assessment_data, selected_diagnosis)
+            logger.info("Successfully generated structured NCP")
+            
+            # Combine diagnosis info with NCP
+            result = {
+                **selected_diagnosis,
+                "ncp": ncp_data
+            }
+            
+            return result
+            
+        except Exception as ncp_error:
+            logger.error(f"Failed to generate NCP: {str(ncp_error)}")
+            # Return diagnosis without NCP if generation fails
+            return {
+                **selected_diagnosis,
+                "ncp": None,
+                "ncp_error": str(ncp_error)
+            }
         
     except Exception as e:
-        logger.error(f"Error in vector diagnosis suggestion: {str(e)}", exc_info=True)
+        logger.error(f"Error in comprehensive NCP generation: {str(e)}", exc_info=True)
         raise HTTPException(
             status_code=500,
             detail={
-                "message": "Failed to suggest diagnoses",
-                "error_type": "diagnosis_suggestion_error",
+                "message": "Failed to generate diagnosis and NCP",
+                "error_type": "comprehensive_generation_error",
                 "suggestion": "Please try again. If the problem persists, contact support."
             }
         )
+
+async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dict, max_retries: int = 3) -> Dict:
+    """
+    Generate a structured NCP in JSON format with validation and retry logic.
+    """
+    
+    def validate_ncp_structure(ncp_data: Dict) -> bool:
+        """Validate that the NCP has the required structure and content."""
+        required_sections = ["assessment", "diagnosis", "outcomes", "interventions", "rationale", "implementation", "evaluation"]
+        
+        # Check all sections exist
+        if not all(section in ncp_data for section in required_sections):
+            return False
+        
+        # Check each section has meaningful content
+        for section, content in ncp_data.items():
+            if section in required_sections:
+                if not content or (isinstance(content, str) and len(content.strip()) < 10):
+                    return False
+                if isinstance(content, dict) and not any(v for v in content.values() if v):
+                    return False
+        
+        # Validate outcomes structure (allow flexibility for short_term or long_term only)
+        outcomes = ncp_data.get("outcomes", {})
+        if not isinstance(outcomes, dict):
+            return False
+        
+        # At least one type of outcome should exist
+        has_short_term = outcomes.get("short_term") and len(outcomes["short_term"]) > 0
+        has_long_term = outcomes.get("long_term") and len(outcomes["long_term"]) > 0
+        
+        if not (has_short_term or has_long_term):
+            return False
+        
+        # Validate interventions structure
+        interventions = ncp_data.get("interventions", {})
+        if not isinstance(interventions, dict):
+            return False
+        
+        # At least one intervention category should have content
+        has_independent = interventions.get("independent") and len(interventions["independent"]) > 0
+        has_dependent = interventions.get("dependent") and len(interventions["dependent"]) > 0
+        has_collaborative = interventions.get("collaborative") and len(interventions["collaborative"]) > 0
+        
+        if not (has_independent or has_dependent or has_collaborative):
+            return False
+        
+        # Validate rationale structure (should have intervention-specific rationales)
+        rationale = ncp_data.get("rationale", {})
+        if not isinstance(rationale, dict) or not rationale.get("interventions"):
+            return False
+        
+        return True
+    
+    # Helper function to safely join arrays or provide fallback
+    def safe_format_list(items, fallback="Not specified in database"):
+        if not items or (isinstance(items, list) and len(items) == 0):
+            return fallback
+        if isinstance(items, list):
+            return ', '.join(str(item) for item in items if item)
+        return str(items) if items else fallback
+    
+    formatted_assessment = format_structured_data(assessment_data)
+    
+    # Create the
+    # structured prompt
+    ncp_prompt = f"""
+        You are a nursing educator expert in NANDA-I, NIC, and NOC standards. Generate a complete Nursing Care Plan based on the provided assessment data and selected nursing diagnosis.
+
+        **PATIENT ASSESSMENT DATA:**
+        {formatted_assessment}
+
+        **SELECTED NURSING DIAGNOSIS INFORMATION:**
+        Diagnosis: {selected_diagnosis.get('diagnosis', 'Not provided')}
+        Definition: {selected_diagnosis.get('definition', 'Not provided')}
+        Defining Characteristics: {safe_format_list(selected_diagnosis.get('defining_characteristics', []))}
+        Related Factors: {safe_format_list(selected_diagnosis.get('related_factors', []))}
+        Risk Factors: {safe_format_list(selected_diagnosis.get('risk_factors', []))}
+        Suggested NOC Outcomes: {safe_format_list(selected_diagnosis.get('suggested_outcomes', []))}
+        Suggested NIC Interventions: {safe_format_list(selected_diagnosis.get('suggested_interventions', []))}
+
+        **REQUIREMENTS:**
+        1. Use the selected diagnosis as the primary nursing diagnosis
+        2. Base all outcomes and interventions on NOC and NIC standards
+        3. Use the suggested outcomes/interventions as starting points, but adapt them to the specific patient
+        4. If suggested outcomes/interventions are not provided, generate appropriate NOC/NIC based options
+        5. Ensure logical connections between all components
+        6. Flexible intervention categories: Use only applicable categories (independent/dependent/collaborative)
+        7. SMART outcomes: Follow SMART criteria for all outcome statements
+        8. Return ONLY valid JSON with no additional text
+
+        **OUTPUT FORMAT (JSON ONLY):**
+        {{
+            "assessment": {{
+                "subjective": ["List of subjective findings from assessment data"],
+                "objective": ["List of objective findings from assessment data"]
+            }},
+            "diagnosis": {{
+                "statement": "Complete NANDA-I diagnosis statement with related to and as evidenced by",
+                "definition": "Definition of the diagnosis",
+                "defining_characteristics": ["List of defining characteristics present in this patient"],
+                "related_factors": ["List of related factors applicable to this patient"]
+            }},
+            "outcomes": {{
+                "short_term": [
+                    {{
+                        "outcome": "SMART NOC outcome statement adapted to patient following structure: The patient will [action verb] [condition/modifiers] [criterion of desired performance]",
+                        "timeframe": "Clinically appropriate timeframe based on diagnosis nature and patient condition"
+                    }}
+                ],
+                "long_term": [
+                    {{
+                        "outcome": "SMART NOC outcome statement adapted to patient following structure: The patient will [action verb] [condition/modifiers] [criterion of desired performance]", 
+                        "timeframe": "Clinically appropriate timeframe based on diagnosis nature and patient condition"
+                    }}
+                ]
+            }},
+            "interventions": {{
+                "independent": [
+                    {{
+                        "id": "ind_1",
+                        "intervention": "NIC intervention adapted to patient specifics"
+                    }},
+                    {{
+                        "id": "ind_2", 
+                        "intervention": "NIC intervention adapted to patient specifics"
+                    }}
+                ],
+                "dependent": [
+                    {{
+                        "id": "dep_1",
+                        "intervention": "Dependent intervention adapted to patient"
+                    }}
+                ],
+                "collaborative": [
+                    {{
+                        "id": "col_1",
+                        "intervention": "Collaborative intervention adapted to patient"
+                    }}
+                ]
+            }},
+            "rationale": {{
+                "interventions": {{
+                    "ind_1": {{
+                        "rationale": "Why this intervention addresses the diagnosis and supports outcomes",
+                        "evidence": "NANDA-I/NIC/NOC standard or nursing reference supporting this intervention"
+                    }},
+                    "ind_2": {{
+                        "rationale": "Why this intervention addresses the diagnosis and supports outcomes", 
+                        "evidence": "NANDA-I/NIC/NOC standard or nursing reference supporting this intervention"
+                    }},
+                    "dep_1": {{
+                        "rationale": "Why this dependent intervention is necessary",
+                        "evidence": "Medical/nursing standard supporting this intervention"
+                    }},
+                    "col_1": {{
+                        "rationale": "Why collaboration is needed for this intervention",
+                        "evidence": "Professional standard or guideline supporting collaboration"
+                    }}
+                }}
+            }},
+            "implementation": {{
+                "independent": [
+                    {{
+                        "id": "ind_1",
+                        "action_taken": "Specific action performed in past tense with details",
+                        "patient_response": "Observable patient response or reaction to this specific intervention",
+                        "notes": "Additional implementation notes or modifications made during execution"
+                    }},
+                    {{
+                        "id": "ind_2",
+                        "action_taken": "Specific action performed in past tense with details",
+                        "patient_response": "Observable patient response or reaction to this specific intervention", 
+                        "notes": "Additional implementation notes or modifications made during execution"
+                    }}
+                ],
+                "dependent": [
+                    {{
+                        "id": "dep_1",
+                        "action_taken": "Specific dependent action performed in past tense with details",
+                        "patient_response": "Observable patient response or reaction to this specific intervention",
+                        "notes": "Additional implementation notes or modifications made during execution"
+                    }}
+                ],
+                "collaborative": [
+                    {{
+                        "id": "col_1",
+                        "action_taken": "Specific collaborative action performed in past tense with details",
+                        "patient_response": "Observable patient response or reaction to this specific intervention",
+                        "notes": "Additional implementation notes or modifications made during execution"
+                    }}
+                ]
+            }},
+            "evaluation": {{
+                "short_term": [
+                    {{
+                        "outcome_reference": "Reference to the specific short-term outcome being evaluated",
+                        "status": "Met/Partially Met/Not Met",
+                        "evidence": "Specific measurable evidence supporting the evaluation status",
+                        "rationale": "Clinical reasoning for why the outcome was evaluated as met/partially met/not met"
+                    }}
+                ],
+                "long_term": [
+                    {{
+                        "outcome_reference": "Reference to the specific long-term outcome being evaluated",
+                        "status": "Met/Partially Met/Not Met", 
+                        "evidence": "Specific measurable evidence supporting the evaluation status",
+                        "rationale": "Clinical reasoning for why the outcome was evaluated as met/partially met/not met"
+                    }}
+                ],
+                "plan_modifications": ["Any needed modifications to the care plan based on evaluation results"],
+                "next_steps": ["Recommended follow-up actions or continued monitoring"]
+            }}
+        }}
+
+        **IMPORTANT GUIDELINES:**
+
+        **Outcomes - SMART Criteria:**
+        - **Specific**: Clearly define what the patient will accomplish
+        - **Measurable**: Include quantifiable indicators or observable behaviors
+        - **Attainable**: Realistic based on patient condition and diagnosis
+        - **Relevant**: Directly addresses the nursing diagnosis
+        - **Time-bound**: Include appropriate timeframe based on clinical judgment
+
+        **Outcome Statement Structure:**
+        - **Subject**: "The patient will..." (always patient-centered)
+        - **Verb**: Use action verbs (demonstrate, verbalize, maintain, perform, report, etc.)
+        - **Condition/Modifiers**: Specify circumstances (with assistance, independently, during ambulation, etc.)
+        - **Criterion**: Quantify performance standard (pain level ≤ 3/10, SpO2 ≥ 95%, walk 50 feet, etc.)
+
+        **Timeframe Guidelines:**
+        - **Short-term**: Based on diagnosis urgency and complexity (hours to days)
+        - **Long-term**: Based on recovery trajectory and discharge planning (days to weeks)
+        - **Acute conditions**: Shorter timeframes (hours to 2-3 days)
+        - **Chronic conditions**: Longer timeframes (days to weeks)
+        - **Risk diagnoses**: Variable based on risk level and intervention needs
+        - If short-term outcomes aren't clinically appropriate, use empty array []
+        - If long-term outcomes aren't clinically appropriate, use empty array []
+        - Ensure at least one outcome type (short-term OR long-term) is provided
+
+        **Examples of SMART Outcomes:**
+        - "The patient will demonstrate proper inhaler technique independently within 24 hours"
+        - "The patient will maintain oxygen saturation ≥ 95% on room air within 48 hours"
+        - "The patient will verbalize 3 pain management strategies before discharge"
+        - "The patient will ambulate 100 feet with minimal assistance within 72 hours"
+
+        **Interventions:**
+        - Use only applicable intervention categories (independent/dependent/collaborative)
+        - If a category is not needed for this specific diagnosis/patient, use empty array []
+        - Ensure at least one intervention category has content
+        - Independent interventions are highly encouraged as they demonstrate nursing autonomy
+        - Include dependent/collaborative only when clinically necessary
+
+        **Rationale:**
+        - Focus solely on intervention-specific rationales
+        - Each intervention must have corresponding rationale with evidence reference
+        - Use intervention IDs to clearly link interventions with their rationales
+
+        **Implementation:**
+        - Mirror the interventions structure but in past tense
+        - Document actual actions performed with specific details
+        - Include realistic patient responses (these are template scenarios since actual responses require nursing assessment)
+        - Provide plausible implementation scenarios that nurses can reference
+
+        **Evaluation:**
+        - Mirror the outcomes structure but in past tense
+        - Evaluate each outcome as Met/Partially Met/Not Met with specific evidence
+        - Provide realistic evaluation scenarios (these are templates since actual evaluation requires nursing judgment)
+        - Include clinical reasoning for evaluation decisions
+
+        **Evidence References:**
+        - Reference NANDA-I, NOC, NIC, or standard nursing texts generally
+        - Avoid specific page numbers or fabricated citations
+
+        Generate the complete NCP following this exact JSON structure with SMART outcomes that include clinically appropriate timeframes determined by the nature of the diagnosis and patient condition.
+    """
+    
+    # Retry logic
+    for attempt in range(max_retries):
+        try:
+            logger.info(f"Generating structured NCP - Attempt {attempt + 1}")
+            
+            response = model.generate_content(ncp_prompt)
+            
+            if not response or not response.text:
+                raise Exception("No response from AI model")
+            
+            # Parse JSON response
+            raw_response = response.text.strip()
+            logger.info(f"Raw response from AI: {raw_response}")
+            
+            # Clean and extract JSON
+            import json
+            import re
+            
+            cleaned_response = raw_response.encode('utf-8').decode('utf-8-sig')
+            
+            # Try to extract JSON from code blocks
+            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
+            if json_match:
+                cleaned_response = json_match.group(1)
+            
+            # Find JSON boundaries
+            start_brace = cleaned_response.find('{')
+            end_brace = cleaned_response.rfind('}')
+            
+            if start_brace != -1 and end_brace != -1:
+                json_part = cleaned_response[start_brace:end_brace+1]
+                ncp_data = json.loads(json_part)
+                
+                # Validate structure
+                if validate_ncp_structure(ncp_data):
+                    logger.info(f"Successfully generated and validated NCP on attempt {attempt + 1}")
+                    return ncp_data
+                else:
+                    logger.warning(f"Attempt {attempt + 1}: Generated NCP failed validation")
+                    if attempt == max_retries - 1:
+                        raise Exception("Generated NCP failed structure validation after all retries")
+            else:
+                logger.warning(f"Attempt {attempt + 1}: Could not extract valid JSON")
+                if attempt == max_retries - 1:
+                    raise Exception("Could not extract valid JSON after all retries")
+                    
+        except json.JSONDecodeError as e:
+            logger.warning(f"Attempt {attempt + 1}: JSON parsing failed - {str(e)}")
+            if attempt == max_retries - 1:
+                raise Exception(f"JSON parsing failed after all retries: {str(e)}")
+        except Exception as e:
+            logger.warning(f"Attempt {attempt + 1}: Generation failed - {str(e)}")
+            if attempt == max_retries - 1:
+                raise Exception(f"NCP generation failed after all retries: {str(e)}")
+    
+    raise Exception("Failed to generate valid NCP after all retries")
 
 if __name__ == "__main__":
     import uvicorn
