@@ -4,7 +4,7 @@ import FormatSelector from '@/components/ncp/FormatSelector.vue'
 import { Alert, AlertTitle } from '@/components/ui/alert'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import Separator from '@/components/ui/separator/Separator.vue'
-import { useToast } from '@/components/ui/toast/use-toast'
+import { useGenerationErrorHandler } from '@/composables/useGenerationErrorHandler'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { ncpService } from '@/services/ncpService'
 import { vAutoAnimate } from '@formkit/auto-animate'
@@ -16,8 +16,8 @@ const selectedFormat = ref('7')
 const isLoading = ref(false)
 const showGuidance = ref(false)
 const exampleFormatContainer = ref(null)
-const { toast } = useToast()
 const router = useRouter()
+const { handleError, handleSuccess } = useGenerationErrorHandler()
 
 const formattingTips = [
   'Enter each finding on a new line.',
@@ -54,89 +54,25 @@ const handleFormatChange = format => {
 const handleAssessmentSubmit = async formData => {
   isLoading.value = true
   try {
-    // Check if this is the new comprehensive result with NCP
     if (formData.generatedNCP) {
       console.log('Received complete NCP from comprehensive generation')
-
-      // Data already includes the generated NCP, so we can navigate directly
       const ncps = await ncpService.getUserNCPs()
       const latestNCP = ncps[0]
 
-      toast({
-        title: 'Success',
-        description:
-          'Complete NCP generated successfully with structured format',
-        duration: 5000,
-      })
-
+      handleSuccess('complete')
       router.push(`/ncps/${latestNCP.id}`)
       return
     }
 
-    // Handle cases where only diagnosis was generated or other fallback scenarios
     if (formData.diagnosis && !formData.generatedNCP) {
       console.log('Only diagnosis was generated, handling fallback')
-
-      toast({
-        title: 'Partial Success',
-        description: `Diagnosis found: ${formData.diagnosis.diagnosis}. Please try generating again or contact support.`,
-        variant: 'destructive',
-        duration: 7000,
-      })
+      handleSuccess('partial', formData.diagnosis.diagnosis)
       return
     }
 
-    // Handle cases where no diagnosis was found
-    toast({
-      title: 'Generation Issue',
-      description:
-        'Unable to generate a complete care plan. Please review your assessment data and try again.',
-      variant: 'destructive',
-      duration: 7000,
-    })
+    handleSuccess('issue')
   } catch (error) {
-    console.error('Generation error:', error)
-
-    // Determine error title and description based on error content
-    let errorTitle = 'Generation Failed'
-    let errorDescription =
-      error.message || 'Failed to generate nursing care plan'
-
-    // Check for specific validation errors
-    if (error.message) {
-      if (error.message.includes('age is required')) {
-        errorTitle = 'Missing Required Information'
-        errorDescription =
-          "Patient age is recommended. Please ensure your assessment data includes the patient's age, or switch to Assistant Mode for structured input."
-      } else if (error.message.includes('sex is required')) {
-        errorTitle = 'Missing Required Information'
-        errorDescription =
-          "Patient sex is required. Please ensure your assessment data includes the patient's sex, or switch to Assistant Mode for structured input."
-      } else if (error.message.includes('chief complaint is required')) {
-        errorTitle = 'Missing Required Information'
-        errorDescription =
-          "Chief complaint is required. Please ensure your assessment data includes the main reason for the patient's visit."
-      } else if (
-        error.message.includes(
-          'Unable to extract meaningful clinical information'
-        )
-      ) {
-        errorTitle = 'Insufficient Clinical Data'
-        errorDescription =
-          'Unable to extract sufficient clinical information from your input. Please provide more detailed patient symptoms, vital signs, physical findings, or medical history.'
-      } else if (error.message.includes('parsing')) {
-        errorTitle = 'Data Processing Error'
-        errorDescription =
-          'Failed to process your assessment data. Please check your input format and ensure it contains clear clinical information.'
-      }
-    }
-
-    toast({
-      title: errorTitle,
-      description: errorDescription,
-      variant: 'destructive',
-      duration: 8000,
-    })
+    handleError(error)
   } finally {
     isLoading.value = false
   }
