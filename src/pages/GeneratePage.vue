@@ -54,21 +54,46 @@ const handleFormatChange = format => {
 const handleAssessmentSubmit = async formData => {
   isLoading.value = true
   try {
-    const assessmentData = {
-      ...formData,
-      format: selectedFormat.value,
+    // Check if this is the new comprehensive result with NCP
+    if (formData.generatedNCP) {
+      console.log('Received complete NCP from comprehensive generation')
+
+      // Data already includes the generated NCP, so we can navigate directly
+      const ncps = await ncpService.getUserNCPs()
+      const latestNCP = ncps[0]
+
+      toast({
+        title: 'Success',
+        description:
+          'Complete NCP generated successfully with structured format',
+        duration: 5000,
+      })
+
+      router.push(`/ncps/${latestNCP.id}`)
+      return
     }
 
-    await ncpService.generateNCP(assessmentData)
-    const ncps = await ncpService.getUserNCPs()
-    const latestNCP = ncps[0]
+    // Handle cases where only diagnosis was generated or other fallback scenarios
+    if (formData.diagnosis && !formData.generatedNCP) {
+      console.log('Only diagnosis was generated, handling fallback')
 
+      toast({
+        title: 'Partial Success',
+        description: `Diagnosis found: ${formData.diagnosis.diagnosis}. Please try generating again or contact support.`,
+        variant: 'destructive',
+        duration: 7000,
+      })
+      return
+    }
+
+    // Handle cases where no diagnosis was found
     toast({
-      title: 'Success',
-      description: 'NCP generated successfully',
+      title: 'Generation Issue',
+      description:
+        'Unable to generate a complete care plan. Please review your assessment data and try again.',
+      variant: 'destructive',
+      duration: 7000,
     })
-
-    router.push(`/ncps/${latestNCP.id}`)
   } catch (error) {
     console.error('Generation error:', error)
 
@@ -82,7 +107,7 @@ const handleAssessmentSubmit = async formData => {
       if (error.message.includes('age is required')) {
         errorTitle = 'Missing Required Information'
         errorDescription =
-          "Patient age is required. Please ensure your assessment data includes the patient's age, or switch to Assistant Mode for structured input."
+          "Patient age is recommended. Please ensure your assessment data includes the patient's age, or switch to Assistant Mode for structured input."
       } else if (error.message.includes('sex is required')) {
         errorTitle = 'Missing Required Information'
         errorDescription =
@@ -110,6 +135,7 @@ const handleAssessmentSubmit = async formData => {
       title: errorTitle,
       description: errorDescription,
       variant: 'destructive',
+      duration: 8000,
     })
   } finally {
     isLoading.value = false
@@ -129,9 +155,10 @@ onMounted(() => {
     <div v-if="isLoading" class="flex items-center justify-center h-screen">
       <LoadingIndicator
         :messages="[
-          'Preparing your nursing care plan...',
-          'Analyzing patient data...',
-          'Generating recommendations...',
+          'Analyzing patient assessment data...',
+          'Finding best matching diagnosis...',
+          'Generating comprehensive care plan...',
+          'Finalizing structured NCP...',
         ]"
       />
     </div>
@@ -142,7 +169,8 @@ onMounted(() => {
         Generate Nursing Care Plan
       </h1>
       <p class="text-muted-foreground mb-8">
-        Create an AI-generated nursing care plan based on patient data
+        Create an AI-generated nursing care plan with intelligent diagnosis
+        matching
       </p>
 
       <!-- Format & Assessment Section -->
@@ -156,13 +184,13 @@ onMounted(() => {
       <Separator class="my-8" />
 
       <div class="mb-10">
-        <!-- Guidance Section -->
+        <!-- Enhanced Guidance Section -->
         <Alert class="p-4 w-full" ref="exampleFormatContainer" v-auto-animate>
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3 flex-1 min-w-0">
               <Info class="shrink-0 w-5 h-5" />
               <AlertTitle class="text-base font-semibold mb-0">
-                Formatting Tips & Example
+                New: Intelligent Diagnosis Matching & Structured NCP Generation
               </AlertTitle>
             </div>
             <button
@@ -176,9 +204,41 @@ onMounted(() => {
             </button>
           </div>
           <div v-if="showGuidance" class="mt-4 space-y-6">
+            <!-- New Features Info -->
+            <div>
+              <h4 class="font-semibold text-sm mb-2 text-primary">
+                ✨ Enhanced Features
+              </h4>
+              <ul class="text-muted-foreground space-y-2 text-sm">
+                <li class="flex items-start space-x-2">
+                  <span class="text-primary font-medium">🎯</span>
+                  <span
+                    ><strong>Smart Diagnosis Matching:</strong> AI automatically
+                    finds the best NANDA-I diagnosis from a comprehensive
+                    database</span
+                  >
+                </li>
+                <li class="flex items-start space-x-2">
+                  <span class="text-primary font-medium">📋</span>
+                  <span
+                    ><strong>Structured NCP Format:</strong> Generates
+                    well-organized, professional care plans with consistent
+                    formatting</span
+                  >
+                </li>
+                <li class="flex items-start space-x-2">
+                  <span class="text-primary font-medium">⚡</span>
+                  <span
+                    ><strong>One-Step Generation:</strong> Complete
+                    assessment-to-NCP workflow in a single process</span
+                  >
+                </li>
+              </ul>
+            </div>
+
             <!-- Formatting Tips -->
             <div>
-              <h4 class="font-semibold text-sm mb-2">Formatting Tips</h4>
+              <h4 class="font-semibold text-sm mb-2">Input Guidelines</h4>
               <ul class="text-muted-foreground space-y-2 text-sm">
                 <li
                   v-for="(tip, idx) in formattingTips"
@@ -190,6 +250,7 @@ onMounted(() => {
                 </li>
               </ul>
             </div>
+
             <!-- Example Format -->
             <div>
               <h4 class="font-semibold text-sm mb-2">Example Format</h4>

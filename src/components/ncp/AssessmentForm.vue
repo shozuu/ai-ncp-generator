@@ -29,7 +29,6 @@ const handleSubmit = async data => {
 
       try {
         structuredData = await ncpService.parseManualAssessment(data)
-
         toast({
           title: 'Success',
           description: 'Assessment data processed successfully',
@@ -37,12 +36,10 @@ const handleSubmit = async data => {
       } catch (parseError) {
         console.error('Parse error details:', parseError)
 
-        // Extract detailed error information
         let errorMessage = 'Failed to process manual assessment data.'
         let suggestion = 'Please check your input format and try again.'
 
         if (parseError.message) {
-          // Check if it's a detailed error from backend
           if (parseError.message.includes('suggestion')) {
             const parts = parseError.message.split('suggestion:')
             if (parts.length > 1) {
@@ -63,53 +60,70 @@ const handleSubmit = async data => {
       }
     }
 
-    // Call suggest_diagnoses API before emitting
+    // Call comprehensive generation API
     try {
       toast({
-        title: 'Analyzing Assessment',
-        description: 'Finding relevant nursing diagnoses...',
+        title: 'Generating Care Plan',
+        description: 'Finding best diagnosis and creating complete NCP...',
       })
 
       console.log(
-        'Calling suggest diagnoses with structured data:',
+        'Calling comprehensive generation with structured data:',
         structuredData
       )
-      const suggestedDiagnoses =
-        await ncpService.suggestDiagnoses(structuredData)
 
-      console.log('Received suggested diagnoses:', suggestedDiagnoses)
+      const result = await ncpService.generateComprehensiveNCP(structuredData)
+      console.log('Received comprehensive result:', result)
 
-      // Add the suggested diagnoses to the structured data
-      const dataWithDiagnoses = {
-        ...structuredData,
-        suggestedDiagnoses: suggestedDiagnoses,
+      if (result.ncp) {
+        // Complete NCP was generated successfully
+        const dataWithNCP = {
+          ...structuredData,
+          diagnosis: result.diagnosis,
+          generatedNCP: result.ncp,
+          originalStructuredNCP: result.originalStructuredNCP,
+        }
+
+        toast({
+          title: 'Care Plan Generated Successfully',
+          description: `Generated complete NCP with diagnosis: ${result.diagnosis.diagnosis}`,
+          duration: 5000,
+        })
+
+        // Emit the complete data
+        emit('submit', dataWithNCP)
+      } else {
+        // Only diagnosis was generated (fallback case)
+        const dataWithDiagnoses = {
+          ...structuredData,
+          diagnosis: result.diagnosis,
+        }
+
+        toast({
+          title: 'Diagnosis Found',
+          description: `Found diagnosis: ${result.diagnosis.diagnosis}. NCP generation encountered an issue.`,
+          variant: 'destructive',
+        })
+
+        // Emit for manual handling
+        emit('submit', dataWithDiagnoses)
       }
+    } catch (comprehensiveError) {
+      console.error('Comprehensive generation error:', comprehensiveError)
 
       toast({
-        title: 'Assessment Complete',
-        description: `Found ${suggestedDiagnoses.diagnosis ? '1 recommended' : 'no'} nursing diagnosis`,
-      })
-
-      // Emit the structured data with suggested diagnoses
-      // emit('submit', dataWithDiagnoses)
-      // emit('submit', structuredData)
-    } catch (diagnosisError) {
-      console.error('Diagnosis suggestion error:', diagnosisError)
-
-      // Show diagnosis error but still allow NCP generation
-      toast({
-        title: 'Diagnosis Suggestion Failed',
-        description: `${diagnosisError.message || 'Could not suggest diagnoses'} - Proceeding with NCP generation...`,
+        title: 'Generation Failed',
+        description: `${comprehensiveError.message || 'Could not generate diagnosis and NCP'} - Please try again.`,
         variant: 'destructive',
+        duration: 7000,
       })
 
-      // Still emit the structured data even if diagnosis suggestion fails
+      // Still emit the structured data for fallback manual generation
       emit('submit', structuredData)
     }
   } catch (error) {
     console.error('Assessment submission error:', error)
 
-    // Extract detailed error information
     let errorMessage = 'Failed to process assessment data'
     let suggestion = ''
 
