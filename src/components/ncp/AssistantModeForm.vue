@@ -44,6 +44,9 @@ const form = useForm({
       age: null,
       sex: '',
       occupation: '',
+      religion: '',
+      cultural_background: '',
+      language: '',
     },
     chief_complaint: '',
     history: {
@@ -60,11 +63,20 @@ const form = useForm({
       RR: null,
       SpO2: null,
       Temp: null,
+      additional_vitals: {},
     },
     physical_exam: [],
     physical_exam_other: '',
     risk_factors: [],
     risk_factors_other: '',
+    cultural_considerations: {
+      dietary_restrictions: '',
+      religious_practices: '',
+      communication_preferences: '',
+      family_involvement: '',
+      health_beliefs: '',
+      other_considerations: '',
+    },
     nurse_notes: '',
   },
 })
@@ -220,6 +232,9 @@ const onSubmit = form.handleSubmit(values => {
       age: values.demographics?.age ? Number(values.demographics.age) : null,
       sex: values.demographics?.sex || '',
       occupation: values.demographics?.occupation || '',
+      religion: values.demographics?.religion || '',
+      cultural_background: values.demographics?.cultural_background || '',
+      language: values.demographics?.language || '',
     },
     chief_complaint: values.chief_complaint || '',
     history: {
@@ -243,6 +258,7 @@ const onSubmit = form.handleSubmit(values => {
       RR: values.vital_signs?.RR ? Number(values.vital_signs.RR) : null,
       SpO2: values.vital_signs?.SpO2 ? Number(values.vital_signs.SpO2) : null,
       Temp: values.vital_signs?.Temp ? Number(values.vital_signs.Temp) : null,
+      additional_vitals: values.vital_signs?.additional_vitals || {},
     },
     physical_exam: Array.isArray(values.physical_exam)
       ? values.physical_exam
@@ -250,6 +266,19 @@ const onSubmit = form.handleSubmit(values => {
     physical_exam_other: values.physical_exam_other || '',
     risk_factors: Array.isArray(values.risk_factors) ? values.risk_factors : [],
     risk_factors_other: values.risk_factors_other || '',
+    cultural_considerations: {
+      dietary_restrictions:
+        values.cultural_considerations?.dietary_restrictions || '',
+      religious_practices:
+        values.cultural_considerations?.religious_practices || '',
+      communication_preferences:
+        values.cultural_considerations?.communication_preferences || '',
+      family_involvement:
+        values.cultural_considerations?.family_involvement || '',
+      health_beliefs: values.cultural_considerations?.health_beliefs || '',
+      other_considerations:
+        values.cultural_considerations?.other_considerations || '',
+    },
     nurse_notes: values.nurse_notes || '',
   }
 
@@ -359,6 +388,44 @@ const onSubmit = form.handleSubmit(values => {
                 <FormControl>
                   <Input
                     placeholder="Enter occupation"
+                    v-bind="componentField"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <FormField name="demographics.religion" v-slot="{ componentField }">
+              <FormItem v-auto-animate>
+                <FormLabel>Religion</FormLabel>
+                <FormControl>
+                  <Input placeholder="Enter religion" v-bind="componentField" />
+                </FormControl>
+              </FormItem>
+            </FormField>
+
+            <FormField
+              name="demographics.cultural_background"
+              v-slot="{ componentField }"
+            >
+              <FormItem v-auto-animate>
+                <FormLabel>Cultural Background</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Enter cultural background"
+                    v-bind="componentField"
+                  />
+                </FormControl>
+              </FormItem>
+            </FormField>
+
+            <FormField name="demographics.language" v-slot="{ componentField }">
+              <FormItem v-auto-animate>
+                <FormLabel>Language</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="Preferred language"
                     v-bind="componentField"
                   />
                 </FormControl>

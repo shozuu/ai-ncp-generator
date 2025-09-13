@@ -338,6 +338,10 @@ def format_structured_data(structured_data) -> str:
         if demographics.get('age'): demo_info.append(f"Age: {demographics['age']}")
         if demographics.get('sex'): demo_info.append(f"Sex: {demographics['sex']}")
         if demographics.get('occupation'): demo_info.append(f"Occupation: {demographics['occupation']}")
+        if demographics.get('religion'): demo_info.append(f"Religion: {demographics['religion']}")
+        if demographics.get('cultural_background'): demo_info.append(f"Cultural Background: {demographics['cultural_background']}")
+        if demographics.get('language') and demographics['language'].lower() != 'english': 
+            demo_info.append(f"Language: {demographics['language']}")
         if demo_info:
             formatted_sections.append(f"Demographics:\n- {'; '.join(demo_info)}")
     
@@ -374,6 +378,13 @@ def format_structured_data(structured_data) -> str:
         if vitals.get('RR'): vital_info.append(f"RR: {vitals['RR']}/min")
         if vitals.get('SpO2'): vital_info.append(f"SpO2: {vitals['SpO2']}%")
         if vitals.get('Temp'): vital_info.append(f"Temp: {vitals['Temp']}°C")
+        
+        # Add additional vitals
+        additional_vitals = vitals.get('additional_vitals', {})
+        for vital_name, vital_value in additional_vitals.items():
+            if vital_value:
+                vital_info.append(f"{vital_name}: {vital_value}")
+        
         if vital_info:
             formatted_sections.append(f"Vital Signs:\n- {'; '.join(vital_info)}")
     
@@ -392,6 +403,25 @@ def format_structured_data(structured_data) -> str:
         risk_items = risk_factors.copy()
         if risk_factors_other: risk_items.append(risk_factors_other)
         formatted_sections.append(f"Risk Factors:\n- {', '.join(risk_items)}")
+    
+    # Cultural Considerations (new section)
+    cultural = structured_data.get('cultural_considerations', {})
+    if any(cultural.values()):
+        cultural_info = []
+        if cultural.get('dietary_restrictions'): 
+            cultural_info.append(f"Dietary restrictions: {cultural['dietary_restrictions']}")
+        if cultural.get('religious_practices'): 
+            cultural_info.append(f"Religious practices: {cultural['religious_practices']}")
+        if cultural.get('communication_preferences'): 
+            cultural_info.append(f"Communication preferences: {cultural['communication_preferences']}")
+        if cultural.get('family_involvement'): 
+            cultural_info.append(f"Family involvement: {cultural['family_involvement']}")
+        if cultural.get('health_beliefs'): 
+            cultural_info.append(f"Health beliefs: {cultural['health_beliefs']}")
+        if cultural.get('other_considerations'): 
+            cultural_info.append(cultural['other_considerations'])
+        if cultural_info:
+            formatted_sections.append(f"Cultural Considerations:\n- {'; '.join(cultural_info)}")
     
     # Nurse Notes
     if structured_data.get('nurse_notes'):
