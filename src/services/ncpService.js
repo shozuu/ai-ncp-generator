@@ -205,7 +205,7 @@ export const ncpService = {
   async suggestDiagnoses(assessmentData) {
     try {
       console.log(
-        'Sending assessment data for diagnosis suggestion:',
+        'Sending assessment data for comprehensive NCP generation:',
         assessmentData
       )
 
@@ -217,19 +217,41 @@ export const ncpService = {
         }
       )
 
-      const suggestedDiagnoses = response.data
-      console.log('Received suggested diagnoses:', suggestedDiagnoses)
+      const result = response.data
+      console.log('Received comprehensive result:', result)
 
-      return suggestedDiagnoses
+      // Check if NCP was generated successfully
+      if (result.ncp) {
+        console.log('NCP generated successfully')
+        return {
+          diagnosis: {
+            diagnosis: result.diagnosis,
+            definition: result.definition,
+            defining_characteristics: result.defining_characteristics,
+            related_factors: result.related_factors,
+            risk_factors: result.risk_factors,
+            suggested_outcomes: result.suggested_outcomes,
+            suggested_interventions: result.suggested_interventions,
+            reasoning: result.reasoning,
+          },
+          ncp: result.ncp,
+        }
+      } else {
+        console.log('Only diagnosis suggested, no NCP generated')
+        return {
+          diagnosis: result,
+          ncp: null,
+        }
+      }
     } catch (error) {
       console.error(
-        'Diagnosis Suggestion Error:',
+        'Comprehensive generation error:',
         error.response?.data || error
       )
 
       // Extract detailed error information from backend
       const errorDetail = error.response?.data?.detail
-      let errorMessage = 'Failed to suggest diagnoses'
+      let errorMessage = 'Failed to generate diagnosis and NCP'
       let suggestion = ''
 
       if (errorDetail) {
