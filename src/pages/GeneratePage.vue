@@ -6,7 +6,6 @@ import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import Separator from '@/components/ui/separator/Separator.vue'
 import { useGenerationErrorHandler } from '@/composables/useGenerationErrorHandler'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
-import { ncpService } from '@/services/ncpService'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { ChevronDown, ChevronUp, ClipboardMinus, Info } from 'lucide-vue-next'
 import { onMounted, ref } from 'vue'
@@ -54,24 +53,28 @@ const handleFormatChange = format => {
 const handleAssessmentSubmit = async formData => {
   isLoading.value = true
   try {
-    if (formData.generatedNCP) {
-      console.log('Received complete NCP from comprehensive generation')
-      const ncps = await ncpService.getUserNCPs()
-      const latestNCP = ncps[0]
-
+    if (formData.generatedNCP && formData.savedNCPId) {
+      console.log(
+        'Complete NCP generated, redirecting to:',
+        formData.savedNCPId
+      )
       handleSuccess('complete')
-      router.push(`/ncps/${latestNCP.id}`)
+      router.push(`/ncps/${formData.savedNCPId}`)
       return
     }
 
     if (formData.diagnosis && !formData.generatedNCP) {
+      // only diagnosis was generated - show partial success
       console.log('Only diagnosis was generated, handling fallback')
       handleSuccess('partial', formData.diagnosis.diagnosis)
       return
     }
 
+    // fallback case - should rarely happen
+    console.warn('Unexpected formData structure:', formData)
     handleSuccess('issue')
   } catch (error) {
+    console.error('Error in handleAssessmentSubmit:', error)
     handleError(error)
   } finally {
     isLoading.value = false
