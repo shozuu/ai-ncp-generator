@@ -315,7 +315,7 @@ class VectorDiagnosisMatcher:
                 - Do NOT change capitalization, punctuation, or wording
                 - Base your decision strictly on the patient's assessment data and clinical appropriateness
                 - Return the complete information for the selected diagnosis as JSON
-                - Include a brief clinical reasoning for your choice
+                - Include a brief clinical explanation of why this diagnosis was selected over others, including how it matches the patient's assessment data and clinical priorities
 
                 # Patient Assessment Data
                 {formatted_assessment}
