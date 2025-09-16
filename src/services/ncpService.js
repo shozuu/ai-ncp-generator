@@ -29,13 +29,20 @@ export const ncpService = {
         const {
           data: { user },
         } = await supabase.auth.getUser()
+
+        let savedNCP = null
         if (user) {
-          await this.saveStructuredNCP(result.ncp, result, assessmentData)
+          savedNCP = await this.saveStructuredNCP(
+            result.ncp,
+            result,
+            assessmentData
+          )
         }
 
         return {
           diagnosis: result,
-          ncp: result.ncp, // Return the original structured JSON
+          ncp: result.ncp,
+          savedNCPId: savedNCP?.id,
         }
       } else {
         // Only diagnosis was generated
