@@ -1,4 +1,5 @@
 <script setup>
+import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 import { useGenerationErrorHandler } from '@/composables/useGenerationErrorHandler'
 import { ncpService } from '@/services/ncpService'
@@ -6,7 +7,8 @@ import { computed, ref } from 'vue'
 import AssistantModeForm from './AssistantModeForm.vue'
 import ManualModeForm from './ManualModeForm.vue'
 
-const isAssistantMode = ref(true)
+const isAssistantMode = ref(false)
+const isSubmitting = ref(false)
 const { handleError, handleSuccess } = useGenerationErrorHandler()
 
 const emit = defineEmits(['submit'])
@@ -16,6 +18,7 @@ const currentMode = computed(() =>
 )
 
 const handleSubmit = async data => {
+  isSubmitting.value = true
   try {
     let structuredData
 
@@ -47,7 +50,8 @@ const handleSubmit = async data => {
       if (result.ncp) {
         const dataWithNCP = {
           generatedNCP: result.ncp,
-          originalStructuredNCP: result.originalStructuredNCP,
+          diagnosis: result.diagnosis,
+          savedNCPId: result.savedNCPId,
         }
         handleSuccess('complete', result.diagnosis?.diagnosis)
         emit('submit', dataWithNCP)
@@ -74,11 +78,29 @@ const handleSubmit = async data => {
       }
     }
     handleError({ message: errorMessage }, { suggestion })
+  } finally {
+    isSubmitting.value = false
   }
 }
 </script>
 
 <template>
+  <!-- loading overlay -->
+  <div
+    v-if="isSubmitting"
+    class="fixed inset-0 bg-background flex items-center justify-center z-50"
+  >
+    <LoadingIndicator
+      :messages="[
+        'Processing assessment data...',
+        'Finding best diagnosis match...',
+        'Generating comprehensive care plan...',
+        'Saving to database...',
+      ]"
+    />
+  </div>
+
+  <!-- Main content -->
   <section class="space-y-8 w-full">
     <!-- Assistant Toggle Section -->
     <div
