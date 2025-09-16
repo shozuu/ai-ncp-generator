@@ -9,6 +9,25 @@ import ManualModeForm from './ManualModeForm.vue'
 
 const isAssistantMode = ref(false)
 const isSubmitting = ref(false)
+const currentStep = ref('idle')
+
+const loadingMessages = computed(() => {
+  switch (currentStep.value) {
+    case 'parsing':
+      return ['Parsing manual assessment data...']
+    case 'generating':
+      return [
+        'Matching best diagnosis...',
+        'Building NCP structure...',
+        'Generating comprehensive care plan...',
+      ]
+    case 'saving':
+      return ['Saving to database...']
+    default:
+      return ['Processing...']
+  }
+})
+
 const { handleError, handleSuccess } = useGenerationErrorHandler()
 
 const emit = defineEmits(['submit'])
@@ -25,6 +44,7 @@ const handleSubmit = async data => {
     if (isAssistantMode.value) {
       structuredData = data
     } else {
+      currentStep.value = 'parsing'
       handleSuccess('processing')
       try {
         structuredData = await ncpService.parseManualAssessment(data)
@@ -40,13 +60,16 @@ const handleSubmit = async data => {
           }
         }
         handleError({ message: errorMessage }, { suggestion })
+        isSubmitting.value = false
         return
       }
     }
 
     try {
+      currentStep.value = 'generating'
       handleSuccess('generating')
       const result = await ncpService.generateComprehensiveNCP(structuredData)
+      currentStep.value = 'saving'
       if (result.ncp) {
         const dataWithNCP = {
           generatedNCP: result.ncp,
@@ -80,6 +103,7 @@ const handleSubmit = async data => {
     handleError({ message: errorMessage }, { suggestion })
   } finally {
     isSubmitting.value = false
+    currentStep.value = 'idle'
   }
 }
 </script>
@@ -90,14 +114,7 @@ const handleSubmit = async data => {
     v-if="isSubmitting"
     class="fixed inset-0 bg-background flex items-center justify-center z-50"
   >
-    <LoadingIndicator
-      :messages="[
-        'Processing assessment data...',
-        'Finding best diagnosis match...',
-        'Generating comprehensive care plan...',
-        'Saving to database...',
-      ]"
-    />
+    <LoadingIndicator :messages="loadingMessages" />
   </div>
 
   <!-- Main content -->

@@ -94,10 +94,7 @@ onMounted(() => {
     <div v-if="isLoading" class="flex items-center justify-center h-screen">
       <LoadingIndicator
         :messages="[
-          'Analyzing patient assessment data...',
-          'Finding best matching diagnosis...',
-          'Generating comprehensive care plan...',
-          'Finalizing structured NCP...',
+          'Fetching your newly created NCP...',
         ]"
       />
     </div>
