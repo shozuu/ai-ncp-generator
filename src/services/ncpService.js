@@ -1,5 +1,5 @@
 import { supabase } from '@/lib/supabase'
-import { generateDefaultNCPTitle } from '@/utils/ncpUtils'
+import { generateDefaultNCPTitle } from '@/utils/structuredNCPUtils'
 import axios from 'axios'
 
 const API_BASE_URL =
