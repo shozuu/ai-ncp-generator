@@ -1,5 +1,6 @@
 <script setup>
 import RenameNCPDialog from '@/components/ncp/RenameNCPDialog.vue'
+import StructuredNCPRenderer from '@/components/ncp/StructuredNCPRenderer.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -12,21 +13,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Textarea } from '@/components/ui/textarea'
-import { useToast } from '@/components/ui/toast/use-toast'
-import { ncpService } from '@/services/ncpService'
-import { exportUtils } from '@/utils/exportUtils'
+import { useStructuredNCPComponent } from '@/utils/structuredNCPComponentUtils'
 import {
   hasPlaceholderColumns as checkPlaceholderColumns,
-  formatNCPForDisplay,
-  formatTextToLines,
   generateFormatOptions,
   getAllNCPColumns,
   getDisplayTitle,
-  getEditableColumns,
   getExportOptions,
-  parseNCPSectionContent,
-  prepareExportData,
-} from '@/utils/ncpUtils'
+} from '@/utils/structuredNCPUtils'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { useResizeObserver } from '@vueuse/core'
 import {
@@ -43,7 +37,7 @@ import {
   Settings,
   X,
 } from 'lucide-vue-next'
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 const emit = defineEmits(['update:format', 'ncp-renamed', 'ncp-updated'])
@@ -58,22 +52,30 @@ const props = defineProps({
   },
 })
 
-const { toast } = useToast()
 const router = useRouter()
 const selectedFormat = ref(props.format)
 const isAlertCollapsed = ref(false)
 const alertContainer = ref(null)
 const elementWidth = ref(0)
-const showRenameDialog = ref(false)
-const isEditing = ref(false)
-const isSaving = ref(false)
 
-// Create reactive form data for editing
-const formData = reactive({})
+// Use the new structured NCP component utilities
+const {
+  isEditing,
+  isSaving,
+  formData,
+  formattedNCP,
+  handleExport,
+  showRenameDialog,
+  openRenameDialog,
+  handleNCPRenamed: handleRenamed,
+  startEditing,
+  cancelEditing,
+  saveChanges,
+  editableColumnsInFormat,
+} = useStructuredNCPComponent(props.ncp, selectedFormat, emit)
 
-// Use utilities from ncpUtils
+// Use utilities from structuredNCPUtils
 const allColumns = getAllNCPColumns()
-const editableColumns = getEditableColumns()
 const formatOptions = computed(() => generateFormatOptions(allColumns))
 const exportOptions = getExportOptions()
 
@@ -94,28 +96,8 @@ useResizeObserver(alertContainer, entries => {
 })
 
 // Computed properties
-const formattedNCP = computed(() => {
-  const formatted = {}
-  for (const key in props.ncp) {
-    if (allColumns.some(col => col.key === key)) {
-      // Parse and format each section based on its type
-      const structure = parseNCPSectionContent(props.ncp[key], key)
-      formatted[key] = formatNCPForDisplay(structure)
-    } else {
-      formatted[key] = formatTextToLines(props.ncp[key])
-    }
-  }
-  return formatted
-})
-
 const columns = computed(() => {
   return allColumns.slice(0, parseInt(selectedFormat.value))
-})
-
-const editableColumnsInFormat = computed(() => {
-  return editableColumns.filter(col =>
-    columns.value.some(c => c.key === col.key)
-  )
 })
 
 const hasPlaceholderColumns = computed(() =>
@@ -135,102 +117,14 @@ const handleFormatChange = format => {
   updateFormat(format)
 }
 
-const handleExport = async exportType => {
-  try {
-    const currentColumns = allColumns.slice(0, parseInt(selectedFormat.value))
-    const columnLabels = currentColumns.map(col => col.label)
-
-    const finalExportData = prepareExportData(
-      props.ncp,
-      currentColumns,
-      formattedNCP.value
-    )
-
-    switch (exportType) {
-      case 'pdf':
-        await exportUtils.toPDF(finalExportData, columnLabels, false)
-        break
-      case 'xlsx':
-        await exportUtils.toXLSX(finalExportData, columnLabels, false)
-        break
-      case 'word':
-        await exportUtils.toWord(finalExportData, columnLabels, false)
-        break
-      case 'png':
-        await exportUtils.toPNG(finalExportData, columnLabels, false)
-        break
-      default:
-        throw new Error('Unsupported export format')
-    }
-
-    toast({
-      title: 'Export Successful',
-      description: `NCP exported as ${exportType.toUpperCase()} successfully.`,
-    })
-  } catch (error) {
-    console.error('Export failed:', error)
-    toast({
-      title: 'Export Failed',
-      description: `Failed to export NCP as ${exportType.toUpperCase()}. Please try again.`,
-      variant: 'destructive',
-    })
-  }
-}
-
-const openRenameDialog = () => {
-  showRenameDialog.value = true
-}
-
 const handleNCPRenamed = updatedNCP => {
+  handleRenamed(updatedNCP)
   emit('ncp-renamed', updatedNCP)
-}
-
-const handleNCPUpdated = updatedNCP => {
-  emit('ncp-updated', updatedNCP)
-  isEditing.value = false
 }
 
 // Navigation to explanation page
 const viewExplanations = () => {
   router.push(`/explain/${props.ncp.id}`)
-}
-
-// Editing functions
-const initializeFormData = () => {
-  editableColumnsInFormat.value.forEach(column => {
-    formData[column.key] = props.ncp[column.key] || ''
-  })
-}
-
-const startEditing = () => {
-  isEditing.value = true
-  initializeFormData()
-}
-
-const cancelEditing = () => {
-  isEditing.value = false
-}
-
-const saveChanges = async () => {
-  isSaving.value = true
-  try {
-    const updatedNCP = await ncpService.updateNCP(props.ncp.id, formData)
-
-    toast({
-      title: 'Success',
-      description: 'NCP updated successfully',
-    })
-
-    handleNCPUpdated(updatedNCP)
-  } catch (error) {
-    toast({
-      title: 'Error',
-      description: error.message || 'Failed to update NCP',
-      variant: 'destructive',
-    })
-  } finally {
-    isSaving.value = false
-  }
 }
 
 onMounted(() => {
@@ -481,53 +375,11 @@ onMounted(() => {
                   editableColumnsInFormat.some(col => col.key === column.key),
               }"
             >
-              <!-- Assessment Column (Always Read-only) -->
-              <div v-if="column.key === 'assessment'" class="space-y-3">
-                <div
-                  v-for="(item, itemIndex) in formattedNCP[column.key]"
-                  :key="itemIndex"
-                  class="leading-relaxed"
-                  :class="{
-                    'mb-3': itemIndex < formattedNCP[column.key].length - 1,
-                    'text-muted-foreground': item.type === 'header',
-                    'font-semibold text-sm': item.type === 'header',
-                    'mb-1': item.type === 'bullet',
-                  }"
-                >
-                  <span v-if="item.type === 'bullet'" class="text-primary"
-                    >*</span
-                  >
-                  {{ item.content }}
-                </div>
-              </div>
-
-              <!-- Editable Columns - View Mode -->
-              <div v-else-if="!isEditing" class="space-y-3">
-                <div
-                  v-for="(item, itemIndex) in formattedNCP[column.key]"
-                  :key="itemIndex"
-                  class="leading-relaxed"
-                  :class="{
-                    'mb-4':
-                      item.type === 'header' &&
-                      itemIndex < formattedNCP[column.key].length - 1,
-                    'mb-3':
-                      item.type === 'subheader' &&
-                      itemIndex < formattedNCP[column.key].length - 1,
-                    'mb-2':
-                      item.type === 'text' &&
-                      itemIndex < formattedNCP[column.key].length - 1,
-                    'mb-1': item.type === 'bullet',
-                    'font-semibold text-sm text-muted-foreground':
-                      item.type === 'header',
-                    'font-medium text-sm': item.type === 'subheader',
-                  }"
-                >
-                  <span v-if="item.type === 'bullet'" class="text-primary"
-                    >*</span
-                  >
-                  {{ item.content }}
-                </div>
+              <!-- All Columns - Use Structured Renderer -->
+              <div v-if="!isEditing || column.key === 'assessment'">
+                <StructuredNCPRenderer
+                  :items="formattedNCP[column.key] || []"
+                />
               </div>
 
               <!-- Editable Columns - Edit Mode -->

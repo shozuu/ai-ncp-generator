@@ -2,13 +2,16 @@
 import NCPDisplay from '@/components/ncp/NCPDisplay.vue'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
-import { useNCPLoader, useNCPManagement } from '@/utils/ncpComponentUtils'
+import {
+  useStructuredNCPLoader,
+  useStructuredNCPManagement,
+} from '@/utils/structuredNCPComponentUtils'
 import { onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
-const { ncp, isLoading, format, loadNCP, refreshNCP } = useNCPLoader()
-const { handleNCPRenamed, handleNCPUpdated } = useNCPManagement(ncp)
+const { ncp, isLoading, format, loadNCP, refreshNCP } = useStructuredNCPLoader()
+const { handleNCPRenamed, handleNCPUpdated } = useStructuredNCPManagement(ncp)
 
 const onNCPRenamed = async updatedNCP => {
   handleNCPRenamed(updatedNCP)
@@ -24,6 +27,7 @@ watch(
   async newId => {
     if (newId) {
       await loadNCP(newId)
+      console.log('Fetched NCP from database:', ncp.value)
     }
   }
 )
@@ -32,6 +36,7 @@ onMounted(async () => {
   const id = route.params.id
   if (id) {
     await loadNCP(id)
+    console.log('Fetched NCP from database:', ncp.value)
   }
 })
 </script>
