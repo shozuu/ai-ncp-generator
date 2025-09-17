@@ -123,6 +123,26 @@ const confirmDelete = async () => {
 const processTextContent = (text, maxLength = 120) => {
   if (!text) return 'Not provided'
 
+  // If text is an object (structured NCP), extract a summary string
+  if (typeof text === 'object') {
+    // For assessment: join subjective/objective arrays
+    if (text.subjective || text.objective) {
+      const subj = Array.isArray(text.subjective)
+        ? text.subjective.join('; ')
+        : ''
+      const obj = Array.isArray(text.objective) ? text.objective.join('; ') : ''
+      text = [subj, obj].filter(Boolean).join(' | ')
+    }
+    // For diagnosis: use the statement
+    else if (text.statement) {
+      text = text.statement
+    }
+    // Fallback: JSON stringify
+    else {
+      text = JSON.stringify(text)
+    }
+  }
+
   // Remove multiple spaces and normalize line breaks
   const cleanText = text.replace(/\s+/g, ' ').replace(/\n+/g, ' ').trim()
 
