@@ -304,7 +304,7 @@ const formatAssessmentSection = assessment => {
     items.push({
       type: 'subheading',
       content: 'Subjective',
-      className: 'font-semibold text-xs text-blue-800 dark:text-blue-200 mb-2',
+      className: 'font-semibold text-xs mb-2',
     })
     assessment.subjective.forEach(item => {
       items.push({
@@ -318,8 +318,7 @@ const formatAssessmentSection = assessment => {
     items.push({
       type: 'subheading',
       content: 'Objective',
-      className:
-        'font-semibold text-xs text-green-800 dark:text-green-200 mb-2',
+      className: 'font-semibold text-xs mb-2',
     })
     assessment.objective.forEach(item => {
       items.push({
@@ -355,8 +354,7 @@ const formatOutcomesSection = outcomes => {
     items.push({
       type: 'subheading',
       content: 'Short-term',
-      className:
-        'font-semibold text-xs text-purple-800 dark:text-purple-200 mb-2',
+      className: 'font-semibold text-xs mb-2',
     })
 
     Object.entries(outcomes.short_term.timeframes).forEach(
@@ -381,8 +379,7 @@ const formatOutcomesSection = outcomes => {
     items.push({
       type: 'subheading',
       content: 'Long-term',
-      className:
-        'font-semibold text-xs text-purple-800 dark:text-purple-200 mb-2 mt-4',
+      className: 'font-semibold text-xs mb-2 mt-4',
     })
 
     Object.entries(outcomes.long_term.timeframes).forEach(
@@ -416,17 +413,14 @@ const formatInterventionsSection = interventions => {
     {
       key: 'independent',
       label: 'Independent Interventions',
-      color: 'text-emerald-800 dark:text-emerald-200',
     },
     {
       key: 'dependent',
       label: 'Dependent Interventions',
-      color: 'text-orange-800 dark:text-orange-200',
     },
     {
       key: 'collaborative',
       label: 'Collaborative Interventions',
-      color: 'text-blue-800 dark:text-blue-200',
     },
   ]
 
@@ -467,17 +461,14 @@ const formatRationaleSection = (rationale, interventions) => {
       {
         key: 'independent',
         label: 'Independent Interventions',
-        color: 'text-emerald-800 dark:text-emerald-200',
       },
       {
         key: 'dependent',
         label: 'Dependent Interventions',
-        color: 'text-orange-800 dark:text-orange-200',
       },
       {
         key: 'collaborative',
         label: 'Collaborative Interventions',
-        color: 'text-blue-800 dark:text-blue-200',
       },
     ]
 
@@ -528,17 +519,14 @@ const formatImplementationSection = implementation => {
     {
       key: 'independent',
       label: 'Independent Actions',
-      color: 'text-emerald-800 dark:text-emerald-200',
     },
     {
       key: 'dependent',
       label: 'Dependent Actions',
-      color: 'text-orange-800 dark:text-orange-200',
     },
     {
       key: 'collaborative',
       label: 'Collaborative Actions',
-      color: 'text-blue-800 dark:text-blue-200',
     },
   ]
 
@@ -591,7 +579,7 @@ const formatEvaluationSection = evaluation => {
         items.push({
           type: 'subheading',
           content: timePeriodLabels[period],
-          className: `font-semibold text-xs text-violet-800 dark:text-violet-200 mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+          className: `font-semibold text-xs mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
         })
 
         const statuses = ['Met', 'Partially Met', 'Not Met']
