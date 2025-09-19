@@ -344,7 +344,14 @@ onMounted(() => {
       :style="{ maxWidth: elementWidth * 0.99 + 'px' }"
     >
       <table class="min-w-full border-collapse bg-card text-card-foreground">
-        <thead class="bg-muted sticky top-0 z-10">
+        <colgroup>
+          <col
+            v-for="col in columns"
+            :key="col.key"
+            :style="{ width: 100 / columns.length + '%' }"
+          />
+        </colgroup>
+        <thead class="bg-muted sticky top-0 z-10 min-w-[200px]">
           <tr class="border-b">
             <th
               v-for="column in columns"
@@ -367,7 +374,7 @@ onMounted(() => {
             <td
               v-for="column in columns"
               :key="column.key"
-              class="border-primary/10 group p-4 text-sm align-top border min-w-[200px]"
+              class="border-primary/10 group p-4 text-xs align-top border min-w-[200px]"
               :class="{
                 'hover:bg-primary/5': !isEditing,
                 'bg-muted/20':

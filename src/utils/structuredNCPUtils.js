@@ -304,7 +304,7 @@ const formatAssessmentSection = assessment => {
     items.push({
       type: 'subheading',
       content: 'Subjective',
-      className: 'font-semibold text-blue-800 dark:text-blue-200 mb-2',
+      className: 'font-semibold text-xs text-blue-800 dark:text-blue-200 mb-2',
     })
     assessment.subjective.forEach(item => {
       items.push({
@@ -318,7 +318,8 @@ const formatAssessmentSection = assessment => {
     items.push({
       type: 'subheading',
       content: 'Objective',
-      className: 'font-semibold text-green-800 dark:text-green-200 mb-2',
+      className:
+        'font-semibold text-xs text-green-800 dark:text-green-200 mb-2',
     })
     assessment.objective.forEach(item => {
       items.push({
@@ -354,7 +355,8 @@ const formatOutcomesSection = outcomes => {
     items.push({
       type: 'subheading',
       content: 'Short-term',
-      className: 'font-semibold text-purple-800 dark:text-purple-200 mb-2',
+      className:
+        'font-semibold text-xs text-purple-800 dark:text-purple-200 mb-2',
     })
 
     Object.entries(outcomes.short_term.timeframes).forEach(
@@ -363,7 +365,7 @@ const formatOutcomesSection = outcomes => {
           type: 'timeframe',
           content: timeframe,
           className:
-            'font-medium text-sm text-muted-foreground uppercase tracking-wide mt-2 mb-1',
+            'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
         })
         outcomeList.forEach(outcome => {
           items.push({
@@ -379,7 +381,8 @@ const formatOutcomesSection = outcomes => {
     items.push({
       type: 'subheading',
       content: 'Long-term',
-      className: 'font-semibold text-purple-800 dark:text-purple-200 mb-2 mt-4',
+      className:
+        'font-semibold text-xs text-purple-800 dark:text-purple-200 mb-2 mt-4',
     })
 
     Object.entries(outcomes.long_term.timeframes).forEach(
@@ -388,7 +391,7 @@ const formatOutcomesSection = outcomes => {
           type: 'timeframe',
           content: timeframe,
           className:
-            'font-medium text-sm text-muted-foreground uppercase tracking-wide mt-2 mb-1',
+            'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
         })
         outcomeList.forEach(outcome => {
           items.push({
@@ -436,7 +439,7 @@ const formatInterventionsSection = interventions => {
       items.push({
         type: 'subheading',
         content: label,
-        className: `font-semibold ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+        className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
       })
 
       interventions[key].forEach(intervention => {
@@ -492,7 +495,7 @@ const formatRationaleSection = (rationale, interventions) => {
           items.push({
             type: 'subheading',
             content: label,
-            className: `font-semibold ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+            className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
           })
 
           interventions[key].forEach(intervention => {
@@ -548,7 +551,7 @@ const formatImplementationSection = implementation => {
       items.push({
         type: 'subheading',
         content: label,
-        className: `font-semibold ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+        className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
       })
 
       implementation[key].forEach(action => {
@@ -588,7 +591,7 @@ const formatEvaluationSection = evaluation => {
         items.push({
           type: 'subheading',
           content: timePeriodLabels[period],
-          className: `font-semibold text-violet-800 dark:text-violet-200 mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+          className: `font-semibold text-xs text-violet-800 dark:text-violet-200 mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
         })
 
         const statuses = ['Met', 'Partially Met', 'Not Met']
@@ -603,7 +606,7 @@ const formatEvaluationSection = evaluation => {
             items.push({
               type: 'status',
               content: status,
-              className: `font-medium ${statusColors[status]} mt-3 mb-1`,
+              className: `font-medium text-xs ${statusColors[status]} mt-3 mb-1`,
             })
 
             Object.entries(periodData[status]).forEach(
@@ -612,7 +615,7 @@ const formatEvaluationSection = evaluation => {
                   type: 'timeframe',
                   content: timeframe,
                   className:
-                    'font-medium text-sm text-muted-foreground uppercase tracking-wide mt-2 mb-1',
+                    'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
                 })
 
                 evaluations.forEach(evaluation => {

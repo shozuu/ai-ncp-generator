@@ -55,6 +55,25 @@ const getStatusColor = status => {
       return 'bg-muted text-foreground'
   }
 }
+
+const getNumberForItem = (item, items) => {
+  // Find the last subheading before this item
+  let lastSubheadingIdx = -1
+  for (let i = items.indexOf(item); i >= 0; i--) {
+    if (items[i].type === 'subheading') {
+      lastSubheadingIdx = i
+      break
+    }
+  }
+  // Count numbered/rationale items since last subheading
+  let count = 0
+  for (let i = lastSubheadingIdx + 1; i <= items.indexOf(item); i++) {
+    if (items[i].type === 'numbered' || items[i].type === 'rationale') {
+      count++
+    }
+  }
+  return count
+}
 </script>
 
 <!-- Structured NCP Display Template -->
@@ -93,28 +112,35 @@ const getStatusColor = status => {
         {{ item.content }}:
       </div>
 
-      <!-- Bullet points (including previously numbered items) -->
+      <!-- Bullet points (for 'bullet' only) -->
       <div
-        v-else-if="item.type === 'bullet' || item.type === 'numbered'"
+        v-else-if="item.type === 'bullet'"
         class="flex items-start space-x-2 ml-5"
       >
-        <span class="text-primary font-bold mt-1 flex-shrink-0">•</span>
+        <span class="text-primary font-bold flex-shrink-0">•</span>
         <span class="flex-1">{{ item.content }}</span>
       </div>
 
-      <!-- Rationale (as bullet points, no intervention title) -->
+      <!-- Numbered points (for 'numbered' and 'rationale') -->
       <div
-        v-else-if="item.type === 'rationale'"
-        class="flex items-start space-x-2 ml-5 mb-2"
+        v-else-if="item.type === 'numbered' || item.type === 'rationale'"
+        class="flex items-start space-x-2 ml-5"
       >
-        <span class="text-primary font-bold mt-1 flex-shrink-0">•</span>
+        <span class="text-primary font-bold flex-shrink-0">
+          {{ getNumberForItem(item, items) }}.
+        </span>
         <span class="flex-1">
-          <span class="text-foreground">{{ item.rationale }}</span>
-          <span
-            v-if="item.evidence"
-            class="block text-xs text-muted-foreground mt-1"
-          >
-            <span class="font-medium">Evidence:</span> {{ item.evidence }}
+          <span v-if="item.type === 'rationale'">
+            <span class="text-foreground">{{ item.rationale }}</span>
+            <span
+              v-if="item.evidence"
+              class="block text-xs italic text-muted-foreground mt-1"
+            >
+              {{ item.evidence }}
+            </span>
+          </span>
+          <span v-else>
+            {{ item.content }}
           </span>
         </span>
       </div>
