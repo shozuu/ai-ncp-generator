@@ -1,4 +1,5 @@
 <script setup>
+import StructuredNCPRenderer from '@/components/ncp/StructuredNCPRenderer.vue'
 import PageHead from '@/components/PageHead.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
@@ -11,7 +12,6 @@ import { explanationService } from '@/services/explanationService'
 import { ncpService } from '@/services/ncpService'
 import {
   explanationLevels,
-  formatTextToLines,
   getAvailableSections,
   getExplanationContent,
   hasAnyValidExplanations,
@@ -21,6 +21,7 @@ import {
   sectionIcons,
   sectionTitles,
 } from '@/utils/ncpUtils'
+import { formatStructuredNCPForDisplay } from '@/utils/structuredNCPUtils'
 import { vAutoAnimate } from '@formkit/auto-animate'
 import {
   AlertTriangle,
@@ -88,6 +89,10 @@ const currentLoadingState = computed(() => {
 // Show disclaimer only when we have explanations
 const shouldShowDisclaimer = computed(() => {
   return hasExplanation.value && hasAnyValidExplanationsComputed.value
+})
+
+const formattedNCP = computed(() => {
+  return ncp.value ? formatStructuredNCPForDisplay(ncp.value) : {}
 })
 
 onMounted(async () => {
@@ -423,16 +428,12 @@ const setLevelContainerRef = (section, levelKey) => {
                     NCP Content
                   </h4>
                   <div
-                    class="bg-muted/30 rounded-lg p-3 sm:p-4 border-l-4 border-muted"
+                    class="bg-muted/30 rounded-lg p-3 sm:p-4 border-l-4 border-muted text-xs sm:text-sm"
                   >
-                    <div v-if="checkHasContent(section)" class="space-y-2">
-                      <div
-                        v-for="(line, index) in formatTextToLines(ncp[section])"
-                        :key="index"
-                        class="text-xs sm:text-sm leading-relaxed"
-                      >
-                        {{ line }}
-                      </div>
+                    <div v-if="checkHasContent(section)">
+                      <StructuredNCPRenderer
+                        :items="formattedNCP[section] || []"
+                      />
                     </div>
                     <p
                       v-else

@@ -99,12 +99,26 @@ export const formatTextToLines = text => {
  */
 export const hasContent = (ncp, section) => {
   if (!ncp || !ncp[section]) return false
-  const content = ncp[section].trim()
-  return (
-    content &&
-    content.toLowerCase() !== 'not provided' &&
-    content.toLowerCase() !== 'n/a'
-  )
+  const value = ncp[section]
+  if (typeof value === 'string') {
+    const content = value.trim()
+    return (
+      content &&
+      content.toLowerCase() !== 'not provided' &&
+      content.toLowerCase() !== 'n/a'
+    )
+  } else if (typeof value === 'object' && value !== null) {
+    // For objects, check if any value is non-empty
+    return Object.values(value).some(
+      v =>
+        (typeof v === 'string' &&
+          v.trim() &&
+          v.trim().toLowerCase() !== 'not provided' &&
+          v.trim().toLowerCase() !== 'n/a') ||
+        (Array.isArray(v) && v.length > 0)
+    )
+  }
+  return false
 }
 
 /**
@@ -796,4 +810,37 @@ export const getFormatDisplayName = formatType => {
 export const getFormatShortName = formatType => {
   const format = formatType || '7'
   return `${format}-Col`
+}
+
+/**
+ * Process section content for display
+ * @param {Object} sectionContent - The section content object
+ * @returns {Array} Processed content array
+ */
+export const processSectionContent = sectionContent => {
+  if (!sectionContent) return ['Not provided']
+
+  if (typeof sectionContent === 'string') {
+    return sectionContent
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+  }
+
+  // If it's an object, use the robust formatter
+  const formatted = formatNCPForDisplay(sectionContent)
+  if (Array.isArray(formatted) && formatted.length > 0) {
+    // Convert to simple lines for display (headers, bullets, etc.)
+    return formatted.map(item => {
+      if (typeof item === 'string') return item
+      if (item.type === 'header' || item.type === 'subheader')
+        return item.content
+      if (item.type === 'bullet') return '• ' + item.content
+      if (item.type === 'text') return item.content
+      return JSON.stringify(item)
+    })
+  }
+
+  // Fallback
+  return [JSON.stringify(sectionContent)]
 }

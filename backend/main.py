@@ -305,7 +305,13 @@ async def generate_explanation(request_data: Dict) -> Dict:
         # Filter out sections that don't have content (empty or None)
         available_sections = []
         for section in all_sections:
-            section_content = ncp.get(section, '').strip() if ncp.get(section) else ''
+            section_value = ncp.get(section)
+            if isinstance(section_value, str):
+                section_content = section_value.strip()
+            elif section_value is not None:
+                section_content = str(section_value).strip()
+            else:
+                section_content = ''
             if section_content and section_content.lower() not in ['', 'not provided', 'n/a', 'none']:
                 available_sections.append(section)
 
