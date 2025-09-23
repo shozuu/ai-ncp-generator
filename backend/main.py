@@ -446,9 +446,14 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             - Language: Extract primary language if mentioned (especially if non-English)
 
             **Chief Complaint:**
-            - Use the patient's primary concern or reason for visit
-            - Keep it concise but descriptive (e.g., "Shortness of breath for 3 days")
-            - Avoid overly technical rephrasing - use patient's own words when appropriate
+            - Identify the most clinically significant issue or risk based on BOTH subjective and objective data.
+            - Always apply nursing prioritization frameworks:
+                * ABC (Airway, Breathing, Circulation) → highest priority
+                * Maslow’s hierarchy of needs → physiological and safety before psychosocial
+                * Actual problems → actual problems take precedence over "risk for," which take precedence over psychosocial concerns
+            - If multiple complaints exist, select the one with the highest immediate clinical risk.
+            - Phrase the chief complaint in concise, clinical language that reflects the priority problem, not secondary concerns.
+            - Patient-expressed worries or psychosocial issues should be documented in nurse_notes, not as the chief complaint.
 
             **History - Use Standard Clinical Terminology:**
             - Onset/Duration: Be specific about timing (e.g., "3 days ago", "sudden onset", "gradual over 2 weeks")
@@ -824,6 +829,14 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         Risk Factors: {safe_format_list(selected_diagnosis.get('risk_factors', []))}
         Suggested NOC Outcomes: {safe_format_list(selected_diagnosis.get('suggested_outcomes', []))}
         Suggested NIC Interventions: {safe_format_list(selected_diagnosis.get('suggested_interventions', []))}
+
+        **PRIORITIZATION RULES:**
+        - All outcomes, interventions, and rationales must directly address the selected nursing diagnosis as the primary clinical priority.
+        - Always apply standard nursing prioritization frameworks:
+        * ABC (Airway, Breathing, Circulation) → highest priority
+        * Maslow’s hierarchy of needs → physiological and safety needs before psychosocial
+        * Actual problems take priority over "risk for" → which take priority over psychosocial concerns
+        - Ensure that interventions and outcomes logically flow from the chief complaint and diagnosis, not from unrelated concerns.
 
         **REQUIREMENTS:**
         1. Use the selected diagnosis as the primary nursing diagnosis

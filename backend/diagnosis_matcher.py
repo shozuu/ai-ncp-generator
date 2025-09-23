@@ -312,8 +312,12 @@ class VectorDiagnosisMatcher:
                 - You MUST choose EXACTLY ONE diagnosis from the provided candidate list below
                 - You CANNOT invent, modify, or create any diagnosis names
                 - Copy the diagnosis name EXACTLY as written in the candidate list
-                - Do NOT change capitalization, punctuation, or wording
-                - Base your decision strictly on the patient's assessment data and clinical appropriateness
+                - Always apply nursing prioritization frameworks when selecting:
+                    * ABC (Airway, Breathing, Circulation) → highest priority
+                    * Maslow’s hierarchy of needs → physiological and safety before psychosocial
+                    * Actual problems > Risk for > Psychosocial
+                - If multiple diagnoses seem possible, select the one with the **highest immediate clinical risk** 
+                - The selected diagnosis must align with the patient’s priority problem/chief complaint
                 - Return the complete information for the selected diagnosis as JSON
                 - Include a brief clinical explanation of why this diagnosis was selected over others, including how it matches the patient's assessment data and clinical priorities
 
