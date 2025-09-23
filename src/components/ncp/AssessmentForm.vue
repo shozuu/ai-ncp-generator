@@ -36,18 +36,32 @@ const currentMode = computed(() =>
   isAssistantMode.value ? 'Assistant Mode' : 'Manual Mode'
 )
 
+const props = defineProps({
+  selectedFormat: {
+    type: String,
+    default: '7',
+  },
+})
+
 const handleSubmit = async data => {
   isSubmitting.value = true
   try {
     let structuredData
 
     if (isAssistantMode.value) {
-      structuredData = data
+      structuredData = {
+        ...data,
+        format: props.selectedFormat,
+      }
     } else {
       currentStep.value = 'parsing'
       handleSuccess('processing')
       try {
-        structuredData = await ncpService.parseManualAssessment(data)
+        const parsedData = await ncpService.parseManualAssessment(data)
+        structuredData = {
+          ...parsedData,
+          format: props.selectedFormat,
+        }
         handleSuccess('processed')
       } catch (parseError) {
         let suggestion = ''

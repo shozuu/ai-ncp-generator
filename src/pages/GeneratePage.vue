@@ -92,11 +92,7 @@ onMounted(() => {
   <PageHead title="- Generate NCP" />
   <SidebarLayout>
     <div v-if="isLoading" class="flex items-center justify-center h-screen">
-      <LoadingIndicator
-        :messages="[
-          'Fetching your newly created NCP...',
-        ]"
-      />
+      <LoadingIndicator :messages="['Fetching your newly created NCP...']" />
     </div>
 
     <div v-else>
