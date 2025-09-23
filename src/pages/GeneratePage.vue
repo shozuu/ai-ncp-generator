@@ -116,13 +116,12 @@ onMounted(() => {
       <Separator class="my-8" />
 
       <div class="mb-10">
-        <!-- Enhanced Guidance Section -->
         <Alert class="p-4 w-full" ref="exampleFormatContainer" v-auto-animate>
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-3 flex-1 min-w-0">
               <Info class="shrink-0 w-5 h-5" />
               <AlertTitle class="text-base font-semibold mb-0">
-                New: Intelligent Diagnosis Matching & Structured NCP Generation
+                Formatting Tips
               </AlertTitle>
             </div>
             <button
@@ -136,38 +135,6 @@ onMounted(() => {
             </button>
           </div>
           <div v-if="showGuidance" class="mt-4 space-y-6">
-            <!-- New Features Info -->
-            <div>
-              <h4 class="font-semibold text-sm mb-2 text-primary">
-                ✨ Enhanced Features
-              </h4>
-              <ul class="text-muted-foreground space-y-2 text-sm">
-                <li class="flex items-start space-x-2">
-                  <span class="text-primary font-medium">🎯</span>
-                  <span
-                    ><strong>Smart Diagnosis Matching:</strong> AI automatically
-                    finds the best NANDA-I diagnosis from a comprehensive
-                    database</span
-                  >
-                </li>
-                <li class="flex items-start space-x-2">
-                  <span class="text-primary font-medium">📋</span>
-                  <span
-                    ><strong>Structured NCP Format:</strong> Generates
-                    well-organized, professional care plans with consistent
-                    formatting</span
-                  >
-                </li>
-                <li class="flex items-start space-x-2">
-                  <span class="text-primary font-medium">⚡</span>
-                  <span
-                    ><strong>One-Step Generation:</strong> Complete
-                    assessment-to-NCP workflow in a single process</span
-                  >
-                </li>
-              </ul>
-            </div>
-
             <!-- Formatting Tips -->
             <div>
               <h4 class="font-semibold text-sm mb-2">Input Guidelines</h4>

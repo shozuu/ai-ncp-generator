@@ -319,12 +319,19 @@ onMounted(() => {
       <AlertDescription v-if="!isAlertCollapsed">
         The generated Nursing Care Plan (NCP) is based on the assessment data
         you provided and the reference book
-        <strong
-          >"Nursing Diagnosis Handbook, 12th Edition Revised Reprint with
-          2021–2023 NANDA-I Updates"</strong
-        >. It is intended to assist and guide users in creating Nursing Care
-        Plans and may have other valid interpretations depending on clinical
-        judgment and context.
+        <Button
+          as="a"
+          href="https://www.amazon.com/Ackley-Ladwigs-Nursing-Diagnosis-Handbook/dp/0323776833"
+          target="_blank"
+          rel="noopener noreferrer"
+          variant="link"
+          class="inline-flex items-center px-1"
+        >
+          Ackley and Ladwig’s Nursing Diagnosis Handbook (13th Edition).
+        </Button>
+        It is intended to assist and guide users in creating Nursing Care Plans
+        and may have other valid interpretations depending on clinical judgment
+        and context.
         <br />
         <br />
         Users are encouraged to review and modify the plan as needed to ensure
