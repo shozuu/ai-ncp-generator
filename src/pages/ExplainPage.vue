@@ -185,7 +185,7 @@ const formatDate = dateString => {
             <div v-if="ncp.diagnosis" class="text-sm">
               <p class="font-medium text-foreground mb-1">Primary Diagnosis:</p>
               <p class="text-muted-foreground line-clamp-2">
-                {{ ncp.diagnosis.replace(/\n/g, ' ').trim() }}
+                {{ ncp.diagnosis.statement || '' }}
               </p>
             </div>
 
