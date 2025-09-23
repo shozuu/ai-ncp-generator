@@ -15,7 +15,6 @@ import {
   getAvailableSections,
   getExplanationContent,
   hasAnyValidExplanations,
-  hasContent,
   hasValidSectionExplanation,
   loadingMessages,
   sectionIcons,
@@ -111,7 +110,7 @@ const loadNCPAndExplanation = async () => {
   try {
     // Load NCP data
     ncp.value = await ncpService.getNCPById(ncpId)
-
+    console.log('Loaded NCP:', ncp.value)
     // Check if explanation exists
     hasExplanation.value = await explanationService.hasExplanation(ncpId)
 
@@ -165,7 +164,6 @@ const viewNCP = () => {
 }
 
 // Wrapper functions to pass the current data to utilities
-const checkHasContent = section => hasContent(ncp.value, section)
 const checkHasValidSectionExplanation = section =>
   hasValidSectionExplanation(explanation.value, section)
 const getFormattedExplanationContent = (
@@ -430,10 +428,13 @@ const setLevelContainerRef = (section, levelKey) => {
                   <div
                     class="bg-muted/30 rounded-lg p-3 sm:p-4 border-l-4 border-muted text-xs sm:text-sm"
                   >
-                    <div v-if="checkHasContent(section)">
-                      <StructuredNCPRenderer
-                        :items="formattedNCP[section] || []"
-                      />
+                    <div
+                      v-if="
+                        formattedNCP[section] &&
+                        formattedNCP[section].length > 0
+                      "
+                    >
+                      <StructuredNCPRenderer :items="formattedNCP[section]" />
                     </div>
                     <p
                       v-else
