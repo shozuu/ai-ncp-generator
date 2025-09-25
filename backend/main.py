@@ -445,6 +445,15 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
 
             ### CLINICAL INFERENCE GUIDELINES
 
+            **Linguistic and Cultural Sensitivity:**
+            - Recognize and appropriately translate medical terms from various languages/cultures
+            - When family members report symptoms, ensure accurate interpretation of what they're describing
+            - Always prioritize the ACTUAL symptom being reported over clinical assumptions based on subjective/objective findings
+
+            **Evidence-Based Clinical Inference Priority:**
+            - Use vital signs and exam findings to qualify/quantify the primary concern, not replace it
+            - Consider all data holistically, but don't override clear patient reports
+
             **Capture Valid Clinical Inferences:**
             - If assessment data contains clinical conclusions that are supported by evidence, extract them appropriately
             - Example: "Patient appears anxious" → capture "anxiety" if supported by behavioral observations
@@ -470,12 +479,17 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             - Language: Extract primary language if mentioned (especially if non-English)
 
             **Chief Complaint:**
-            - Identify the most clinically significant symptom/functional difficulty based on BOTH subjective and objective data
-            - Use STANDARDIZED clinical terminology that matches NANDA defining characteristics:
+            - Identify the most clinically significant symptom, functional difficulty, OR expressed health goal/motivation based on BOTH subjective and objective data
+            - If symptom-based, use STANDARDIZED clinical terminology that matches NANDA defining characteristics:
               * "Severe abdominal pain" instead of "tummy hurts badly"
               * "Shortness of breath" instead of "can't breathe well"  
               * "Difficulty ambulating" instead of "trouble walking"
               * "Impaired skin integrity" instead of "bad wound"
+            - If goal/motivation-based, record the patient’s expressed desire or preventive health concern in clear language that matches NANDA defining characteristics:
+              * "Expresses desire to enhance ability to exclusively breastfeed"
+              * "Expresses desire to enhance communication"
+              * "Expresses desire to enhance decision-making"
+              * "Expresses desire to enhance family dynamics"
             - Apply clinical prioritization for embedding relevance:
               1. Life-threatening symptoms (ABC - Airway, Breathing, Circulation)
               2. Pain and comfort issues
@@ -515,7 +529,10 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
               * "Surgery (within 6 months)"
 
             **Physical Exam - NANDA DEFINING CHARACTERISTIC ALIGNMENT:**
-            - Use EXACT standard terminology that matches NANDA defining characteristics:
+            - Capture findings using system-specific headings when possible (Respiratory, Cardiac, Mobility, Skin, Neurologic).
+            - For findings not listed in predefined examples (e.g., eye/vision, hearing), create a category that reflects the system (e.g., Vision, Hearing).
+            - Always use clear, clinical terminology (e.g., "Vision: Blurred vision" instead of "trouble seeing").
+            - Use EXACT standardized terminology that matches NANDA defining characteristics:
             
               **Respiratory System:**
               * "Respiratory: Crackles" (not "lung sounds abnormal")
@@ -551,7 +568,12 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
               * "Neurologic: Agitation"
 
             **Risk Factors - NANDA-ALIGNED TERMINOLOGY:**
-            - Use EXACT terms that match NANDA risk factor lists:
+            - Always extract any *sensory, cognitive, mobility, or environmental* deficits described in the assessment.
+            - Use standardized NANDA terminology if available:
+              * Sensory deficits (e.g., impaired vision, impaired hearing, sensory-perceptual deficit)
+              * Cognitive deficits (e.g., memory loss, confusion)
+              * Mobility limitations (e.g., gait instability, weakness, immobility)
+              * Environmental hazards (e.g., cluttered environment, poor lighting)
               * "Advanced age" (>65 years)
               * "Prolonged immobility"
               * "Indwelling catheter"
@@ -563,6 +585,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
               * "Immunosuppression"
               * "Multiple medications"
               * "Cognitive impairment"
+            - If no direct NANDA term exists, use the closest standardized clinical description.
 
             **Vital Signs - ENHANCED CLINICAL SIGNIFICANCE:**
             - Standard format with clinical significance flags:
@@ -604,6 +627,9 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
               * Medication adherence issues
               * Barriers to self-care
               * Patient education needs identified
+            - Include contextual information such as patient’s expressed concerns and priorities
+            - Explicitly capture health goals, readiness for change, and expressed desires for better health
+            - These notes will be used to identify “readiness for enhanced…” NANDA diagnoses
 
             ---
 
@@ -866,7 +892,8 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         return str(items) if items else fallback
     
     formatted_assessment = format_structured_data(assessment_data)
-    
+    logger.info("Formatted assessment data for ncp creation: " + str(formatted_assessment))
+
     # Create the structured prompt with improved rationale format
     ncp_prompt = f"""
         You are a nursing educator expert in NANDA-I, NIC, and NOC standards. Generate a complete Nursing Care Plan based on the provided assessment data and selected nursing diagnosis.

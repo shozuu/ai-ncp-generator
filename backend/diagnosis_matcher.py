@@ -274,11 +274,10 @@ class VectorDiagnosisMatcher:
                 
                 # PRIORITIZATION FRAMEWORKS
                 1. **Actual Problems First**: If the assessment data clearly supports an actual diagnosis, always select it over any "Risk for" diagnosis. 
-                2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation.
+                2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation. If both airway and gas exchange are possible, choose the airway problem first.
                 3. **Maslow’s Hierarchy of Needs**: After ABCs, address physiological and safety needs before psychosocial or self-actualization.
                 4. **Safety and Urgency**: Problems that could quickly compromise health or safety are prioritized over less urgent concerns.
-                5. **Time Sensitivity**: Diagnoses that may worsen rapidly if untreated should be addressed before those that develop slowly.
-                6. **Patient-Centered Priorities**: When multiple diagnoses are equal in priority (same level of physiological risk), then consider the patient’s chief complaint.
+                5. **Patient-Centered Priorities**: When multiple diagnoses are equal in priority (same level of physiological risk), then consider the patient’s chief complaint.
 
                 # Patient Assessment Data
                 {formatted_assessment}
