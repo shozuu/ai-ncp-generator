@@ -41,91 +41,32 @@ class VectorDiagnosisMatcher:
         return self.model
 
     def format_assessment_for_embedding(self, assessment_data: Dict) -> str:
-        """Format assessment data to match diagnosis database embedding format (pipe-separated)"""
+        """Format assessment data to match diagnosis database embedding format"""
         
-        # Build pipe-separated format
         sections = []
         
-        # Demographics
-        demographics = assessment_data.get('demographics', {})
-        if demographics.get('age'):
-            sections.append(f"Age: {demographics['age']}")
-        if demographics.get('sex'):
-            sections.append(f"Sex: {demographics['sex']}")
-        if demographics.get('religion'):
-            sections.append(f"Religion: {demographics['religion']}")
-        if demographics.get('cultural_background'):
-            sections.append(f"Cultural Background: {demographics['cultural_background']}")
-        if demographics.get('language') and demographics['language'].lower() != 'english':
-            sections.append(f"Language: {demographics['language']}")
-        
-        # Chief Complaint
-        chief_complaint = assessment_data.get('chief_complaint', '').strip()
-        if chief_complaint:
-            sections.append(f"Chief Complaint: {chief_complaint}")
-        
-        # History of Present Illness
-        history = assessment_data.get('history', {})
-        history_parts = []
-        
-        if history.get('onset_duration'):
-            history_parts.append(history['onset_duration'])
-        if history.get('severity'):
-            history_parts.append(f"severity {history['severity']}")
-        if history.get('associated_symptoms'):
-            history_parts.extend(history['associated_symptoms'])
-        if history.get('other_symptoms'):
-            history_parts.append(history['other_symptoms'])
-
-        if history_parts:
-            sections.append(f"History of Present Illness: {', '.join(history_parts)}")
-        
-        # Past Medical History
-        med_history = assessment_data.get('medical_history', [])
-        med_history_other = assessment_data.get('medical_history_other', '')
-        if med_history or med_history_other:
-            history_items = med_history.copy()
-            if med_history_other:
-                history_items.append(med_history_other)
-            sections.append(f"Past Medical History: {', '.join(history_items)}")
-        
-        # Vital Signs (enhanced with additional vitals)
-        vitals = assessment_data.get('vital_signs', {})
-        vital_parts = []
-        if vitals.get('HR'):
-            vital_parts.append(f"HR {vitals['HR']}")
-        if vitals.get('BP'):
-            vital_parts.append(f"BP {vitals['BP']}")
-        if vitals.get('RR'):
-            vital_parts.append(f"RR {vitals['RR']}")
-        if vitals.get('SpO2'):
-            vital_parts.append(f"SpO2 {vitals['SpO2']}%")
-        if vitals.get('Temp'):
-            vital_parts.append(f"Temp {vitals['Temp']}")
-        
-        # Add additional vitals
-        additional_vitals = vitals.get('additional_vitals', {})
-        for vital_name, vital_value in additional_vitals.items():
-            if vital_value:
-                vital_parts.append(f"{vital_name} {vital_value}")
-
-        if vital_parts:
-            sections.append(f"Vitals: {', '.join(vital_parts)}")
-        
-        # Physical Exam (shortened to "Exam")
+        # 1. DEFINING CHARACTERISTICS INDICATORS
+        # Physical exam findings that could be defining characteristics
         phys_exam = assessment_data.get('physical_exam', [])
         phys_exam_other = assessment_data.get('physical_exam_other', '')
         if phys_exam or phys_exam_other:
             exam_items = []
             for item in phys_exam:
-                # Remove system prefixes for embedding consistency
+                # Keep clinical findings that indicate diagnoses
                 clean_item = item.replace("Respiratory: ", "").replace("Cardiac: ", "").replace("Mobility: ", "").replace("Skin: ", "")
                 exam_items.append(clean_item)
             if phys_exam_other:
                 exam_items.append(phys_exam_other)
-            sections.append(f"Exam: {', '.join(exam_items)}")
+            sections.append(f"Clinical Findings: {', '.join(exam_items)}")
         
-        # Risk Factors
+        # Associated symptoms from history (potential defining characteristics)
+        history = assessment_data.get('history', {})
+        if history.get('associated_symptoms'):
+            sections.append(f"Symptoms: {', '.join(history['associated_symptoms'])}")
+        if history.get('other_symptoms'):
+            sections.append(f"Other Symptoms: {history['other_symptoms']}")
+        
+        # 2. RISK FACTORS
         risk_factors = assessment_data.get('risk_factors', [])
         risk_factors_other = assessment_data.get('risk_factors_other', '')
         if risk_factors or risk_factors_other:
@@ -134,30 +75,39 @@ class VectorDiagnosisMatcher:
                 risk_items.append(risk_factors_other)
             sections.append(f"Risk Factors: {', '.join(risk_items)}")
         
-        # Cultural Considerations (new section)
-        cultural = assessment_data.get('cultural_considerations', {})
-        cultural_parts = []
+        # 3. RELATED FACTORS (from medical history)
+        med_history = assessment_data.get('medical_history', [])
+        med_history_other = assessment_data.get('medical_history_other', '')
+        if med_history or med_history_other:
+            history_items = med_history.copy()
+            if med_history_other:
+                history_items.append(med_history_other)
+            sections.append(f"Medical Conditions: {', '.join(history_items)}")
         
-        if cultural.get('dietary_restrictions'):
-            cultural_parts.append(f"Diet: {cultural['dietary_restrictions']}")
-        if cultural.get('religious_practices'):
-            cultural_parts.append(f"Religious: {cultural['religious_practices']}")
-        if cultural.get('communication_preferences'):
-            cultural_parts.append(f"Communication: {cultural['communication_preferences']}")
-        if cultural.get('family_involvement'):
-            cultural_parts.append(f"Family: {cultural['family_involvement']}")
-        if cultural.get('health_beliefs'):
-            cultural_parts.append(f"Health Beliefs: {cultural['health_beliefs']}")
-        if cultural.get('other_considerations'):
-            cultural_parts.append(cultural['other_considerations'])
+        # 4. SEVERITY INDICATORS (only if relevant to defining characteristics)
+        if history.get('severity'):
+            sections.append(f"Severity: {history['severity']}")
         
-        if cultural_parts:
-            sections.append(f"Cultural Considerations: {', '.join(cultural_parts)}")
+        # 5. ABNORMAL VITALS (only if significantly abnormal)
+        vitals = assessment_data.get('vital_signs', {})
+        abnormal_vitals = []
         
-        # Nurse Notes (shortened to "Notes")
-        nurse_notes = assessment_data.get('nurse_notes', '').strip()
-        if nurse_notes:
-            sections.append(f"Notes: {nurse_notes}")
+        # Only include vitals that are clinically significant
+        if vitals.get('HR') and (int(vitals['HR']) < 60 or int(vitals['HR']) > 100):
+            abnormal_vitals.append(f"HR {vitals['HR']}")
+        if vitals.get('SpO2') and int(vitals['SpO2']) < 95:
+            abnormal_vitals.append(f"SpO2 {vitals['SpO2']}%")
+        if vitals.get('RR') and (int(vitals['RR']) < 12 or int(vitals['RR']) > 20):
+            abnormal_vitals.append(f"RR {vitals['RR']}")
+        
+        # Include significant additional vitals
+        additional_vitals = vitals.get('additional_vitals', {})
+        for vital_name, vital_value in additional_vitals.items():
+            if vital_value and any(keyword in vital_name.lower() for keyword in ['pain', 'glucose', 'pressure']):
+                abnormal_vitals.append(f"{vital_name} {vital_value}")
+        
+        if abnormal_vitals:
+            sections.append(f"Abnormal Vitals: {', '.join(abnormal_vitals)}")
         
         return " | ".join(sections)
 
