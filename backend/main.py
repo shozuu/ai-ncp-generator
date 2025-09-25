@@ -479,23 +479,41 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             - Language: Extract primary language if mentioned (especially if non-English)
 
             **Chief Complaint:**
-            - Identify the most clinically significant symptom, functional difficulty, OR expressed health goal/motivation based on BOTH subjective and objective data
+            - Identify the single most clinically significant symptom, functional difficulty, OR expressed health goal/motivation based on BOTH subjective and objective data
+            - **CRITICAL: When pain is the underlying cause of functional limitations, ALWAYS prioritize the pain as the chief complaint**
+            
+            **Pain-First Prioritization Rule:**
+            - If patient reports: "Can't walk due to foot pain" → Chief complaint: "Foot pain" (NOT "Difficulty ambulating")
+            - If patient reports: "Can't eat due to abdominal pain" → Chief complaint: "Abdominal pain" (NOT "Decreased appetite")
+            - If patient reports: "Difficulty moving arm after shoulder injury" → Chief complaint: "Shoulder pain" (if pain is mentioned or implied)
+            
+            **Root Cause Analysis for Chief Complaint Selection:**
+            1. **Always ask: "What is causing this functional limitation?"**
+            2. **If the answer is pain/discomfort → Use the pain as chief complaint**
+            3. **If no pain mentioned → Use the functional limitation**
+            4. **Examples of correct prioritization:**
+               - "Shortness of breath when walking" + no pain → "Shortness of breath"
+               - "Can't bear weight on left leg due to pain" → "Left leg pain"
+               - "Feels weak and dizzy" + no pain mentioned → "Weakness" or "Dizziness" (whichever is primary)
+               - "Trouble swallowing after throat surgery" + "throat hurts" → "Throat pain"
+            
             - If symptom-based, use STANDARDIZED clinical terminology that matches NANDA defining characteristics:
               * "Severe abdominal pain" instead of "tummy hurts badly"
-              * "Shortness of breath" instead of "can't breathe well"  
-              * "Difficulty ambulating" instead of "trouble walking"
+              * "Foot pain" instead of "difficulty walking due to foot pain"
+              * "Shoulder pain" instead of "limited arm movement from shoulder injury"
+              * "Chest pain" instead of "difficulty breathing due to chest pain"
+              * "Shortness of breath" instead of "can't breathe well" (when NOT pain-related)
+              * "Difficulty ambulating" (only when NOT caused by pain)
               * "Impaired skin integrity" instead of "bad wound"
-            - If goal/motivation-based, record the patient’s expressed desire or preventive health concern in clear language that matches NANDA defining characteristics:
-              * "Expresses desire to enhance ability to exclusively breastfeed"
-              * "Expresses desire to enhance communication"
-              * "Expresses desire to enhance decision-making"
-              * "Expresses desire to enhance family dynamics"
-            - Apply clinical prioritization for embedding relevance:
-              1. Life-threatening symptoms (ABC - Airway, Breathing, Circulation)
-              2. Pain and comfort issues
-              3. Functional impairments
-              4. Psychosocial concerns
-            - DO NOT use NANDA-I diagnostic labels - use symptom descriptions only
+            
+            - When multiple symptoms are present, apply this prioritization:
+              1. **Life-threatening symptoms (ABC - Airway, Breathing, Circulation) - unless caused by pain**
+              2. **Pain and discomfort issues: ALWAYS identify root cause pain when present**
+                 - If functional limitation exists WITH pain → prioritize the pain location/type
+                 - If multiple pain sites exist → choose the most severe or limiting pain
+                 - Pain takes priority over secondary functional effects it causes
+              3. **Functional impairments (only when NOT caused by pain)**
+              4. **Psychosocial concerns**
 
             **History - STANDARDIZED CLINICAL TERMINOLOGY:**
             - Onset/Duration: Use precise clinical timing

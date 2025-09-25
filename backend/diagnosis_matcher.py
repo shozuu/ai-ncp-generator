@@ -267,17 +267,47 @@ class VectorDiagnosisMatcher:
                 - You CANNOT invent, modify, or create any diagnosis names
                 - Copy the diagnosis name EXACTLY as written in the candidate list
                 - If multiple diagnoses seem possible, apply the prioritization rules below
-                - The selected diagnosis must align with the patient's assessment data and the prioritization rules. 
-                - The patient’s chief complaint may only guide the choice if higher-priority physiological or safety concerns are not present.
+                - The selected diagnosis must align with the patient's assessment data and the prioritization rules
                 - Return the complete information for the selected diagnosis as JSON
                 - Include a brief clinical explanation of why this diagnosis was selected over others, including how it matches the patient's assessment data and clinical priorities
                 
-                # PRIORITIZATION FRAMEWORKS
-                1. **Actual Problems First**: If the assessment data clearly supports an actual diagnosis, always select it over any "Risk for" diagnosis. 
-                2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation. If both airway and gas exchange are possible, choose the airway problem first.
-                3. **Maslow’s Hierarchy of Needs**: After ABCs, address physiological and safety needs before psychosocial or self-actualization.
-                4. **Safety and Urgency**: Problems that could quickly compromise health or safety are prioritized over less urgent concerns.
-                5. **Patient-Centered Priorities**: When multiple diagnoses are equal in priority (same level of physiological risk), then consider the patient’s chief complaint.
+                # PRIORITIZATION FRAMEWORKS (IN ORDER OF CLINICAL PRIORITY)
+                
+                **1. LIFE-THREATENING CONDITIONS FIRST (ABC - Airway, Breathing, Circulation)**
+                - These ALWAYS take priority over pain, regardless of cause:
+                  * **Airway**: Ineffective Airway Clearance, Risk for Aspiration
+                  * **Breathing**: Impaired Gas Exchange, Ineffective Breathing Pattern, Activity Intolerance (when respiratory-related)
+                  * **Circulation**: Decreased Cardiac Output, Ineffective Tissue Perfusion, Deficient Fluid Volume
+                - **Exception**: If pain is causing the ABC problem (e.g., chest pain leading to shallow breathing), still prioritize the ABC issue
+                
+                **2. ACTUAL PROBLEMS OVER RISK PROBLEMS**
+                - If assessment data clearly supports an actual diagnosis, select it over any "Risk for" diagnosis
+                - Exception: "Risk for" ABC problems may take priority over actual non-ABC problems
+                
+                **3. PAIN-FIRST RULE (for non-ABC conditions)**
+                - **When pain is the root cause of functional limitations, prioritize pain diagnoses over their secondary effects**
+                - **This rule applies AFTER ABC conditions are ruled out**
+                - **Critical Exception**: If pain is in chest/throat area and causing breathing problems → Choose the breathing diagnosis (ABC priority)
+                
+                **4. SAFETY AND INFECTION CONTROL**
+                - After ABC and pain assessment:
+                  * Risk for Infection, Impaired Skin Integrity
+                  * Risk for Falls, Risk for Injury
+                - These may take priority over pain if they pose immediate safety threats
+                
+                **5. PHYSIOLOGICAL NEEDS**
+                - Nutrition, Elimination, Thermoregulation
+                - Generally lower priority unless severe
+                
+                **6. PSYCHOSOCIAL CONCERNS**
+                - Anxiety, Ineffective Coping, Disturbed Body Image
+                - Lowest priority unless no physiological issues present
+                
+                **ROOT CAUSE ANALYSIS QUESTIONS:**
+                1. Are there any ABC (airway/breathing/circulation) issues? → If YES, these take priority
+                2. Is pain the primary cause of functional limitations? → If YES and no ABC issues, choose pain diagnosis
+                3. Are there immediate safety/infection risks? → Consider these against pain severity
+                4. What does the assessment data most strongly support? → Use evidence-based selection
 
                 # Patient Assessment Data
                 {formatted_assessment}
@@ -288,7 +318,7 @@ class VectorDiagnosisMatcher:
                 # Expected Output (JSON)
                 {{
                     "diagnosis": "EXACT diagnosis name from candidate list - copy it precisely",
-                    "reasoning": "brief explanation of why this diagnosis best fits the patient and why not the other closest/related/similar possible diagnoses"
+                    "reasoning": "Brief explanation addressing: 1) How this diagnosis matches the assessment data, 2) Why this takes priority over other possible diagnoses using the prioritization framework above, 3) Specific evidence from the assessment that supports this selection"
                 }}
 
                 IMPORTANT: Only return the diagnosis name and reasoning. Do not include other fields like definition, characteristics, etc. - we will get those from the original candidate data.
