@@ -1,5 +1,7 @@
 import { z } from 'zod'
 
+const noControlChars = line => /^[^\x00-\x1F\x7F]+$/.test(line)
+
 export const manualModeSchema = z.object({
   subjective: z
     .string()
@@ -32,10 +34,9 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => /^[a-zA-Z0-9\s.,:()/%'"°“”-]+$/.test(line)),
+          .every(noControlChars),
       {
-        message:
-          'Subjective data must only contain letters, numbers, spaces, and basic punctuation.',
+        message: 'Subjective data contains invalid control characters.',
       }
     ),
 
@@ -70,10 +71,9 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => /^[a-zA-Z0-9\s.,:()/%'"°“”-]+$/.test(line)),
+          .every(noControlChars),
       {
-        message:
-          'Objective data must only contain letters, numbers, spaces, and basic punctuation.',
+        message: 'Objective data contains invalid control characters.',
       }
     ),
 })
@@ -105,6 +105,16 @@ export const assistantModeSchema = z.object({
         {
           message: 'Primary symptoms must not contain duplicate lines.',
         }
+      )
+      .refine(
+        value =>
+          value
+            .split('\n')
+            .filter(line => line.trim() !== '')
+            .every(noControlChars),
+        {
+          message: 'Primary symptoms contain invalid control characters.',
+        }
       ),
     other: z
       .string()
@@ -132,6 +142,17 @@ export const assistantModeSchema = z.object({
         },
         {
           message: 'Other complaints must not contain duplicate lines.',
+        }
+      )
+      .refine(
+        value =>
+          !value ||
+          value
+            .split('\n')
+            .filter(line => line.trim() !== '')
+            .every(noControlChars),
+        {
+          message: 'Other complaints contain invalid control characters.',
         }
       ),
   }),
@@ -162,6 +183,17 @@ export const assistantModeSchema = z.object({
           message:
             'Physical examination findings must not contain duplicate lines.',
         }
+      )
+      .refine(
+        value =>
+          value
+            .split('\n')
+            .filter(line => line.trim() !== '')
+            .every(noControlChars),
+        {
+          message:
+            'Physical examination findings contain invalid control characters.',
+        }
       ),
     vitals: z
       .string()
@@ -190,6 +222,17 @@ export const assistantModeSchema = z.object({
         {
           message: 'Vital signs must not contain duplicate lines.',
         }
+      )
+      .refine(
+        value =>
+          !value ||
+          value
+            .split('\n')
+            .filter(line => line.trim() !== '')
+            .every(noControlChars),
+        {
+          message: 'Vital signs contain invalid control characters.',
+        }
       ),
     other: z
       .string()
@@ -217,6 +260,17 @@ export const assistantModeSchema = z.object({
         },
         {
           message: 'Other findings must not contain duplicate lines.',
+        }
+      )
+      .refine(
+        value =>
+          !value ||
+          value
+            .split('\n')
+            .filter(line => line.trim() !== '')
+            .every(noControlChars),
+        {
+          message: 'Other findings contain invalid control characters.',
         }
       ),
   }),
