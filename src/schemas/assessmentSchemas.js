@@ -11,10 +11,10 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => line.length >= 5 && line.length <= 150),
+          .every(line => line.length >= 5 && line.length <= 250),
       {
         message:
-          'Each line in subjective data must be between 5 and 150 characters.',
+          'Each line in subjective data must be between 5 and 250 characters.',
       }
     )
     .refine(
@@ -48,10 +48,10 @@ export const manualModeSchema = z.object({
         value
           .split('\n')
           .filter(line => line.trim() !== '')
-          .every(line => line.length >= 5 && line.length <= 150),
+          .every(line => line.length >= 5 && line.length <= 250),
       {
         message:
-          'Each line in objective data must be between 5 and 150 characters.',
+          'Each line in objective data must be between 5 and 250 characters.',
       }
     )
     .refine(
@@ -88,10 +88,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 5 && line.length <= 150),
+            .every(line => line.length >= 5 && line.length <= 250),
         {
           message:
-            'Each line in primary symptoms must be between 5 and 150 characters.',
+            'Each line in primary symptoms must be between 5 and 250 characters.',
         }
       )
       .refine(
@@ -125,10 +125,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 5 && line.length <= 150),
+            .every(line => line.length >= 5 && line.length <= 250),
         {
           message:
-            'Each line in other complaints must be between 5 and 150 characters.',
+            'Each line in other complaints must be between 5 and 250 characters.',
         }
       )
       .refine(
@@ -165,10 +165,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 5 && line.length <= 150),
+            .every(line => line.length >= 5 && line.length <= 250),
         {
           message:
-            'Each line in physical examination must be between 5 and 150 characters.',
+            'Each line in physical examination must be between 5 and 250 characters.',
         }
       )
       .refine(
@@ -204,10 +204,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 5 && line.length <= 150),
+            .every(line => line.length >= 5 && line.length <= 250),
         {
           message:
-            'Each line in vital signs must be between 5 and 150 characters.',
+            'Each line in vital signs must be between 5 and 250 characters.',
         }
       )
       .refine(
@@ -243,10 +243,10 @@ export const assistantModeSchema = z.object({
           value
             .split('\n')
             .filter(line => line.trim() !== '')
-            .every(line => line.length >= 5 && line.length <= 150),
+            .every(line => line.length >= 5 && line.length <= 250),
         {
           message:
-            'Each line in other findings must be between 5 and 150 characters.',
+            'Each line in other findings must be between 5 and 250 characters.',
         }
       )
       .refine(
@@ -294,7 +294,7 @@ export const comprehensiveAssessmentSchema = z.object({
   chief_complaint: z
     .string()
     .min(1, 'Chief complaint is required')
-    .max(200, 'Chief complaint should be brief and concise'),
+    .max(250, 'Chief complaint should be brief and concise'),
   history: z.object({
     onset_duration: z
       .string()
@@ -307,13 +307,13 @@ export const comprehensiveAssessmentSchema = z.object({
     associated_symptoms: z.array(z.string()).optional(),
     other_symptoms: z
       .string()
-      .max(200, 'Other symptoms description should be concise')
+      .max(250, 'Other symptoms description should be concise')
       .optional(),
   }),
   medical_history: z.array(z.string()).optional(),
   medical_history_other: z
     .string()
-    .max(200, 'Medical history should be concise')
+    .max(250, 'Medical history should be concise')
     .optional(),
   vital_signs: z.object({
     HR: z
@@ -353,7 +353,7 @@ export const comprehensiveAssessmentSchema = z.object({
   risk_factors: z.array(z.string()).optional(),
   risk_factors_other: z
     .string()
-    .max(200, 'Risk factors should be concise')
+    .max(250, 'Risk factors should be concise')
     .optional(),
   nurse_notes: z.string().max(500, 'Nurse notes should be concise').optional(),
 })
