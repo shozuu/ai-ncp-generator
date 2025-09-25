@@ -452,14 +452,18 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             - Language: Extract primary language if mentioned (especially if non-English)
 
             **Chief Complaint:**
-            - Identify the most clinically significant issue or risk based on BOTH subjective and objective data.
+            - Identify the most clinically significant **sign, symptom, or functional difficulty** based on BOTH subjective and objective data.
+            - Express the chief complaint ONLY as a **symptom description** or functional terms (e.g., "Severe abdominal pain," "Shortness of breath," "Difficulty walking").
+            - DO NOT use NANDA-I, NIC, or NOC diagnostic labels (e.g., "Acute pain," "Impaired mobility," "Anxiety") — these belong to the diagnosis phase and must never appear here.
             - Always apply nursing prioritization frameworks:
-                * ABC (Airway, Breathing, Circulation) → highest priority
-                * Maslow’s hierarchy of needs → physiological and safety before psychosocial
-                * Actual problems → actual problems take precedence over "risk for," which take precedence over psychosocial concerns
-            - If multiple complaints exist, select the one with the highest immediate clinical risk.
-            - Phrase the chief complaint in concise, clinical language that reflects the priority problem, not secondary concerns.
-            - Patient-expressed worries or psychosocial issues should be documented in nurse_notes, not as the chief complaint.
+                1. **Actual Problems First**: If the assessment data clearly supports an actual diagnosis, always select it over any "Risk for" diagnosis. 
+                2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation.
+                3. **Maslow’s Hierarchy of Needs**: After ABCs, address physiological and safety needs before psychosocial or self-actualization.
+                4. **Safety and Urgency**: Problems that could quickly compromise health or safety are prioritized over less urgent concerns.
+                5. **Time Sensitivity**: Diagnoses that may worsen rapidly if untreated should be addressed before those that develop slowly.
+                6. **Patient-Centered Priorities**: When multiple diagnoses are equal in priority (same level of physiological risk), then consider the patient’s chief complaint.
+            - If multiple complaints exist, choose the one with the highest immediate clinical risk.
+            - Patient concerns or psychosocial worries go in `nurse_notes`, not in `chief_complaint`.
 
             **History - Use Standard Clinical Terminology:**
             - Onset/Duration: Be specific about timing (e.g., "3 days ago", "sudden onset", "gradual over 2 weeks")
@@ -533,6 +537,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             5. **Consistent Formatting**: Follow the specified formats strictly
             6. **Comprehensive Capture**: Don't miss important clinical or cultural details
             7. **Objective Language**: Use professional, clinical language throughout
+            8. **No Nursing Diagnosis Language**: Do not include terms like "acute," "impaired," "risk for," or other NANDA diagnostic labels in any field. Chief complaint must remain a descriptive symptom only.
 
             **EMBEDDING OPTIMIZATION:**
             - The final structured data will be formatted as: "Age: X | Sex: X | Religion: X | Cultural Background: X | Chief Complaint: X | History of Present Illness: X | Past Medical History: X | Vitals: X | Additional Vitals: X | Exam: X | Risk Factors: X | Cultural Considerations: X | Notes: X"
@@ -839,9 +844,13 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         **PRIORITIZATION RULES:**
         - All outcomes, interventions, and rationales must directly address the selected nursing diagnosis as the primary clinical priority.
         - Always apply standard nursing prioritization frameworks:
-        * ABC (Airway, Breathing, Circulation) → highest priority
-        * Maslow’s hierarchy of needs → physiological and safety needs before psychosocial
-        * Actual problems take priority over "risk for" → which take priority over psychosocial concerns
+        - Always apply nursing prioritization frameworks:
+            1. **Actual Problems First**: If the assessment data clearly supports an actual diagnosis, always select it over any "Risk for" diagnosis. 
+            2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation.
+            3. **Maslow’s Hierarchy of Needs**: After ABCs, address physiological and safety needs before psychosocial or self-actualization.
+            4. **Safety and Urgency**: Problems that could quickly compromise health or safety are prioritized over less urgent concerns.
+            5. **Time Sensitivity**: Diagnoses that may worsen rapidly if untreated should be addressed before those that develop slowly.
+            6. **Patient-Centered Priorities**: When multiple options remain equal, consider the patient’s chief complaint.
         - Ensure that interventions and outcomes logically flow from the chief complaint and diagnosis, not from unrelated concerns.
 
         **REQUIREMENTS:**
@@ -855,7 +864,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         8. Return ONLY valid JSON with no additional text
 
         **RATIONALE GUIDELINES:**
-        When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook, Doenges, M. E., et al. (2021). Nurse's Pocket Guide, 15th Edition, NIC/NOC textbooks, official NIC/NOC classifications, CDC/WHO guidelines). Do not cite page numbers or overly specific details — keep citations broad but verifiable.
+        When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook 13th Ed, Doenges, M. E., et al. (2021). Nurse's Pocket Guide, 15th Edition, NIC/NOC textbooks, official NIC/NOC classifications, CDC/WHO guidelines, etc.). Do not cite page numbers or overly specific details — keep citations broad but verifiable.
 
         **OUTPUT FORMAT (JSON ONLY):**
         {{
@@ -864,27 +873,27 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 "objective": ["List of objective findings from assessment data"]
             }},
             "diagnosis": {{
-                "statement": "Complete NANDA-I diagnosis statement: [Diagnosis] related to [etiology] as evidenced by [defining characteristics]"
+                "statement": "Complete NANDA-I diagnosis statement concisely: [Diagnosis] related to [etiology] as evidenced by [defining characteristics]"
             }},
             "outcomes": {{
                 "short_term": {{
                     "timeframes": {{
-                        "within 24 hours": [
+                        "short-term timeframe": [
                             "The patient will demonstrate proper inhaler technique independently",
                             "The patient will verbalize understanding of energy conservation techniques"
                         ],
-                        "within 48 hours": [
+                        "short-term timeframe": [
                             "The patient will maintain oxygen saturation ≥ 95% during activity"
                         ]
                     }}
                 }},
                 "long_term": {{
                     "timeframes": {{
-                        "within 5 days": [
+                        "long-term timeframe": [
                             "The patient will ambulate 100 feet without dyspnea",
                             "The patient will perform ADLs independently"
                         ],
-                        "before discharge": [
+                        "long-term timeframe": [
                             "The patient will demonstrate medication self-administration"
                         ]
                     }}
@@ -984,7 +993,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         - "(WHO, 2024)" - for international health standards
         - "(American Nurses Association, 2021)" - for nursing practice standards
         - "(Joint Commission, 2024)" - for patient safety standards
-        - Provide sources that are verifiable and widely recognized in nursing practice
+        - Or other sources that are verifiable and widely recognized in nursing practice
         
         **Rationale Format Examples:**
         - rationale: "Monitoring vital signs every 4 hours detects early signs of respiratory compromise"

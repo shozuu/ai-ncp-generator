@@ -312,14 +312,19 @@ class VectorDiagnosisMatcher:
                 - You MUST choose EXACTLY ONE diagnosis from the provided candidate list below
                 - You CANNOT invent, modify, or create any diagnosis names
                 - Copy the diagnosis name EXACTLY as written in the candidate list
-                - Always apply nursing prioritization frameworks when selecting:
-                    * ABC (Airway, Breathing, Circulation) → highest priority
-                    * Maslow’s hierarchy of needs → physiological and safety before psychosocial
-                    * Actual problems > Risk for > Psychosocial
-                - If multiple diagnoses seem possible, select the one with the **highest immediate clinical risk** 
-                - The selected diagnosis must align with the patient’s priority problem/chief complaint
+                - If multiple diagnoses seem possible, apply the prioritization rules below
+                - The selected diagnosis must align with the patient's assessment data and the prioritization rules. 
+                - The patient’s chief complaint may only guide the choice if higher-priority physiological or safety concerns are not present.
                 - Return the complete information for the selected diagnosis as JSON
                 - Include a brief clinical explanation of why this diagnosis was selected over others, including how it matches the patient's assessment data and clinical priorities
+                
+                # PRIORITIZATION FRAMEWORKS
+                1. **Actual Problems First**: If the assessment data clearly supports an actual diagnosis, always select it over any "Risk for" diagnosis. 
+                2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation.
+                3. **Maslow’s Hierarchy of Needs**: After ABCs, address physiological and safety needs before psychosocial or self-actualization.
+                4. **Safety and Urgency**: Problems that could quickly compromise health or safety are prioritized over less urgent concerns.
+                5. **Time Sensitivity**: Diagnoses that may worsen rapidly if untreated should be addressed before those that develop slowly.
+                6. **Patient-Centered Priorities**: When multiple diagnoses are equal in priority (same level of physiological risk), then consider the patient’s chief complaint.
 
                 # Patient Assessment Data
                 {formatted_assessment}
@@ -330,7 +335,7 @@ class VectorDiagnosisMatcher:
                 # Expected Output (JSON)
                 {{
                     "diagnosis": "EXACT diagnosis name from candidate list - copy it precisely",
-                    "reasoning": "brief explanation of why this diagnosis best fits the patient"
+                    "reasoning": "brief explanation of why this diagnosis best fits the patient and why not the other closest/related/similar possible diagnoses"
                 }}
 
                 IMPORTANT: Only return the diagnosis name and reasoning. Do not include other fields like definition, characteristics, etc. - we will get those from the original candidate data.
