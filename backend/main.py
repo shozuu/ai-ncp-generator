@@ -433,7 +433,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         parsing_prompt = f"""
             You are a clinical nursing assessment parser with expertise in standardizing patient data for NANDA-I diagnosis matching. Your task is to extract and structure nursing assessment data in a format that will be embedded and matched against a comprehensive nursing diagnosis database.
 
-            **CRITICAL IMPORTANCE:** The structured data you create will be converted to embeddings and queried against a database containing NANDA-I nursing diagnoses. Consistency, accuracy, and use of standard clinical terminology is essential for proper diagnosis matching.
+            **CRITICAL IMPORTANCE:** The structured data you create will be converted to embeddings and queried against a database containing NANDA-I nursing diagnoses with fields: diagnosis name, definition, defining characteristics, related factors, and risk factors. Consistency, accuracy, and use of standard clinical terminology is essential for proper diagnosis matching.
 
             **SUBJECTIVE DATA:**
             {subjective_text}
@@ -441,8 +441,26 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             **OBJECTIVE DATA:**
             {objective_text}
 
-            **STANDARDIZATION GUIDELINES:**
-            
+            ---
+
+            ### CLINICAL INFERENCE GUIDELINES
+
+            **Capture Valid Clinical Inferences:**
+            - If assessment data contains clinical conclusions that are supported by evidence, extract them appropriately
+            - Example: "Patient appears anxious" → capture "anxiety" if supported by behavioral observations
+            - Example: "Wound shows signs of infection" → capture infection indicators if supported by objective findings
+            - Example: "Patient demonstrates knowledge deficit" → capture if supported by specific examples
+
+            **Evidence-Based Validation:**
+            - Only capture inferences that have supporting evidence in the assessment data
+            - Cross-reference subjective reports with objective findings
+            - Prioritize objective, measurable findings over subjective impressions
+            - When in doubt, place questionable inferences in `nurse_notes` rather than structured fields
+
+            ---
+
+            ### STANDARDIZATION GUIDELINES FOR EMBEDDING ALIGNMENT
+
             **Demographics:**
             - Age: Extract exact numeric age if stated
             - Sex: Use only "male" or "female" (lowercase)
@@ -452,101 +470,144 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             - Language: Extract primary language if mentioned (especially if non-English)
 
             **Chief Complaint:**
-            - Identify the most clinically significant **sign, symptom, or functional difficulty** based on BOTH subjective and objective data.
-            - Express the chief complaint ONLY as a **symptom description** or functional terms (e.g., "Severe abdominal pain," "Shortness of breath," "Difficulty walking").
-            - DO NOT use NANDA-I, NIC, or NOC diagnostic labels (e.g., "Acute pain," "Impaired mobility," "Anxiety") — these belong to the diagnosis phase and must never appear here.
-            - Always apply nursing prioritization frameworks:
-                1. **Actual Problems First**: If the assessment data clearly supports an actual diagnosis, always select it over any "Risk for" diagnosis. 
-                2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation.
-                3. **Maslow’s Hierarchy of Needs**: After ABCs, address physiological and safety needs before psychosocial or self-actualization.
-                4. **Safety and Urgency**: Problems that could quickly compromise health or safety are prioritized over less urgent concerns.
-                5. **Time Sensitivity**: Diagnoses that may worsen rapidly if untreated should be addressed before those that develop slowly.
-                6. **Patient-Centered Priorities**: When multiple diagnoses are equal in priority (same level of physiological risk), then consider the patient’s chief complaint.
-            - If multiple complaints exist, choose the one with the highest immediate clinical risk.
-            - Patient concerns or psychosocial worries go in `nurse_notes`, not in `chief_complaint`.
+            - Identify the most clinically significant symptom/functional difficulty based on BOTH subjective and objective data
+            - Use STANDARDIZED clinical terminology that matches NANDA defining characteristics:
+              * "Severe abdominal pain" instead of "tummy hurts badly"
+              * "Shortness of breath" instead of "can't breathe well"  
+              * "Difficulty ambulating" instead of "trouble walking"
+              * "Impaired skin integrity" instead of "bad wound"
+            - Apply clinical prioritization for embedding relevance:
+              1. Life-threatening symptoms (ABC - Airway, Breathing, Circulation)
+              2. Pain and comfort issues
+              3. Functional impairments
+              4. Psychosocial concerns
+            - DO NOT use NANDA-I diagnostic labels - use symptom descriptions only
 
-            **History - Use Standard Clinical Terminology:**
-            - Onset/Duration: Be specific about timing (e.g., "3 days ago", "sudden onset", "gradual over 2 weeks")
-            - Severity: Use standard descriptors ("mild", "moderate", "severe" or numeric scales if mentioned)
-            - Associated Symptoms: Match to these EXACT terms when applicable:
-              * "Shortness of breath"
-              * "Chest pain" 
-              * "Fatigue"
-              * "Dizziness"
+            **History - STANDARDIZED CLINICAL TERMINOLOGY:**
+            - Onset/Duration: Use precise clinical timing
+              * "Acute onset (< 24 hours)" vs "sudden"
+              * "Chronic (> 3 months)" vs "long-term"
+            - Severity: Use standardized scales
+              * Pain: "mild (1-3/10)", "moderate (4-6/10)", "severe (7-10/10)"
+              * Dyspnea: "mild exertional", "moderate at rest", "severe at rest"
+            - Associated Symptoms: Use EXACT terms that match NANDA defining characteristics:
+              * "Shortness of breath" (not "SOB" or "breathing problems")
+              * "Chest pain" (not "chest discomfort")
+              * "Fatigue" (not "tiredness" or "exhaustion")
+              * "Dizziness" (not "light-headed")
               * "Nausea/vomiting"
-            - Other symptoms not in the list go in "other_symptoms"
+              * "Diaphoresis" (not "sweating")
+              * "Anxiety" (if behaviorally supported)
+              * "Restlessness" (if objectively observed)
 
-            **Medical History - Use EXACT Standard Terms:**
-            - "Hypertension"
-            - "Diabetes mellitus" 
-            - "COPD"
-            - "Asthma"
-            - "Heart disease"
-            - "Kidney disease"
-            - "Immunocompromised condition"
-            - Non-matching conditions go in "medical_history_other"
+            **Medical History - EXACT NANDA-RELEVANT TERMS:**
+            - Use precise diagnostic terminology:
+              * "Hypertension" (not "high blood pressure")
+              * "Diabetes mellitus" (not "diabetes" or "DM")
+              * "Chronic obstructive pulmonary disease" or "COPD"
+              * "Myocardial infarction" (not "heart attack")
+              * "Cerebrovascular accident" (not "stroke")
+              * "Chronic kidney disease" (not "kidney problems")
+              * "Heart failure" (not "congestive heart failure" unless specified)
+              * "Immunocompromised condition"
+            - Include relevant surgical history with timeframes:
+              * "Surgery (recent < 30 days)"
+              * "Surgery (within 6 months)"
 
-            **Vital Signs - Standard Format:**
-            - HR: Integer only (e.g., 88)
-            - BP: "systolic/diastolic" format only (e.g., "120/80")
-            - RR: Integer only (e.g., 18)
-            - SpO2: Integer only (e.g., 95)
-            - Temp: Decimal number (e.g., 37.2)
-            - **Additional Vitals**: For any other vital signs mentioned (CVP, MAP, PAWP, etc.), include in "additional_vitals" with descriptive labels
+            **Physical Exam - NANDA DEFINING CHARACTERISTIC ALIGNMENT:**
+            - Use EXACT standard terminology that matches NANDA defining characteristics:
+            
+              **Respiratory System:**
+              * "Respiratory: Crackles" (not "lung sounds abnormal")
+              * "Respiratory: Wheezing"
+              * "Respiratory: Diminished breath sounds"
+              * "Respiratory: Use of accessory muscles"
+              * "Respiratory: Cyanosis"
+              
+              **Cardiovascular System:**
+              * "Cardiac: Irregular rhythm" (not "heart rhythm abnormal")
+              * "Cardiac: Edema" (specify location if noted)
+              * "Cardiac: Jugular vein distention"
+              * "Cardiac: S3 gallop" (if noted)
+              
+              **Mobility/Musculoskeletal:**
+              * "Mobility: Limited range of motion"
+              * "Mobility: Muscle weakness"
+              * "Mobility: Gait instability"
+              * "Mobility: Bedridden"
+              * "Mobility: Requires assistance"
+              
+              **Integumentary:**
+              * "Skin: Pressure ulcer" (with stage if noted)
+              * "Skin: Wound with drainage"
+              * "Skin: Pallor"
+              * "Skin: Diaphoresis"
+              * "Skin: Temperature changes"
+              
+              **Neurological:**
+              * "Neurologic: Confusion"
+              * "Neurologic: Altered mental status"
+              * "Neurologic: Restlessness"
+              * "Neurologic: Agitation"
 
-            **Physical Exam - Use EXACT Standard Terms:**
-            - "Respiratory: Crackles"
-            - "Respiratory: Wheezing"
-            - "Respiratory: Diminished breath sounds"
-            - "Cardiac: Irregular rhythm"
-            - "Cardiac: Edema"
-            - "Cardiac: Cyanosis"
-            - "Mobility: Limited ROM"
-            - "Mobility: Bedridden"
-            - "Mobility: Weak gait"
-            - "Skin: Intact"
-            - "Skin: Pressure ulcer"
-            - "Skin: Pallor"
-            - Non-matching findings go in "physical_exam_other"
+            **Risk Factors - NANDA-ALIGNED TERMINOLOGY:**
+            - Use EXACT terms that match NANDA risk factor lists:
+              * "Advanced age" (>65 years)
+              * "Prolonged immobility"
+              * "Indwelling catheter"
+              * "Surgery (recent)"
+              * "Mechanical ventilation"
+              * "Smoking history"
+              * "Malnutrition"
+              * "Dehydration"
+              * "Immunosuppression"
+              * "Multiple medications"
+              * "Cognitive impairment"
 
-            **Risk Factors - Use EXACT Standard Terms:**
-            - "Surgery (recent)"
-            - "Indwelling catheter"
-            - "Prolonged immobility"
-            - "Smoking"
-            - "Malnutrition"
-            - "Advanced age"
-            - Non-matching factors go in "risk_factors_other"
+            **Vital Signs - ENHANCED CLINICAL SIGNIFICANCE:**
+            - Standard format with clinical significance flags:
+              * HR: Integer + clinical significance (e.g., 110 with note "tachycardic")
+              * BP: "systolic/diastolic" + significance (e.g., "180/95" with "hypertensive")
+              * RR: Integer + significance (e.g., 28 with "tachypneic")
+              * SpO2: Integer + significance (e.g., 89 with "hypoxemic")
+              * Temp: Decimal + significance (e.g., 39.2 with "febrile")
+            - Additional vitals: Include pain scores, glucose levels, consciousness levels
 
-            **Cultural/Religious Considerations:**
-            - Extract any cultural practices that may affect care (dietary restrictions, prayer times, family involvement preferences)
-            - Note religious considerations that may impact treatment decisions
-            - Include language barriers or communication preferences
-            - Document cultural beliefs about health, illness, or treatment
+            **Enhanced Inference Capture:**
+            - **Pain Assessment Inferences:**
+              * If behavioral indicators suggest pain → capture in defining characteristics
+              * Link pain location/quality to potential diagnoses
+            - **Respiratory Distress Inferences:**
+              * If multiple respiratory indicators present → capture comprehensive picture
+              * Note positioning preferences, speech patterns affected by dyspnea
+            - **Mobility/Safety Inferences:**
+              * If fall risk indicators present → capture in risk factors
+              * Note assistance requirements, environmental hazards
+            - **Psychosocial Inferences:**
+              * If anxiety indicators present → capture with supporting evidence
+              * Note coping mechanisms, support systems
 
-            **Nurse Notes:**
-            - Include any additional observations, patient statements, or clinical notes that don't fit other categories
-            - Maintain clinical language and objectivity
-            - Include cultural observations that may be relevant to care planning
+            **Cultural/Religious Considerations - ENHANCED:**
+            - Capture broader social determinants that affect care:
+              * Language barriers affecting communication
+              * Religious practices affecting treatment acceptance
+              * Cultural beliefs about pain expression
+              * Family dynamics affecting care decisions
+              * Health literacy levels
+              * Economic factors affecting adherence
 
-            **EXTRACTION RULES:**
-            1. **Exact Term Matching**: When information matches predefined categories, use the EXACT terminology provided
-            2. **Standard Clinical Language**: Use conventional medical/nursing terminology
-            3. **Cultural Sensitivity**: Extract cultural/religious information objectively and respectfully
-            4. **No Assumptions**: Extract only what is explicitly stated or clearly implied
-            5. **Consistent Formatting**: Follow the specified formats strictly
-            6. **Comprehensive Capture**: Don't miss important clinical or cultural details
-            7. **Objective Language**: Use professional, clinical language throughout
-            8. **No Nursing Diagnosis Language**: Do not include terms like "acute," "impaired," "risk for," or other NANDA diagnostic labels in any field. Chief complaint must remain a descriptive symptom only.
+            **Nurse Notes - CLINICAL CONTEXT:**
+            - Include contextual information that supports embedding matching:
+              * Patient's expressed concerns and priorities
+              * Family dynamics and support systems
+              * Previous hospitalization patterns
+              * Medication adherence issues
+              * Barriers to self-care
+              * Patient education needs identified
 
-            **EMBEDDING OPTIMIZATION:**
-            - The final structured data will be formatted as: "Age: X | Sex: X | Religion: X | Cultural Background: X | Chief Complaint: X | History of Present Illness: X | Past Medical History: X | Vitals: X | Additional Vitals: X | Exam: X | Risk Factors: X | Cultural Considerations: X | Notes: X"
-            - Ensure each section contributes meaningful clinical information for diagnosis matching
-            - Use terminology that nursing diagnoses databases would recognize
-            - Maintain consistency with how similar cases would be described
-            - Cultural information should be included when relevant to care planning or diagnosis
+            ---
 
-            **OUTPUT FORMAT:**
+            ### OUTPUT FORMAT
             Return ONLY a valid JSON object with this exact structure:
 
             {{
@@ -590,37 +651,18 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
                 "nurse_notes": ""
             }}
 
-            **ADDITIONAL VITALS EXAMPLES:**
-            - "additional_vitals": {{"CVP": "8 mmHg", "MAP": "85 mmHg", "PAWP": "12 mmHg", "ICP": "15 mmHg", "Pain_Scale": "6/10"}}
-            - Include any specialized measurements like glucose levels, pain scales, or hemodynamic parameters
+            ---
 
-            **CULTURAL CONSIDERATIONS EXAMPLES:**
-            - dietary_restrictions: "Halal diet", "Kosher diet", "Vegetarian", "No pork products"
-            - religious_practices: "Prayer 5 times daily", "Sabbath observance Friday evening to Saturday", "Daily meditation"
-            - communication_preferences: "Male healthcare providers preferred", "Family translator needed", "Speaks limited English"
-            - family_involvement: "Daughter is primary decision maker", "Extended family involvement in care decisions"
-            - health_beliefs: "Believes illness is spiritual test", "Prefers traditional remedies alongside medical treatment"
+            ### QUALITY CHECKLIST
+            ✓ Predefined terms used EXACTLY as specified  
+            ✓ Vital signs follow format requirements  
+            ✓ Shorthand/acronyms preserved + expanded  
+            ✓ Cultural/religious details included only if explicit  
+            ✓ No diagnostic labels used  
+            ✓ JSON is valid and complete  
+            ✓ All fields supported by evidence  
+            """
 
-            **QUALITY CHECKLIST:**
-            Before finalizing your response, verify:
-            ✓ All predefined terms are used EXACTLY as specified
-            ✓ Vital signs follow exact format requirements
-            ✓ Additional vitals are properly captured in the additional_vitals object
-            ✓ Cultural/religious information is extracted respectfully and objectively
-            ✓ Clinical terminology is standard and consistent
-            ✓ No important clinical or cultural information is omitted
-            ✓ All sections contribute meaningful data for diagnosis matching
-            ✓ Language is professional and objective
-            ✓ JSON structure is complete and valid
-
-            **EXAMPLES OF GOOD EXTRACTION:**
-            - Demographics: age: 45, sex: "female", religion: "Catholic", cultural_background: "Hispanic/Latino", language: "Spanish (primary)"
-            - Vital Signs: HR: 92, BP: "140/90", RR: 24, SpO2: 94, additional_vitals: {{"Pain": "7/10", "Glucose": "180 mg/dL"}}
-            - Cultural Considerations: dietary_restrictions: "No pork products", religious_practices: "Daily rosary prayer", communication_preferences: "Prefers Spanish-speaking staff"
-
-            Process the assessment data now, ensuring maximum consistency, cultural sensitivity, and clinical accuracy for optimal diagnosis database matching.
-        """
-        
         logger.info("Calling API for manual data parsing...")
         response = model.generate_content(parsing_prompt)
         

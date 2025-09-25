@@ -43,73 +43,77 @@ class VectorDiagnosisMatcher:
     def format_assessment_for_embedding(self, assessment_data: Dict) -> str:
         """Format assessment data to match diagnosis database embedding format"""
         
-        sections = []
+        # If your database embeddings are: diagnosis + definition + defining_characteristics + related_factors + risk_factors
+        # Structure your assessment embedding to match those 5 components:
         
-        # 1. DEFINING CHARACTERISTICS INDICATORS
-        # Physical exam findings that could be defining characteristics
+        components = []
+        
+        # 1. DEFINING CHARACTERISTICS (clinical findings and symptoms)
+        defining_chars = []
+        
+        # Chief complaint (often a key defining characteristic)
+        chief_complaint = assessment_data.get('chief_complaint', '')
+        if chief_complaint:
+            defining_chars.append(chief_complaint)
+        
+        # Physical exam findings (clean the categorized format)
         phys_exam = assessment_data.get('physical_exam', [])
-        phys_exam_other = assessment_data.get('physical_exam_other', '')
-        if phys_exam or phys_exam_other:
-            exam_items = []
-            for item in phys_exam:
-                # Keep clinical findings that indicate diagnoses
-                clean_item = item.replace("Respiratory: ", "").replace("Cardiac: ", "").replace("Mobility: ", "").replace("Skin: ", "")
-                exam_items.append(clean_item)
-            if phys_exam_other:
-                exam_items.append(phys_exam_other)
-            sections.append(f"Clinical Findings: {', '.join(exam_items)}")
+        for item in phys_exam:
+            clean_item = item.replace("Respiratory: ", "").replace("Cardiac: ", "").replace("Mobility: ", "").replace("Skin: ", "")
+            defining_chars.append(clean_item)
         
-        # Associated symptoms from history (potential defining characteristics)
+        if assessment_data.get('physical_exam_other'):
+            defining_chars.append(assessment_data['physical_exam_other'])
+        
+        # Associated symptoms from history
         history = assessment_data.get('history', {})
         if history.get('associated_symptoms'):
-            sections.append(f"Symptoms: {', '.join(history['associated_symptoms'])}")
+            defining_chars.extend(history['associated_symptoms'])
         if history.get('other_symptoms'):
-            sections.append(f"Other Symptoms: {history['other_symptoms']}")
+            defining_chars.append(history['other_symptoms'])
         
-        # 2. RISK FACTORS
-        risk_factors = assessment_data.get('risk_factors', [])
-        risk_factors_other = assessment_data.get('risk_factors_other', '')
-        if risk_factors or risk_factors_other:
-            risk_items = risk_factors.copy()
-            if risk_factors_other:
-                risk_items.append(risk_factors_other)
-            sections.append(f"Risk Factors: {', '.join(risk_items)}")
+        if defining_chars:
+            components.append(' '.join(defining_chars))
         
-        # 3. RELATED FACTORS (from medical history)
+        # 2. RELATED FACTORS (medical conditions, demographics, environmental factors)
+        related_factors = []
+        
+        # Medical history
         med_history = assessment_data.get('medical_history', [])
-        med_history_other = assessment_data.get('medical_history_other', '')
-        if med_history or med_history_other:
-            history_items = med_history.copy()
-            if med_history_other:
-                history_items.append(med_history_other)
-            sections.append(f"Medical Conditions: {', '.join(history_items)}")
+        if med_history:
+            related_factors.extend(med_history)
+        if assessment_data.get('medical_history_other'):
+            related_factors.append(assessment_data['medical_history_other'])
         
-        # 4. SEVERITY INDICATORS (only if relevant to defining characteristics)
-        if history.get('severity'):
-            sections.append(f"Severity: {history['severity']}")
+        # Age-related factors
+        demographics = assessment_data.get('demographics', {})
+        age = demographics.get('age')
+        if age and isinstance(age, (int, float)):
+            if age > 65:
+                related_factors.append('advanced age')
+            elif age < 18:
+                related_factors.append('pediatric patient')
         
-        # 5. ABNORMAL VITALS (only if significantly abnormal)
-        vitals = assessment_data.get('vital_signs', {})
-        abnormal_vitals = []
+        # Environmental/cultural factors that could be related factors
+        cultural = assessment_data.get('cultural_considerations', {})
+        for factor in ['health_beliefs', 'family_involvement']:
+            if cultural.get(factor):
+                related_factors.append(cultural[factor])
         
-        # Only include vitals that are clinically significant
-        if vitals.get('HR') and (int(vitals['HR']) < 60 or int(vitals['HR']) > 100):
-            abnormal_vitals.append(f"HR {vitals['HR']}")
-        if vitals.get('SpO2') and int(vitals['SpO2']) < 95:
-            abnormal_vitals.append(f"SpO2 {vitals['SpO2']}%")
-        if vitals.get('RR') and (int(vitals['RR']) < 12 or int(vitals['RR']) > 20):
-            abnormal_vitals.append(f"RR {vitals['RR']}")
+        if related_factors:
+            components.append(' '.join(related_factors))
         
-        # Include significant additional vitals
-        additional_vitals = vitals.get('additional_vitals', {})
-        for vital_name, vital_value in additional_vitals.items():
-            if vital_value and any(keyword in vital_name.lower() for keyword in ['pain', 'glucose', 'pressure']):
-                abnormal_vitals.append(f"{vital_name} {vital_value}")
+        # 3. RISK FACTORS (direct mapping)
+        risk_factors = assessment_data.get('risk_factors', [])
+        risk_items = risk_factors.copy()
+        if assessment_data.get('risk_factors_other'):
+            risk_items.append(assessment_data['risk_factors_other'])
         
-        if abnormal_vitals:
-            sections.append(f"Abnormal Vitals: {', '.join(abnormal_vitals)}")
+        if risk_items:
+            components.append(' '.join(risk_items))
         
-        return " | ".join(sections)
+        # Simple space-separated concatenation to match database format
+        return ' '.join(components)
 
     async def embed_assessment_data(self, assessment_data: Dict) -> List[float]:
         """Convert assessment data to embedding vector using diagnosis-aligned format."""
