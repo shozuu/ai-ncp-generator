@@ -318,7 +318,7 @@ class VectorDiagnosisMatcher:
                 # Expected Output (JSON)
                 {{
                     "diagnosis": "EXACT diagnosis name from candidate list - copy it precisely",
-                    "reasoning": "Brief explanation addressing: 1) How this diagnosis matches the assessment data, 2) Why this takes priority over other possible diagnoses using the prioritization framework above, 3) Specific evidence from the assessment that supports this selection"
+                    "reasoning": "Brief explanation addressing: 1) How this diagnosis matches the assessment data, 2) Why this takes priority over other possible diagnoses using the nursing prioritization framework above, 3) Specific evidence from the assessment that supports this selection"
                 }}
 
                 IMPORTANT: Only return the diagnosis name and reasoning. Do not include other fields like definition, characteristics, etc. - we will get those from the original candidate data.
