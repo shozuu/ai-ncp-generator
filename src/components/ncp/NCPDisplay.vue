@@ -345,6 +345,20 @@ onMounted(() => {
       </AlertDescription>
     </Alert>
 
+    <!-- Diagnosis Reasoning Section -->
+    <div
+      v-if="ncp.reasoning"
+      class="mt-4 p-4 rounded-md border border-blue-200 bg-primary-50 text-sm"
+    >
+      <div class="flex items-center gap-2 mb-2">
+        <Info class="w-4 h-4 text-blue-600 dark:text-blue-300" />
+        <span class="font-semibold">Diagnosis Reasoning</span>
+      </div>
+      <div class="whitespace-pre-line">
+        {{ ncp.reasoning }}
+      </div>
+    </div>
+
     <!-- Main NCP Table -->
     <div
       class="max-h-[70vh] overflow-x-auto border border-muted rounded-md mx-auto"
