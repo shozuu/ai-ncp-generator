@@ -22,15 +22,23 @@ const form = useForm({
 })
 
 const onSubmit = form.handleSubmit(values => {
+  const cleanText = text => {
+    return text
+      .split('\n')
+      .map(
+        line =>
+          line
+            .trim() // Remove leading/trailing whitespace
+            .replace(/^[-•*]\s*/, '') // Remove leading bullets/dashes
+            .replace(/^\d+\.\s*/, '') // Remove leading numbers (1. 2. etc)
+            .trim() // Trim again after removing prefixes
+      )
+      .filter(line => line !== '' && line.length > 0) // Remove empty lines
+  }
+
   const formattedData = {
-    subjective: values.subjective
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line !== ''),
-    objective: values.objective
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line !== ''),
+    subjective: cleanText(values.subjective),
+    objective: cleanText(values.objective),
   }
   emit('submit', formattedData)
 })
