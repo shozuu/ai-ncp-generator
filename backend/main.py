@@ -479,23 +479,33 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             - Language: Extract primary language if mentioned (especially if non-English)
 
             **Chief Complaint:**
-            - Identify the most clinically significant **clinical problem or condition** based on BOTH subjective and objective data.
-            - **Apply clinical reasoning to determine the underlying issue** that requires nursing intervention, even if different from the patient's expressed concern.
+            - Identify the most clinically significant **clinical problem, condition, risk, or potential for improvement** based on BOTH subjective and objective data.
+            - **If the patient expresses motivation, learning needs, or a desire to improve health, self-care, or knowledge, consider extracting/inferring words/phrases that points to a "Readiness for..." (wellness/promotion) diagnosis as the chief complaint.**
+            - Examples of "Readiness for..." triggers:
+                * Patient states, "I want to learn how to manage my diabetes better."
+                * Patient demonstrates willingness to quit smoking.
+                * Patient expresses desire to improve mobility or self-care.
+            - Examples of words/phrases to use in chief complaints that points to "Readiness for..." diagnoses:
+                * "Expresses desire to enhance social support"
+                * "Expresses desire to enhance ability to exclusively breastfeed"
+                * "Expresses desire to enhance decision-making"
+            - If both a problem/risk and a "readiness for" statement are present, prioritize the problem/risk unless the patient's motivation is the most prominent or urgent aspect of the assessment.
             - **Always apply nursing prioritization frameworks when selecting the chief complaint:**
-                1. **Life-threatening symptoms (ABC: Airway, Breathing, Circulation) take absolute priority.**
-                2. **If no ABC threat, prioritize actual physiological problems (e.g., infection, impaired skin integrity) over risk or psychosocial concerns.**
-                3. **If pain is the root cause of a limitation, use the pain as chief complaint (Pain-First Rule).**
-                4. **If no pain or ABC issue, use the most functionally limiting or safety-related problem.**
-                5. **Only use psychosocial concerns (e.g., anxiety) as chief complaint if no higher-priority physiological or safety issues are present.**
+                1. Life-threatening symptoms (ABC: Airway, Breathing, Circulation) take absolute priority.
+                2. If no ABC threat, prioritize actual physiological problems (e.g., infection, impaired skin integrity) over risk or psychosocial concerns.
+                3. If pain is the root cause of a limitation, use the pain as chief complaint (Pain-First Rule).
+                4. If no pain or ABC issue, use the most functionally limiting or safety-related problem.
+                5. Only use psychosocial concerns (e.g., anxiety) as chief complaint if no higher-priority physiological or safety issues are present.
+                6. **If the patient's motivation or readiness for improvement is the most prominent finding, select words that point to a "Readiness for..." diagnosis as the chief complaint.**
             - When multiple findings are present, select the one that would be prioritized by a nurse using these frameworks, even if the patient expresses a different concern.
             - Use standardized clinical terminology that matches NANDA defining characteristics.
             - Always ensure the selected chief complaint is clearly supported by the assessment data (subjective and/or objective).
 
             **History - STANDARDIZED CLINICAL TERMINOLOGY:**
-            - Onset/Duration: Use precise clinical timing
+            - Onset/Duration: Use precise clinical timing ONLY IF explicitly stated
               * "Acute onset (< 24 hours)" vs "sudden"
               * "Chronic (> 3 months)" vs "long-term"
-            - Severity: Use standardized scales
+            - Severity: Use standardized scales ONLY IF explicitly stated
               * Pain: "mild (1-3/10)", "moderate (4-6/10)", "severe (7-10/10)"
               * Dyspnea: "mild exertional", "moderate at rest", "severe at rest"
             - Associated Symptoms: Use EXACT terms that match NANDA defining characteristics:
