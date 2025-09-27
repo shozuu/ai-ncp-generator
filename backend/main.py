@@ -480,6 +480,9 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
 
             **Chief Complaint:**
             - Identify the most clinically significant **clinical problem, condition, risk, or potential for improvement** based on BOTH subjective and objective data.
+            - Always capture ALL clinically significant findings explicitly — do not reduce to a single abstract label.
+            - Example: If multiple symptoms appear (e.g., dyspnea, fever, pain) → list each individually.
+            - You may also add a higher-level summary term (e.g., "respiratory distress"), but never omit the individual findings.
             - **If the patient expresses motivation, learning needs, or a desire to improve health, self-care, or knowledge, consider extracting/inferring words/phrases that points to a "Readiness for..." (wellness/promotion) diagnosis as the chief complaint.**
             - Examples of "Readiness for..." triggers:
                 * Patient states, "I want to learn how to manage my diabetes better."
@@ -505,10 +508,13 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             - Onset/Duration: Use precise clinical timing ONLY IF explicitly stated
               * "Acute onset (< 24 hours)" vs "sudden"
               * "Chronic (> 3 months)" vs "long-term"
+              * If timing is implied by context (e.g., postpartum, post-surgery, recent childbirth), capture this as onset/duration
             - Severity: Use standardized scales ONLY IF explicitly stated
               * Pain: "mild (1-3/10)", "moderate (4-6/10)", "severe (7-10/10)"
+              * If severity is expressed in lay terms (e.g., "mahina dugo," "malala," "severe"), capture it in standardized wording such as "Patient reports blood loss and weakness" or "Patient perceives condition as severe"
               * Dyspnea: "mild exertional", "moderate at rest", "severe at rest"
             - Associated Symptoms: Use EXACT terms that match NANDA defining characteristics:
+              * Always propagate key findings from physical exam into associated symptoms if they directly support diagnosis
               * "Shortness of breath" (not "SOB" or "breathing problems")
               * "Chest pain" (not "chest discomfort")
               * "Fatigue" (not "tiredness" or "exhaustion")
@@ -572,7 +578,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
               * "Neurologic: Agitation"
 
             **Risk Factors - NANDA-ALIGNED TERMINOLOGY:**
-            - Always extract any *sensory, cognitive, mobility, or environmental* deficits described in the assessment.
+            - Always extract any risk factors or deficits described in or implied by the assessment.
             - Use standardized NANDA terminology if available:
               * Sensory deficits (e.g., impaired vision, impaired hearing, sensory-perceptual deficit)
               * Cognitive deficits (e.g., memory loss, confusion)
@@ -590,14 +596,15 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
               * "Multiple medications"
               * "Cognitive impairment"
             - If no direct NANDA term exists, use the closest standardized clinical description.
+            - Leave risk factors empty if there are no potential risk factors identified.
 
             **Vital Signs - ENHANCED CLINICAL SIGNIFICANCE:**
             - Standard format with clinical significance flags:
-              * HR: Integer + clinical significance (e.g., 110 with note "tachycardic")
-              * BP: "systolic/diastolic" + significance (e.g., "180/95" with "hypertensive")
-              * RR: Integer + significance (e.g., 28 with "tachypneic")
-              * SpO2: Integer + significance (e.g., 89 with "hypoxemic")
-              * Temp: Decimal + significance (e.g., 39.2 with "febrile")
+              * HR: Integer + clinical significance (e.g., 110, tachycardic)
+              * BP: "systolic/diastolic" + significance (e.g., "180/95", hypertensive)
+              * RR: Integer + significance (e.g., 28, tachypneic)
+              * SpO2: Integer + significance (e.g., 89, hypoxemic)
+              * Temp: Decimal + significance (e.g., 39.2, febrile)
             - Additional vitals: Include pain scores, glucose levels, consciousness levels
 
             **Enhanced Inference Capture:**
