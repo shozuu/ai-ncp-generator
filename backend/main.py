@@ -3,6 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
 import os
 import logging
+import json
+import re
 from pathlib import Path
 from dotenv import load_dotenv
 from utils import format_structured_data, parse_ncp_response, validate_assessment_data, parse_explanation_text
@@ -823,7 +825,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         
         # Step 2: Generate complete NCP based on selected diagnosis
         try:
-            # ncp_data = await generate_structured_ncp(assessment_data, selected_diagnosis)
+            ncp_data = await generate_structured_ncp(assessment_data, selected_diagnosis)
             logger.info("Successfully generated structured NCP")
             
             # Combine diagnosis info with NCP
@@ -937,13 +939,10 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         **PRIORITIZATION RULES:**
         - All outcomes, interventions, and rationales must directly address the selected nursing diagnosis as the primary clinical priority.
         - Always apply standard nursing prioritization frameworks:
-        - Always apply nursing prioritization frameworks:
-            1. **Actual Problems First**: If the assessment data clearly supports an actual diagnosis, always select it over any "Risk for" diagnosis. 
-            2. **ABC (Airway, Breathing, Circulation)**: Among actual diagnoses, prioritize those that involve airway, breathing, or circulation.
-            3. **Maslow’s Hierarchy of Needs**: After ABCs, address physiological and safety needs before psychosocial or self-actualization.
-            4. **Safety and Urgency**: Problems that could quickly compromise health or safety are prioritized over less urgent concerns.
-            5. **Time Sensitivity**: Diagnoses that may worsen rapidly if untreated should be addressed before those that develop slowly.
-            6. **Patient-Centered Priorities**: When multiple options remain equal, consider the patient’s chief complaint.
+            1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
+            2. **Maslow’s Hierarchy of Needs**
+            3. **Actual Problems Over Risk Problems**
+            4. **Acute Over Chronic**
         - Ensure that interventions and outcomes logically flow from the chief complaint and diagnosis, not from unrelated concerns.
 
         **REQUIREMENTS:**
@@ -951,10 +950,12 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         2. Base all outcomes and interventions on NOC and NIC standards
         3. Use the suggested outcomes/interventions as starting points, but adapt them to the specific patient
         4. If suggested outcomes/interventions are not provided, generate appropriate NOC/NIC based options
-        5. Ensure logical connections between all components
-        6. Flexible intervention categories: Use only applicable categories (independent/dependent/collaborative)
-        7. SMART outcomes: Follow SMART criteria for all outcome statements
-        8. Return ONLY valid JSON with no additional text
+        5. Always customize interventions and outcomes to the specific assessment findings provided. Avoid generic textbook-only wording.
+        6. Ensure logical connections between all components
+        7. Flexible intervention categories: Use only applicable categories (independent/dependent/collaborative)
+        8. SMART outcomes: Follow SMART criteria for all outcome statements
+        9. Return ONLY valid JSON with no additional text
+
 
         **RATIONALE GUIDELINES:**
         When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook 13th Ed, Doenges, M. E., et al. (2021). Nurse's Pocket Guide, 15th Edition, NIC/NOC textbooks, official NIC/NOC classifications, CDC/WHO guidelines, etc.). Do not cite page numbers or overly specific details — keep citations broad but verifiable.
@@ -966,7 +967,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 "objective": ["List of objective findings from assessment data"]
             }},
             "diagnosis": {{
-                "statement": "Complete NANDA-I diagnosis statement concisely: [Diagnosis] related to [etiology] as evidenced by [defining characteristics]"
+                "statement": "State in PES format: [Problem] related to [Etiology] as evidenced by [Defining Characteristics]"
             }},
             "outcomes": {{
                 "short_term": {{
@@ -1107,15 +1108,15 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
 
         **Outcomes Grouping Rules:**
         - Group outcomes by identical timeframes
-        - Use clinically appropriate timeframes (within 2 hours, within 24 hours, within 48 hours, within 5 days, before discharge, etc.)
+        - Use clinically appropriate and realistic timeframes for nursing students (within 2 hours, within 8 hours, within 24 hours, within 5 days, before end of shift, etc.)
         - Ensure each timeframe group has related, achievable outcomes
         
         **Evaluation Grouping Rules:**
-        - Group by status (Met, Partially Met, Not Met)
+        - Group by status (Met / Partially Met)
         - Within each status, group by timeframe
         - List specific evidence under each timeframe-status combination
         - Use past tense and measurable evidence
-        """
+    """
     
     # Retry logic
     for attempt in range(max_retries):
@@ -1131,10 +1132,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
             raw_response = response.text.strip()
             logger.info(f"Raw response from AI: {raw_response}")
             
-            # Clean and extract JSON
-            import json
-            import re
-            
+            # Clean and extract JSON            
             cleaned_response = raw_response.encode('utf-8').decode('utf-8-sig')
             
             # Try to extract JSON from code blocks

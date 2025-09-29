@@ -32,7 +32,7 @@ class VectorDiagnosisMatcher:
             generation_config = {
                 "temperature": 0.3,
                 "top_p": 1,
-                "max_output_tokens": 1024,
+                "max_output_tokens": 5096,
             }
             self.model = genai.GenerativeModel(
                 model_name="gemini-2.5-pro",
@@ -42,81 +42,111 @@ class VectorDiagnosisMatcher:
 
     def format_assessment_for_embedding(self, assessment_data: Dict) -> str:
         """Format assessment data to match diagnosis database embedding format"""
-        
-        # If your database embeddings are: diagnosis + definition + defining_characteristics + related_factors + risk_factors
-        # Structure your assessment embedding to match those 5 components:
-        
-        components = []
-        
-        # 1. DEFINING CHARACTERISTICS (clinical findings and symptoms)
+
+        # 1. DEFINING CHARACTERISTICS (symptoms, clinical findings)
         defining_chars = []
-        
-        # Chief complaint (often a key defining characteristic)
+
+        # Chief complaint
         chief_complaint = assessment_data.get('chief_complaint', '')
         if chief_complaint:
             defining_chars.append(chief_complaint)
-        
-        # Physical exam findings (clean the categorized format)
-        phys_exam = assessment_data.get('physical_exam', [])
-        for item in phys_exam:
-            if isinstance(item, str):
-                clean_item = item.replace("Respiratory: ", "").replace("Cardiac: ", "").replace("Mobility: ", "").replace("Skin: ", "")
-                defining_chars.append(clean_item)
-            elif isinstance(item, dict):
-                # Optionally, handle dicts here (e.g., extract a value)
-                defining_chars.append(str(item))
-        
-        if assessment_data.get('physical_exam_other'):
-            defining_chars.append(assessment_data['physical_exam_other'])
-        
-        # Associated symptoms from history
+
+        # History: associated and other symptoms
         history = assessment_data.get('history', {})
         if history.get('associated_symptoms'):
             defining_chars.extend(history['associated_symptoms'])
         if history.get('other_symptoms'):
-            defining_chars.append(history['other_symptoms'])
-        
-        if defining_chars:
-            components.append(' '.join(defining_chars))
-        
-        # 2. RELATED FACTORS (medical conditions, demographics, environmental factors)
+            if isinstance(history['other_symptoms'], list):
+                defining_chars.extend(history['other_symptoms'])
+            elif history['other_symptoms']:
+                defining_chars.append(history['other_symptoms'])
+
+        # Physical exam findings (remove system prefixes)
+        phys_exam = assessment_data.get('physical_exam', [])
+        for item in phys_exam:
+            if isinstance(item, str):
+                # Remove leading system label (e.g., "Neurologic: Headache" -> "Headache")
+                clean_item = re.sub(r'^\w+:\s*', '', item)
+                defining_chars.append(clean_item)
+            elif isinstance(item, dict):
+                defining_chars.append(str(item))
+        if assessment_data.get('physical_exam_other'):
+            defining_chars.append(assessment_data['physical_exam_other'])
+
+        # Vital signs with clinical significance
+        vitals = assessment_data.get('vital_signs', {})
+        vital_parts = []
+        if vitals.get('Temp'):
+            temp = vitals['Temp']
+            temp_sig = vitals.get('additional_vitals', {}).get('Temperature Significance')
+            if temp_sig:
+                vital_parts.append(f"Temp: {temp}, {temp_sig}")
+            else:
+                vital_parts.append(f"Temp: {temp}")
+        if vitals.get('RR'):
+            rr = vitals['RR']
+            rr_sig = vitals.get('additional_vitals', {}).get('Respiratory Rate Significance')
+            if rr_sig:
+                vital_parts.append(f"RR: {rr}, {rr_sig}")
+            else:
+                vital_parts.append(f"RR: {rr}")
+
+        # Additional vitals: flatten and remove any "Label: value" prefix for consistency
+        additional_vitals = vitals.get('additional_vitals', {})
+        for vital_name, vital_value in additional_vitals.items():
+            if vital_value and vital_name not in ["Temperature Significance", "Respiratory Rate Significance"]:
+                # Remove "Label: " if present in value
+                if isinstance(vital_value, str):
+                    clean_value = re.sub(r'^\w+:\s*', '', vital_value)
+                else:
+                    clean_value = str(vital_value)
+                vital_parts.append(clean_value)
+
+        if vital_parts:
+            defining_chars.append('; '.join(vital_parts))
+
+        # 2. RELATED FACTORS (medical history, age, relevant cultural factors)
         related_factors = []
-        
-        # Medical history
         med_history = assessment_data.get('medical_history', [])
         if med_history:
             related_factors.extend(med_history)
         if assessment_data.get('medical_history_other'):
             related_factors.append(assessment_data['medical_history_other'])
-        
-        # Age-related factors
+
         demographics = assessment_data.get('demographics', {})
         age = demographics.get('age')
-        if age and isinstance(age, (int, float)):
-            if age > 65:
-                related_factors.append('advanced age')
-            elif age < 18:
-                related_factors.append('pediatric patient')
-        
-        # Environmental/cultural factors that could be related factors
+        if age is not None:
+            try:
+                age_val = float(age)
+                if age_val < 18:
+                    related_factors.append('pediatric patient')
+                elif age_val > 65:
+                    related_factors.append('advanced age')
+            except Exception:
+                pass
+
         cultural = assessment_data.get('cultural_considerations', {})
-        for factor in ['health_beliefs', 'family_involvement']:
-            if cultural.get(factor):
-                related_factors.append(cultural[factor])
-        
-        if related_factors:
-            components.append(' '.join(related_factors))
-        
-        # 3. RISK FACTORS (direct mapping)
-        risk_factors = assessment_data.get('risk_factors', [])
-        risk_items = risk_factors.copy()
+        for key in ['family_involvement', 'health_beliefs']:
+            val = cultural.get(key)
+            if val:
+                related_factors.append(val)
+
+        # 3. RISK FACTORS
+        risk_factors = []
+        if assessment_data.get('risk_factors'):
+            risk_factors.extend(assessment_data['risk_factors'])
         if assessment_data.get('risk_factors_other'):
-            risk_items.append(assessment_data['risk_factors_other'])
-        
-        if risk_items:
-            components.append(' '.join(risk_items))
-        
-        # Simple space-separated concatenation to match database format
+            risk_factors.append(assessment_data['risk_factors_other'])
+
+        # Compose embedding string: [defining chars] [related factors] [risk factors]
+        components = []
+        if defining_chars:
+            components.append(' '.join([str(x) for x in defining_chars if x]))
+        if related_factors:
+            components.append(' '.join([str(x) for x in related_factors if x]))
+        if risk_factors:
+            components.append(' '.join([str(x) for x in risk_factors if x]))
+
         return ' '.join(components)
 
     async def embed_assessment_data(self, assessment_data: Dict) -> List[float]:
@@ -301,15 +331,13 @@ class VectorDiagnosisMatcher:
                 # Candidate Diagnoses (CHOOSE EXACTLY ONE FROM THIS LIST)
                 {candidates_text}
 
-                # Expected Output (JSON)
+                # Return ONLY a valid JSON object with this exact structure
                 {{
                     "diagnosis": "EXACT diagnosis name from candidate list - copy it precisely",
                     "reasoning": "Brief explanation addressing: 1) How this diagnosis matches the assessment data, 2) Why this takes priority over other possible diagnoses using the nursing prioritization framework above, 3) Specific evidence from the assessment that supports this selection"
                 }}
 
                 IMPORTANT: Only return the diagnosis name and reasoning. Do not include other fields like definition, characteristics, etc. - we will get those from the original candidate data.
-
-                Ensure the response is valid JSON with no additional text.
             """
             
             model = self._get_model()
@@ -317,7 +345,7 @@ class VectorDiagnosisMatcher:
             
             for attempt in range(max_retries):
                 logger.info(f"AI diagnosis selection attempt {attempt + 1}/{max_retries}")
-                
+
                 try:
                     response = model.generate_content(ai_prompt)
                     
