@@ -59,10 +59,10 @@ generation_config = {
     "temperature": 0.7,
     "top_p": 1,
     "top_k": 1,
-    "max_output_tokens": 4096,
+    "max_output_tokens": 5096,
 }
 model = genai.GenerativeModel(
-    model_name="gemini-2.0-flash",
+    model_name="gemini-2.5-pro",
     generation_config=generation_config
 )
 
@@ -494,13 +494,26 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
                 * "Expresses desire to enhance decision-making"
             - If both a problem/risk and a "readiness for" statement are present, prioritize the problem/risk unless the patient's motivation is the most prominent or urgent aspect of the assessment.
             - **Always apply nursing prioritization frameworks when selecting the chief complaint:**
-                1. Life-threatening symptoms (ABC: Airway, Breathing, Circulation) take absolute priority.
-                2. If no ABC threat, prioritize actual physiological problems (e.g., infection, impaired skin integrity) over risk or psychosocial concerns.
-                3. If pain is the root cause of a limitation, use the pain as chief complaint (Pain-First Rule).
-                4. If no pain or ABC issue, use the most functionally limiting or safety-related problem.
-                5. Only use psychosocial concerns (e.g., anxiety) as chief complaint if no higher-priority physiological or safety issues are present.
-                6. **If the patient's motivation or readiness for improvement is the most prominent finding, select words that point to a "Readiness for..." diagnosis as the chief complaint.**
-            - When multiple findings are present, select the one that would be prioritized by a nurse using these frameworks, even if the patient expresses a different concern.
+
+                1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
+                * If ANY candidate diagnosis involves airway, breathing, or circulation → choose it.
+                * Exception: If pain is present but **causes ABC compromise**, still prioritize the ABC diagnosis.
+
+                2. **Maslow’s Hierarchy of Needs**
+                * After ABC, follow Maslow’s priority order:
+                    1. **Physiological needs** (pain, nutrition, elimination, hydration, mobility, rest, thermoregulation)
+                    2. **Safety needs** (infection control, falls, injuries, protection from harm)
+                    3. **Psychosocial needs** (anxiety, coping, knowledge deficit, body image, self-esteem)
+                * **Rule:** Even if psychosocial is an **actual problem**, it is lower priority than a **risk diagnosis** involving physiological or safety needs.
+
+                3. **Actual Problems Over Risk Problems**
+                * When comparing two diagnoses at the same Maslow level (e.g., both physiological), choose the actual problem over the "risk for" problem.
+                * Exception: If the “risk for” problem is ABC-related, it may override an actual non-ABC problem.
+
+                4. **Acute Over Chronic**
+                * If two actual problems exist at the same Maslow level, prioritize the **acute (sudden, severe, unstable)** condition over the **chronic (long-term, stable)** one.
+
+                5. **If the patient's motivation or readiness for improvement is the most prominent finding, select words that point to a "Readiness for..." diagnosis as the chief complaint.**
             - Use standardized clinical terminology that matches NANDA defining characteristics.
             - Always ensure the selected chief complaint is clearly supported by the assessment data (subjective and/or objective).
 
@@ -810,7 +823,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         
         # Step 2: Generate complete NCP based on selected diagnosis
         try:
-            ncp_data = await generate_structured_ncp(assessment_data, selected_diagnosis)
+            # ncp_data = await generate_structured_ncp(assessment_data, selected_diagnosis)
             logger.info("Successfully generated structured NCP")
             
             # Combine diagnosis info with NCP

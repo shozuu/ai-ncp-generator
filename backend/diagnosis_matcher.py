@@ -35,7 +35,7 @@ class VectorDiagnosisMatcher:
                 "max_output_tokens": 1024,
             }
             self.model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash",
+                model_name="gemini-2.5-pro",
                 generation_config=generation_config,
             )
         return self.model
@@ -59,8 +59,12 @@ class VectorDiagnosisMatcher:
         # Physical exam findings (clean the categorized format)
         phys_exam = assessment_data.get('physical_exam', [])
         for item in phys_exam:
-            clean_item = item.replace("Respiratory: ", "").replace("Cardiac: ", "").replace("Mobility: ", "").replace("Skin: ", "")
-            defining_chars.append(clean_item)
+            if isinstance(item, str):
+                clean_item = item.replace("Respiratory: ", "").replace("Cardiac: ", "").replace("Mobility: ", "").replace("Skin: ", "")
+                defining_chars.append(clean_item)
+            elif isinstance(item, dict):
+                # Optionally, handle dicts here (e.g., extract a value)
+                defining_chars.append(str(item))
         
         if assessment_data.get('physical_exam_other'):
             defining_chars.append(assessment_data['physical_exam_other'])
@@ -273,41 +277,23 @@ class VectorDiagnosisMatcher:
                 
                 # PRIORITIZATION FRAMEWORKS (IN ORDER OF CLINICAL PRIORITY)
                 
-                **1. LIFE-THREATENING CONDITIONS FIRST (ABC - Airway, Breathing, Circulation)**
-                - These ALWAYS take priority over pain, regardless of cause:
-                  * **Airway**: Ineffective Airway Clearance, Risk for Aspiration
-                  * **Breathing**: Impaired Gas Exchange, Ineffective Breathing Pattern, Activity Intolerance (when respiratory-related)
-                  * **Circulation**: Decreased Cardiac Output, Ineffective Tissue Perfusion, Deficient Fluid Volume
-                - **Exception**: If pain is causing the ABC problem (e.g., chest pain leading to shallow breathing), still prioritize the ABC issue
-                
-                **2. ACTUAL PROBLEMS OVER RISK PROBLEMS**
-                - If assessment data clearly supports an actual diagnosis, select it over any "Risk for" diagnosis
-                - Exception: "Risk for" ABC problems may take priority over actual non-ABC problems
-                
-                **3. PAIN-FIRST RULE (for non-ABC conditions)**
-                - **When pain is the root cause of functional limitations, prioritize pain diagnoses over their secondary effects**
-                - **This rule applies AFTER ABC conditions are ruled out**
-                - **Critical Exception**: If pain is in chest/throat area and causing breathing problems → Choose the breathing diagnosis (ABC priority)
-                
-                **4. SAFETY AND INFECTION CONTROL**
-                - After ABC and pain assessment:
-                  * Risk for Infection, Impaired Skin Integrity
-                  * Risk for Falls, Risk for Injury
-                - These may take priority over pain if they pose immediate safety threats
-                
-                **5. PHYSIOLOGICAL NEEDS**
-                - Nutrition, Elimination, Thermoregulation
-                - Generally lower priority unless severe
-                
-                **6. PSYCHOSOCIAL CONCERNS**
-                - Anxiety, Ineffective Coping, Disturbed Body Image
-                - Lowest priority unless no physiological issues present
-                
-                **ROOT CAUSE ANALYSIS QUESTIONS:**
-                1. Are there any ABC (airway/breathing/circulation) issues? → If YES, these take priority
-                2. Is pain the primary cause of functional limitations? → If YES and no ABC issues, choose pain diagnosis
-                3. Are there immediate safety/infection risks? → Consider these against pain severity
-                4. What does the assessment data most strongly support? → Use evidence-based selection
+                1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
+                * If ANY candidate diagnosis involves airway, breathing, or circulation → choose it.
+                * Exception: If pain is present but **causes ABC compromise**, still prioritize the ABC diagnosis.
+
+                2. **Maslow’s Hierarchy of Needs**
+                * After ABC, follow Maslow’s priority order:
+                    1. **Physiological needs** (pain, nutrition, elimination, hydration, mobility, rest, thermoregulation)
+                    2. **Safety needs** (infection control, falls, injuries, protection from harm)
+                    3. **Psychosocial needs** (anxiety, coping, knowledge deficit, body image, self-esteem)
+                * **Rule:** Even if psychosocial is an **actual problem**, it is lower priority than a **risk diagnosis** involving physiological or safety needs.
+
+                3. **Actual Problems Over Risk Problems**
+                * When comparing two diagnoses at the same Maslow level (e.g., both physiological), choose the actual problem over the "risk for" problem.
+                * Exception: If the “risk for” problem is ABC-related, it may override an actual non-ABC problem.
+
+                4. **Acute Over Chronic**
+                * If two actual problems exist at the same Maslow level, prioritize the **acute (sudden, severe, unstable)** condition over the **chronic (long-term, stable)** one.
 
                 # Patient Assessment Data
                 {formatted_assessment}
