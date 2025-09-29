@@ -394,7 +394,7 @@ def format_structured_data(structured_data) -> str:
     if phys_exam or phys_exam_other:
         exam_items = phys_exam.copy()
         if phys_exam_other: exam_items.append(phys_exam_other)
-        formatted_sections.append(f"Physical Examination:\n- {'; '.join(exam_items)}")
+        formatted_sections.append(f"Physical Examination:\n- {'; '.join(str(item) for item in exam_items)}")
     
     # Risk Factors
     risk_factors = structured_data.get('risk_factors', [])
@@ -404,7 +404,7 @@ def format_structured_data(structured_data) -> str:
         if risk_factors_other: risk_items.append(risk_factors_other)
         formatted_sections.append(f"Risk Factors:\n- {', '.join(risk_items)}")
     
-    # Cultural Considerations (new section)
+    # Cultural Considerations
     cultural = structured_data.get('cultural_considerations', {})
     if any(cultural.values()):
         cultural_info = []
