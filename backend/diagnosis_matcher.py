@@ -299,25 +299,25 @@ class VectorDiagnosisMatcher:
                 - Return the complete information for the selected diagnosis as JSON
                 - Include a brief clinical explanation of why this diagnosis was selected over others, including how it matches the patient's assessment data and clinical priorities
                 
-                # PRIORITIZATION FRAMEWORKS (IN ORDER OF CLINICAL PRIORITY)
+                # PRIORITIZATION FRAMEWORKS (STRICT CLINICAL PRIORITY ORDER)
                 
                 1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
-                * If ANY candidate diagnosis involves airway, breathing, or circulation → choose it.
-                * Exception: If pain is present but **causes ABC compromise**, still prioritize the ABC diagnosis.
+                * Select an ABC diagnosis **only if the assessment data clearly demonstrates current compromise of airway, breathing, or circulation.**
+                * Do **not** select an ABC diagnosis if the data merely shows the presence of external support or monitoring (e.g., intubation, IV line, mechanical ventilation) without explicit evidence of dysfunction.
+                * If no such evidence exists, evaluate other physiological needs according to Maslow’s hierarchy.
 
                 2. **Maslow’s Hierarchy of Needs**
-                * After ABC, follow Maslow’s priority order:
-                    1. **Physiological needs** (pain, nutrition, elimination, hydration, mobility, rest, thermoregulation)
-                    2. **Safety needs** (infection control, falls, injuries, protection from harm)
-                    3. **Psychosocial needs** (anxiety, coping, knowledge deficit, body image, self-esteem)
-                * **Rule:** Even if psychosocial is an **actual problem**, it is lower priority than a **risk diagnosis** involving physiological or safety needs.
+                * Physiological → pain, sleep, nutrition, elimination, hydration, mobility, thermoregulation.
+                * Safety → infection prevention, fall risk, injury prevention, protection from harm.
+                * Psychosocial → anxiety, coping, knowledge deficit, self-esteem, body image.
+                * **Rule:** A psychosocial actual problem is always **lower priority** than a physiological or safety risk.
 
                 3. **Actual Problems Over Risk Problems**
-                * When comparing two diagnoses at the same Maslow level (e.g., both physiological), choose the actual problem over the "risk for" problem.
-                * Exception: If the “risk for” problem is ABC-related, it may override an actual non-ABC problem.
+                * At the same Maslow level, prioritize the **actual diagnosis** over a "risk for" diagnosis.
+                * Exception: A "risk for" diagnosis may override only if it is **ABC-related**
 
                 4. **Acute Over Chronic**
-                * If two actual problems exist at the same Maslow level, prioritize the **acute (sudden, severe, unstable)** condition over the **chronic (long-term, stable)** one.
+                * If two actual problems exist at the same Maslow level, prioritize the **acute, severe, or unstable** condition over the **chronic or stable** one.
 
                 # Patient Assessment Data
                 {formatted_assessment}
@@ -330,8 +330,6 @@ class VectorDiagnosisMatcher:
                     "diagnosis": "EXACT diagnosis name from candidate list - copy it precisely",
                     "reasoning": "Brief explanation addressing: 1) How this diagnosis matches the assessment data, 2) Why this takes priority over other possible diagnoses using the nursing prioritization framework above, 3) Specific evidence from the assessment that supports this selection"
                 }}
-
-                IMPORTANT: Only return the diagnosis name and reasoning. Do not include other fields like definition, characteristics, etc. - we will get those from the original candidate data.
             """
             
             model = self._get_model()
