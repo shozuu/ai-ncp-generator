@@ -284,12 +284,6 @@ class VectorDiagnosisMatcher:
                 # No similarity score shown to AI - pure clinical judgment
                 candidates_text += f"""
                     **Candidate: {candidate['diagnosis']}**
-                    Definition: {candidate['definition'] or 'Not available'}
-                    Defining Characteristics: {safe_join(candidate['defining_characteristics'])}
-                    Related Factors: {safe_join(candidate['related_factors'])}
-                    Risk Factors: {safe_join(candidate['risk_factors'])}
-                    Suggested Outcomes: {safe_join(candidate['suggested_outcomes'])}
-                    Suggested Interventions: {safe_join(candidate['suggested_interventions'])}
                 """
 
             ai_prompt = f"""

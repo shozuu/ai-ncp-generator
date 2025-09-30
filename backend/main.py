@@ -554,7 +554,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
               * "Surgery (within 6 months)"
 
             **Physical Exam - NANDA DEFINING CHARACTERISTIC ALIGNMENT:**
-            - Capture findings using system-specific headings when possible (Respiratory, Cardiac, Mobility, Skin, Neurologic).
+            - Capture findings using specific headings when possible (Respiratory, Cardiac, Mobility, Skin, Neurologic).
             - For findings not listed in predefined examples (e.g., eye/vision, hearing), create a category that reflects the system (e.g., Vision, Hearing).
             - Always use clear, clinical terminology (e.g., "Vision: Blurred vision" instead of "trouble seeing").
             - Use EXACT standardized terminology that matches NANDA defining characteristics:
@@ -919,6 +919,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
     
     formatted_assessment = format_structured_data(assessment_data)
     logger.info("Formatted assessment data for ncp creation: " + str(formatted_assessment))
+    logger.info("Chosen diagnosis: " + str(selected_diagnosis))
 
     # Create the structured prompt with improved rationale format
     ncp_prompt = f"""
