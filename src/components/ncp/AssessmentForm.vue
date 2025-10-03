@@ -58,6 +58,7 @@ const handleSubmit = async data => {
       handleSuccess('processing')
       try {
         const parsedData = await ncpService.parseManualAssessment(data)
+        // Use the parsed data directly - it contains original_assessment + embedding_keywords
         structuredData = {
           ...parsedData,
           format: props.selectedFormat,
@@ -82,7 +83,10 @@ const handleSubmit = async data => {
     try {
       currentStep.value = 'generating'
       handleSuccess('generating')
-      const result = await ncpService.generateComprehensiveNCP(structuredData)
+
+      let result
+      result = await ncpService.generateComprehensiveNCP(structuredData)
+
       currentStep.value = 'saving'
       if (result.ncp) {
         const dataWithNCP = {
