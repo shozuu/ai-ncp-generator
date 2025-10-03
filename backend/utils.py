@@ -1,5 +1,5 @@
 import re
-from typing import Dict
+from typing import Dict, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -428,3 +428,136 @@ def format_structured_data(structured_data) -> str:
         formatted_sections.append(f"Nurse Notes:\n- {structured_data['nurse_notes']}")
     
     return '\n\n'.join(formatted_sections)
+
+def format_assessment_for_selection(assessment_data: Dict) -> str:
+    """Format assessment data specifically for diagnosis selection."""
+    # Check if this is manual mode format (subjective/objective lists)
+    if 'subjective' in assessment_data and 'objective' in assessment_data:
+        subjective_items = assessment_data.get('subjective', [])
+        objective_items = assessment_data.get('objective', [])
+        
+        formatted = "**PATIENT ASSESSMENT DATA:**\n\n"
+        
+        if subjective_items:
+            formatted += "**Subjective Data:**\n"
+            for item in subjective_items:
+                formatted += f"- {item}\n"
+            formatted += "\n"
+        
+        if objective_items:
+            formatted += "**Objective Data:**\n"
+            for item in objective_items:
+                formatted += f"- {item}\n"
+            formatted += "\n"
+        
+        return formatted
+    else:
+        # This is assistant mode format - use the existing formatter
+        return format_structured_data(assessment_data)
+
+def format_assessment_for_ncp(assessment_data: Dict) -> str:
+    """Format assessment data specifically for NCP generation."""
+    # Check if this is manual mode format (subjective/objective lists)
+    if 'subjective' in assessment_data and 'objective' in assessment_data:
+        subjective_items = assessment_data.get('subjective', [])
+        objective_items = assessment_data.get('objective', [])
+        
+        formatted = "**PATIENT ASSESSMENT DATA:**\n\n"
+        
+        if subjective_items:
+            formatted += "**Subjective Data:**\n"
+            for item in subjective_items:
+                formatted += f"- {item}\n"
+            formatted += "\n"
+        
+        if objective_items:
+            formatted += "**Objective Data:**\n"
+            for item in objective_items:
+                formatted += f"- {item}\n"
+            formatted += "\n"
+        
+        return formatted
+    else:
+        # This is assistant mode format - use the existing formatter
+        return format_structured_data(assessment_data)
+
+def safe_format_list(items, fallback="Not specified in database"):
+    """Helper function to safely join arrays or provide fallback."""
+    if not items or (isinstance(items, list) and len(items) == 0):
+        return fallback
+    if isinstance(items, list):
+        return ', '.join(str(item) for item in items if item)
+    return str(items) if items else fallback
+
+def validate_ncp_structure(ncp_data: Dict) -> bool:
+    """Validate that the NCP has the required structure and content."""
+    required_sections = ["assessment", "diagnosis", "outcomes", "interventions", "rationale", "implementation", "evaluation"]
+    
+    # Check all sections exist
+    if not all(section in ncp_data for section in required_sections):
+        return False
+    
+    # Check each section has meaningful content
+    for section, content in ncp_data.items():
+        if section in required_sections:
+            if not content or (isinstance(content, str) and len(content.strip()) < 10):
+                return False
+            if isinstance(content, dict) and not any(v for v in content.values() if v):
+                return False
+    
+    # Validate outcomes structure (allow flexibility for short_term or long_term only)
+    outcomes = ncp_data.get("outcomes", {})
+    if not isinstance(outcomes, dict):
+        return False
+    
+    # At least one type of outcome should exist
+    has_short_term = outcomes.get("short_term") and len(outcomes["short_term"]) > 0
+    has_long_term = outcomes.get("long_term") and len(outcomes["long_term"]) > 0
+    
+    if not (has_short_term or has_long_term):
+        return False
+    
+    # Validate interventions structure
+    interventions = ncp_data.get("interventions", {})
+    if not isinstance(interventions, dict):
+        return False
+    
+    # At least one intervention category should have content
+    has_independent = interventions.get("independent") and len(interventions["independent"]) > 0
+    has_dependent = interventions.get("dependent") and len(interventions["dependent"]) > 0
+    has_collaborative = interventions.get("collaborative") and len(interventions["collaborative"]) > 0
+    
+    if not (has_independent or has_dependent or has_collaborative):
+        return False
+    
+    # Validate rationale structure (should have intervention-specific rationales)
+    rationale = ncp_data.get("rationale", {})
+    if not isinstance(rationale, dict) or not rationale.get("interventions"):
+        return False
+    
+    return True
+
+def validate_ai_selection(ai_response: Dict, candidates: List[Dict]) -> bool:
+    """Validate that AI selected a diagnosis from the candidate list."""
+    selected_diagnosis = ai_response.get('diagnosis', '').strip()
+    
+    if not selected_diagnosis:
+        return False
+    
+    # Check if the selected diagnosis matches any candidate (case-insensitive)
+    candidate_diagnoses = [candidate['diagnosis'].strip().lower() for candidate in candidates]
+    return selected_diagnosis.lower() in candidate_diagnoses
+
+def find_matching_candidate(ai_response: Dict, candidates: List[Dict]) -> Dict:
+    """Find the matching candidate and return its complete data."""
+    selected_diagnosis = ai_response.get('diagnosis', '').strip().lower()
+    
+    for candidate in candidates:
+        if candidate['diagnosis'].strip().lower() == selected_diagnosis:
+            # Return the candidate data with AI reasoning
+            return {
+                **candidate,  # All original candidate data
+                "reasoning": ai_response.get('reasoning', 'No reasoning provided')
+            }
+    
+    return None
