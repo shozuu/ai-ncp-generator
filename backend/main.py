@@ -7,7 +7,15 @@ import json
 import re
 from pathlib import Path
 from dotenv import load_dotenv
-from utils import format_structured_data, parse_ncp_response, validate_assessment_data, parse_explanation_text
+from utils import (
+    format_structured_data, 
+    parse_ncp_response, 
+    validate_assessment_data, 
+    parse_explanation_text,
+    format_assessment_for_ncp,
+    safe_format_list,
+    validate_ncp_structure
+)
 import google.generativeai as genai
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
@@ -61,10 +69,10 @@ generation_config = {
     "temperature": 0.7,
     "top_p": 1,
     "top_k": 1,
-    "max_output_tokens": 5096,
+    "max_output_tokens": 10096,
 }
 model = genai.GenerativeModel(
-    model_name="gemini-2.5-pro",
+    model_name="gemini-2.5-flash",
     generation_config=generation_config
 )
 
@@ -416,443 +424,125 @@ async def generate_explanation(request_data: Dict) -> Dict:
 @app.post("/api/parse-manual-assessment")
 async def parse_manual_assessment(request_data: Dict) -> Dict:
     """
-    Parse manual mode assessment data into structured format using AI.
+    Generate detailed, database-aligned keywords from manual assessment data.
     """
     try:
         subjective_data = request_data.get('subjective', [])
         objective_data = request_data.get('objective', [])
         
-        if not subjective_data or not objective_data:
-            raise ValueError("Both subjective and objective data are required")
-        
-        logger.info("Parsing manual assessment data into structured format")
-        
-        # Create formatted text for the AI
         subjective_text = '\n'.join(f"- {item}" for item in subjective_data)
         objective_text = '\n'.join(f"- {item}" for item in objective_data)
         
-        # parsing prompt with cultural/religious and additional vitals handling
-        parsing_prompt = f"""
-            You are a clinical nursing assessment parser with expertise in standardizing patient data for NANDA-I diagnosis matching. Your task is to extract and structure nursing assessment data in a format that will be embedded and matched against a comprehensive nursing diagnosis database.
+        prompt = f"""
+        You are a clinical expert specializing in NANDA-I nursing diagnosis matching with deep knowledge of nursing diagnosis terminology, defining characteristics, related factors, risk factors, associated conditions, and at risk populations.
 
-            **CRITICAL IMPORTANCE:** The structured data you create will be converted to embeddings and queried against a database containing NANDA-I nursing diagnoses with fields: diagnosis name, definition, defining characteristics, related factors, and risk factors. Consistency, accuracy, and use of standard clinical terminology is essential for proper diagnosis matching.
+        Your task is to analyze assessment data and extract detailed clinical keywords that will match entries in a NANDA-I nursing diagnosis database. The database contains diagnoses with these key fields:
+        - Diagnosis names
+        - Defining characteristics (signs/symptoms)
+        - Related factors (etiologies/causes)
+        - Risk factors (predisposing conditions)
+        - Associated conditions (medical comorbidities/pathophysiology)
+        - At risk populations (demographics/clinical states)
 
-            **SUBJECTIVE DATA:**
-            {subjective_text}
+        ASSESSMENT DATA TO ANALYZE:
+        SUBJECTIVE: {subjective_text}
+        OBJECTIVE: {objective_text}
 
-            **OBJECTIVE DATA:**
-            {objective_text}
+        INSTRUCTIONS:
+        1. Extract ONLY keywords directly supported by the assessment data (no assumptions).
+        2. Normalize raw findings into standard clinical terminology aligned with NANDA-I 
+        (e.g., "shortness of breath" → dyspnea, "RR 28" → tachypnea, "SpO₂ 89%" → hypoxemia).
+        3. Include both actual problems (current symptoms/conditions) and potential risks (predisposing factors).
+        4. Capture physiological, psychological, and safety-related findings.
+        5. Prefer precise medical/nursing terms. Include both lay and NANDA terms if needed for matching.
 
-            ---
+        QUALITY CHECKS:
+        - Do NOT add findings not present in the data.
+        - Use only terms that could realistically match NANDA-I diagnosis fields.
+        - Avoid generic terms (e.g., "unwell"). Be specific (e.g., "tachypnea").
+        - Ensure output is flat, no categories or labels.
 
-            ### CLINICAL INFERENCE GUIDELINES
+        OUTPUT FORMAT:
+        Return ONLY a single string of clinical keywords separated by spaces. 
+        No bullets, no punctuation, no explanations. 
+        Each keyword should be lowercase unless it is a proper medical acronym.
+        """
 
-            **Linguistic and Cultural Sensitivity:**
-            - Recognize and appropriately translate medical terms from various languages/cultures
-            - When family members report symptoms, ensure accurate interpretation of what they're describing
-            - Always prioritize the ACTUAL symptom being reported over clinical assumptions based on subjective/objective findings
-
-            **Evidence-Based Clinical Inference Priority:**
-            - Use vital signs and exam findings to qualify/quantify the primary concern, not replace it
-            - Consider all data holistically, but don't override clear patient reports
-
-            **Capture Valid Clinical Inferences:**
-            - If assessment data contains clinical conclusions that are supported by evidence, extract them appropriately
-            - Example: "Patient appears anxious" → capture "anxiety" if supported by behavioral observations
-            - Example: "Wound shows signs of infection" → capture infection indicators if supported by objective findings
-            - Example: "Patient demonstrates knowledge deficit" → capture if supported by specific examples
-
-            **Evidence-Based Validation:**
-            - Only capture inferences that have supporting evidence in the assessment data
-            - Cross-reference subjective reports with objective findings
-            - Prioritize objective, measurable findings over subjective impressions
-            - When in doubt, place questionable inferences in `nurse_notes` rather than structured fields
-
-            ---
-
-            ### STANDARDIZATION GUIDELINES FOR EMBEDDING ALIGNMENT
-
-            **Demographics:**
-            - Age: Extract exact numeric age if stated
-            - Sex: Use only "male" or "female" (lowercase)
-            - Occupation: Extract if mentioned, otherwise leave empty
-            - Religion: Extract if mentioned (e.g., "Catholic", "Muslim", "Jewish", "Buddhist", "None", etc.)
-            - Cultural_background: Extract ethnicity, cultural identity, or cultural practices if mentioned
-            - Language: Extract primary language if mentioned (especially if non-English)
-
-            **Chief Complaint:**
-            - Identify the most clinically significant **clinical problem, condition, risk, or potential for improvement** based on BOTH subjective and objective data.
-            - Always capture ALL clinically significant findings explicitly — do not reduce to a single abstract label.
-            - Example: If multiple symptoms appear (e.g., dyspnea, fever, pain) → list each individually.
-            - You may also add a higher-level summary term (e.g., "respiratory distress"), but never omit the individual findings.
-            - **If the patient expresses motivation, learning needs, or a desire to improve health, self-care, or knowledge, consider extracting/inferring words/phrases that points to a "Readiness for..." (wellness/promotion) diagnosis as the chief complaint.**
-            - Examples of "Readiness for..." triggers:
-                * Patient states, "I want to learn how to manage my diabetes better."
-                * Patient demonstrates willingness to quit smoking.
-                * Patient expresses desire to improve mobility or self-care.
-            - Examples of words/phrases to use in chief complaints that points to "Readiness for..." diagnoses:
-                * "Expresses desire to enhance social support"
-                * "Expresses desire to enhance ability to exclusively breastfeed"
-                * "Expresses desire to enhance decision-making"
-            - If both a problem/risk and a "readiness for" statement are present, prioritize the problem/risk unless the patient's motivation is the most prominent or urgent aspect of the assessment.
-            - **Always apply nursing prioritization frameworks when selecting the chief complaint:**
-
-                1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
-                * If ANY candidate diagnosis involves airway, breathing, or circulation → choose it.
-                * Exception: If pain is present but **causes ABC compromise**, still prioritize the ABC diagnosis.
-
-                2. **Maslow’s Hierarchy of Needs**
-                * After ABC, follow Maslow’s priority order:
-                    1. **Physiological needs** (pain, nutrition, elimination, hydration, mobility, rest, thermoregulation)
-                    2. **Safety needs** (infection control, falls, injuries, protection from harm)
-                    3. **Psychosocial needs** (anxiety, coping, knowledge deficit, body image, self-esteem)
-                * **Rule:** Even if psychosocial is an **actual problem**, it is lower priority than a **risk diagnosis** involving physiological or safety needs.
-
-                3. **Actual Problems Over Risk Problems**
-                * When comparing two diagnoses at the same Maslow level (e.g., both physiological), choose the actual problem over the "risk for" problem.
-                * Exception: If the “risk for” problem is ABC-related, it may override an actual non-ABC problem.
-
-                4. **Acute Over Chronic**
-                * If two actual problems exist at the same Maslow level, prioritize the **acute (sudden, severe, unstable)** condition over the **chronic (long-term, stable)** one.
-
-                5. **If the patient's motivation or readiness for improvement is the most prominent finding, select words that point to a "Readiness for..." diagnosis as the chief complaint.**
-            - Use standardized clinical terminology that matches NANDA defining characteristics.
-            - Always ensure the selected chief complaint is clearly supported by the assessment data (subjective and/or objective).
-
-            **History - STANDARDIZED CLINICAL TERMINOLOGY:**
-            - Onset/Duration: Use precise clinical timing ONLY IF explicitly stated
-              * "Acute onset (< 24 hours)" vs "sudden"
-              * "Chronic (> 3 months)" vs "long-term"
-              * If timing is implied by context (e.g., postpartum, post-surgery, recent childbirth), capture this as onset/duration
-            - Severity: Use standardized scales ONLY IF explicitly stated
-              * Pain: "mild (1-3/10)", "moderate (4-6/10)", "severe (7-10/10)"
-              * If severity is expressed in lay terms (e.g., "mahina dugo," "malala," "severe"), capture it in standardized wording such as "Patient reports blood loss and weakness" or "Patient perceives condition as severe"
-              * Dyspnea: "mild exertional", "moderate at rest", "severe at rest"
-            - Associated Symptoms: Use EXACT terms that match NANDA defining characteristics:
-              * Always propagate key findings from physical exam into associated symptoms if they directly support diagnosis
-              * "Shortness of breath" (not "SOB" or "breathing problems")
-              * "Chest pain" (not "chest discomfort")
-              * "Fatigue" (not "tiredness" or "exhaustion")
-              * "Dizziness" (not "light-headed")
-              * "Nausea/vomiting"
-              * "Diaphoresis" (not "sweating")
-              * "Anxiety" (if behaviorally supported)
-              * "Restlessness" (if objectively observed)
-
-            **Medical History - EXACT NANDA-RELEVANT TERMS:**
-            - Use precise diagnostic terminology:
-              * "Hypertension" (not "high blood pressure")
-              * "Diabetes mellitus" (not "diabetes" or "DM")
-              * "Chronic obstructive pulmonary disease" or "COPD"
-              * "Myocardial infarction" (not "heart attack")
-              * "Cerebrovascular accident" (not "stroke")
-              * "Chronic kidney disease" (not "kidney problems")
-              * "Heart failure" (not "congestive heart failure" unless specified)
-              * "Immunocompromised condition"
-            - Include relevant surgical history with timeframes:
-              * "Surgery (recent < 30 days)"
-              * "Surgery (within 6 months)"
-
-            **Physical Exam - NANDA DEFINING CHARACTERISTIC ALIGNMENT:**
-            - Capture findings using specific headings when possible (Respiratory, Cardiac, Mobility, Skin, Neurologic).
-            - For findings not listed in predefined examples (e.g., eye/vision, hearing), create a category that reflects the system (e.g., Vision, Hearing).
-            - Always use clear, clinical terminology (e.g., "Vision: Blurred vision" instead of "trouble seeing").
-            - Use EXACT standardized terminology that matches NANDA defining characteristics:
-            
-              **Respiratory System:**
-              * "Respiratory: Crackles" (not "lung sounds abnormal")
-              * "Respiratory: Wheezing"
-              * "Respiratory: Diminished breath sounds"
-              * "Respiratory: Use of accessory muscles"
-              * "Respiratory: Cyanosis"
-              
-              **Cardiovascular System:**
-              * "Cardiac: Irregular rhythm" (not "heart rhythm abnormal")
-              * "Cardiac: Edema" (specify location if noted)
-              * "Cardiac: Jugular vein distention"
-              * "Cardiac: S3 gallop" (if noted)
-              
-              **Mobility/Musculoskeletal:**
-              * "Mobility: Limited range of motion"
-              * "Mobility: Muscle weakness"
-              * "Mobility: Gait instability"
-              * "Mobility: Bedridden"
-              * "Mobility: Requires assistance"
-              
-              **Integumentary:**
-              * "Skin: Pressure ulcer" (with stage if noted)
-              * "Skin: Wound with drainage"
-              * "Skin: Pallor"
-              * "Skin: Diaphoresis"
-              * "Skin: Temperature changes"
-              
-              **Neurological:**
-              * "Neurologic: Confusion"
-              * "Neurologic: Altered mental status"
-              * "Neurologic: Restlessness"
-              * "Neurologic: Agitation"
-
-            **Risk Factors - NANDA-ALIGNED TERMINOLOGY:**
-            - Always extract any risk factors or deficits described in or implied by the assessment.
-            - Use standardized NANDA terminology if available:
-              * Sensory deficits (e.g., impaired vision, impaired hearing, sensory-perceptual deficit)
-              * Cognitive deficits (e.g., memory loss, confusion)
-              * Mobility limitations (e.g., gait instability, weakness, immobility)
-              * Environmental hazards (e.g., cluttered environment, poor lighting)
-              * "Advanced age" (>65 years)
-              * "Prolonged immobility"
-              * "Indwelling catheter"
-              * "Surgery (recent)"
-              * "Mechanical ventilation"
-              * "Smoking history"
-              * "Malnutrition"
-              * "Dehydration"
-              * "Immunosuppression"
-              * "Multiple medications"
-              * "Cognitive impairment"
-            - If no direct NANDA term exists, use the closest standardized clinical description.
-            - Leave risk factors empty if there are no potential risk factors identified.
-
-            **Vital Signs - ENHANCED CLINICAL SIGNIFICANCE:**
-            - Standard format with clinical significance flags:
-              * HR: Integer + clinical significance (e.g., 110, tachycardic)
-              * BP: "systolic/diastolic" + significance (e.g., "180/95", hypertensive)
-              * RR: Integer + significance (e.g., 28, tachypneic)
-              * SpO2: Integer + significance (e.g., 89, hypoxemic)
-              * Temp: Decimal + significance (e.g., 39.2, febrile)
-            - Additional vitals: Include pain scores, glucose levels, consciousness levels
-
-            **Enhanced Inference Capture:**
-            - **Pain Assessment Inferences:**
-              * If behavioral indicators suggest pain → capture in defining characteristics
-              * Link pain location/quality to potential diagnoses
-            - **Respiratory Distress Inferences:**
-              * If multiple respiratory indicators present → capture comprehensive picture
-              * Note positioning preferences, speech patterns affected by dyspnea
-            - **Mobility/Safety Inferences:**
-              * If fall risk indicators present → capture in risk factors
-              * Note assistance requirements, environmental hazards
-            - **Psychosocial Inferences:**
-              * If anxiety indicators present → capture with supporting evidence
-              * Note coping mechanisms, support systems
-
-            **Cultural/Religious Considerations - ENHANCED:**
-            - Capture broader social determinants that affect care:
-              * Language barriers affecting communication
-              * Religious practices affecting treatment acceptance
-              * Cultural beliefs about pain expression
-              * Family dynamics affecting care decisions
-              * Health literacy levels
-              * Economic factors affecting adherence
-
-            **Nurse Notes - CLINICAL CONTEXT:**
-            - Include contextual information that supports embedding matching:
-              * Patient's expressed concerns and priorities
-              * Family dynamics and support systems
-              * Previous hospitalization patterns
-              * Medication adherence issues
-              * Barriers to self-care
-              * Patient education needs identified
-            - Include contextual information such as patient’s expressed concerns and priorities
-            - Explicitly capture health goals, readiness for change, and expressed desires for better health
-            - These notes will be used to identify “readiness for enhanced…” NANDA diagnoses
-
-            ---
-
-            ### OUTPUT FORMAT
-            Return ONLY a valid JSON object with this exact structure:
-
-            {{
-                "demographics": {{
-                    "age": null,
-                    "sex": "",
-                    "occupation": "",
-                    "religion": "",
-                    "cultural_background": "",
-                    "language": ""
-                }},
-                "chief_complaint": "",
-                "history": {{
-                    "onset_duration": "",
-                    "severity": "",
-                    "associated_symptoms": [],
-                    "other_symptoms": ""
-                }},
-                "medical_history": [],
-                "medical_history_other": "",
-                "vital_signs": {{
-                    "HR": null,
-                    "BP": "",
-                    "RR": null,
-                    "SpO2": null,
-                    "Temp": null,
-                    "additional_vitals": {{}}
-                }},
-                "physical_exam": [],
-                "physical_exam_other": "",
-                "risk_factors": [],
-                "risk_factors_other": "",
-                "cultural_considerations": {{
-                    "dietary_restrictions": "",
-                    "religious_practices": "",
-                    "communication_preferences": "",
-                    "family_involvement": "",
-                    "health_beliefs": "",
-                    "other_considerations": ""
-                }},
-                "nurse_notes": ""
-            }}
-
-            ---
-
-            ### QUALITY CHECKLIST
-            ✓ Predefined terms used EXACTLY as specified  
-            ✓ Vital signs follow format requirements  
-            ✓ Shorthand/acronyms preserved + expanded  
-            ✓ Cultural/religious details included only if explicit  
-            ✓ No diagnostic labels used  
-            ✓ JSON is valid and complete  
-            ✓ All fields supported by evidence  
-            """
-
-        logger.info("Calling API for manual data parsing...")
-        response = model.generate_content(parsing_prompt)
+        response = model.generate_content(prompt)
+        keywords = response.text.strip()
         
-        if not response or not response.text:
-            raise Exception("No response from AI model")
+        logger.info(f"Generated detailed keywords: {keywords}")
         
-        # Enhanced JSON parsing
-        import json
-        import re
+        return {
+            "original_assessment": {
+                "subjective": subjective_data,
+                "objective": objective_data
+            },
+            "embedding_keywords": keywords
+        }
         
-        raw_response = response.text
-        logger.info(f"Raw AI response: '{raw_response}'")
-        
-        try:
-            # Clean the response text
-            cleaned_response = raw_response.strip()
-            
-            # Remove any potential BOM or invisible characters
-            cleaned_response = cleaned_response.encode('utf-8').decode('utf-8-sig')
-            
-            # Try to extract JSON if it's wrapped in code blocks or has extra text
-            json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', cleaned_response, re.DOTALL)
-            if json_match:
-                cleaned_response = json_match.group(1)
-                logger.info("Extracted JSON from code blocks")
-            
-            # Find the first { and last } to extract just the JSON part
-            start_brace = cleaned_response.find('{')
-            end_brace = cleaned_response.rfind('}')
-            
-            if start_brace != -1 and end_brace != -1 and start_brace < end_brace:
-                json_part = cleaned_response[start_brace:end_brace+1]
-                logger.info(f"Extracted JSON part")
-                
-                # Try parsing the extracted JSON
-                parsed_data = json.loads(json_part)
-                logger.info(f"Successfully parsed manual assessment data")
-                return parsed_data
-            else:
-                logger.error("Could not find valid JSON structure in response")
-                raise json.JSONDecodeError("No valid JSON structure found", cleaned_response, 0)
-                
-        except json.JSONDecodeError as e:
-            logger.error(f"JSON decode error: {str(e)}")
-            logger.error(f"Failed to parse response: '{raw_response}'")
-            
-            # Return default structure with error indication
-            logger.warning("Returning default empty structure due to parsing failure")
-            raise Exception("Failed to parse AI response into structured format. The AI may have returned malformed data.")
-    
     except Exception as e:
-        logger.error(f"Error parsing manual assessment: {str(e)}", exc_info=True)
+        logger.error(f"Error parsing manual assessment: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail={
-                "message": "Failed to parse manual assessment", 
-                "error": str(e),
-                "suggestion": "Please ensure your manual input contains clear, detailed clinical information including symptoms, vital signs, and examination findings."
+                "message": f"Failed to parse manual assessment: {str(e)}",
+                "error_type": "parsing_error",
+                "suggestion": "Please check your assessment data format and try again."
             }
         )
 
 @app.post("/api/suggest-diagnoses")
 async def suggest_diagnoses(assessment_data: Dict) -> Dict:
-    """
-    Suggest nursing diagnoses and generate complete NCP based on assessment data.
-    """
+    """Use original assessment + keywords for diagnosis matching."""
     try:
-        logger.info("Starting comprehensive NCP generation process")
+        # Extract the keywords and original data
+        embedding_keywords = assessment_data.get('embedding_keywords')
+        original_assessment = assessment_data.get('original_assessment')
         
-        # Validate assessment data
-        try:
-            validate_assessment_data(assessment_data)
-        except ValueError as validation_error:
-            logger.error(f"Assessment data validation failed: {str(validation_error)}")
+        if not embedding_keywords:
             raise HTTPException(
                 status_code=400,
                 detail={
-                    "message": str(validation_error),
-                    "error_type": "validation_error",
-                    "suggestion": "Please review your assessment data and ensure it contains sufficient clinical information."
+                    "message": "Embedding keywords are required",
+                    "error_type": "missing_data",
+                    "suggestion": "Please ensure assessment data is properly parsed first."
                 }
             )
         
-        # Step 1: Find and select best diagnosis
+        if not original_assessment:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "message": "Original assessment data is required",
+                    "error_type": "missing_data", 
+                    "suggestion": "Please provide the original assessment data."
+                }
+            )
+        
+        logger.info(f"Using keywords for diagnosis matching: {embedding_keywords}")
+        logger.info(f"Original assessment: {original_assessment}")
+        
+        # Find diagnosis using keywords
         matcher = await create_vector_diagnosis_matcher()
-        candidates = await matcher.find_candidate_diagnoses(
-            assessment_data, 
-            top_n=10, 
-            similarity_threshold=0.3
-        )
+        candidates = await matcher.find_candidate_diagnoses(embedding_keywords)
+        selected_diagnosis = await matcher.select_best_diagnosis(original_assessment, candidates)
         
-        if not candidates:
-            logger.warning("No candidate diagnoses found above similarity threshold")
-            return {
-                "diagnosis": None,
-                "definition": None,
-                "defining_characteristics": [],
-                "related_factors": [],
-                "risk_factors": [],
-                "suggested_outcomes": [],
-                "suggested_interventions": [],
-                "reasoning": "No matching diagnoses found for the provided assessment data.",
-                "ncp": None
-            }
+        # Generate NCP using ORIGINAL assessment data
+        ncp_data = await generate_structured_ncp(original_assessment, selected_diagnosis)
         
-        selected_diagnosis = await matcher.select_best_diagnosis(assessment_data, candidates)
-        logger.info(f"Successfully selected diagnosis: {selected_diagnosis.get('diagnosis')}")
+        return {**selected_diagnosis, "ncp": ncp_data}
         
-        # Step 2: Generate complete NCP based on selected diagnosis
-        try:
-            ncp_data = await generate_structured_ncp(assessment_data, selected_diagnosis)
-            logger.info("Successfully generated structured NCP")
-            
-            # Combine diagnosis info with NCP
-            result = {
-                **selected_diagnosis,
-                "ncp": ncp_data
-            }
-            
-            return result
-            
-        except Exception as ncp_error:
-            logger.error(f"Failed to generate NCP: {str(ncp_error)}")
-            # Return diagnosis without NCP if generation fails
-            return {
-                **selected_diagnosis,
-                "ncp": None,
-                "ncp_error": str(ncp_error)
-            }
-        
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Error in comprehensive NCP generation: {str(e)}", exc_info=True)
+        logger.error(f"Error suggesting diagnoses: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail={
-                "message": "Failed to generate diagnosis and NCP",
-                "error_type": "comprehensive_generation_error",
-                "suggestion": "Please try again. If the problem persists, contact support."
+                "message": f"Failed to suggest diagnoses: {str(e)}",
+                "error_type": "diagnosis_error",
+                "suggestion": "Please try again with different assessment data."
             }
         )
 
@@ -861,63 +551,8 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
     Generate a structured NCP in JSON format with validation and retry logic.
     """
     
-    def validate_ncp_structure(ncp_data: Dict) -> bool:
-        """Validate that the NCP has the required structure and content."""
-        required_sections = ["assessment", "diagnosis", "outcomes", "interventions", "rationale", "implementation", "evaluation"]
-        
-        # Check all sections exist
-        if not all(section in ncp_data for section in required_sections):
-            return False
-        
-        # Check each section has meaningful content
-        for section, content in ncp_data.items():
-            if section in required_sections:
-                if not content or (isinstance(content, str) and len(content.strip()) < 10):
-                    return False
-                if isinstance(content, dict) and not any(v for v in content.values() if v):
-                    return False
-        
-        # Validate outcomes structure (allow flexibility for short_term or long_term only)
-        outcomes = ncp_data.get("outcomes", {})
-        if not isinstance(outcomes, dict):
-            return False
-        
-        # At least one type of outcome should exist
-        has_short_term = outcomes.get("short_term") and len(outcomes["short_term"]) > 0
-        has_long_term = outcomes.get("long_term") and len(outcomes["long_term"]) > 0
-        
-        if not (has_short_term or has_long_term):
-            return False
-        
-        # Validate interventions structure
-        interventions = ncp_data.get("interventions", {})
-        if not isinstance(interventions, dict):
-            return False
-        
-        # At least one intervention category should have content
-        has_independent = interventions.get("independent") and len(interventions["independent"]) > 0
-        has_dependent = interventions.get("dependent") and len(interventions["dependent"]) > 0
-        has_collaborative = interventions.get("collaborative") and len(interventions["collaborative"]) > 0
-        
-        if not (has_independent or has_dependent or has_collaborative):
-            return False
-        
-        # Validate rationale structure (should have intervention-specific rationales)
-        rationale = ncp_data.get("rationale", {})
-        if not isinstance(rationale, dict) or not rationale.get("interventions"):
-            return False
-        
-        return True
-    
-    # Helper function to safely join arrays or provide fallback
-    def safe_format_list(items, fallback="Not specified in database"):
-        if not items or (isinstance(items, list) and len(items) == 0):
-            return fallback
-        if isinstance(items, list):
-            return ', '.join(str(item) for item in items if item)
-        return str(items) if items else fallback
-    
-    formatted_assessment = format_structured_data(assessment_data)
+    # Use the new formatter from utils
+    formatted_assessment = format_assessment_for_ncp(assessment_data)
     logger.info("Formatted assessment data for ncp creation: " + str(formatted_assessment))
     logger.info("Chosen diagnosis: " + str(selected_diagnosis))
 
@@ -1149,7 +784,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 json_part = cleaned_response[start_brace:end_brace+1]
                 ncp_data = json.loads(json_part)
                 
-                # Validate structure
+                # Validate structure using utility function
                 if validate_ncp_structure(ncp_data):
                     logger.info(f"Successfully generated and validated NCP on attempt {attempt + 1}")
                     return ncp_data
