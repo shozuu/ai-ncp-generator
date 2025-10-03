@@ -6,7 +6,12 @@ from typing import Dict, List
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
-from utils import format_structured_data
+from utils import (
+    format_structured_data, 
+    format_assessment_for_selection,
+    validate_ai_selection,
+    find_matching_candidate
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,169 +40,48 @@ class VectorDiagnosisMatcher:
                 "max_output_tokens": 5096,
             }
             self.model = genai.GenerativeModel(
-                model_name="gemini-2.5-pro",
+                model_name="gemini-2.5-flash",
                 generation_config=generation_config,
             )
         return self.model
 
-    def format_assessment_for_embedding(self, assessment_data: Dict) -> str:
-        """Format assessment data to match diagnosis database embedding format"""
-
-        # 1. DEFINING CHARACTERISTICS (symptoms, clinical findings)
-        defining_chars = []
-
-        # Chief complaint
-        chief_complaint = assessment_data.get('chief_complaint', '')
-        if chief_complaint:
-            defining_chars.append(chief_complaint)
-
-        # History: associated and other symptoms
-        history = assessment_data.get('history', {})
-        if history.get('associated_symptoms'):
-            defining_chars.extend(history['associated_symptoms'])
-        if history.get('other_symptoms'):
-            if isinstance(history['other_symptoms'], list):
-                defining_chars.extend(history['other_symptoms'])
-            elif history['other_symptoms']:
-                defining_chars.append(history['other_symptoms'])
-
-        # Physical exam findings (remove system prefixes)
-        phys_exam = assessment_data.get('physical_exam', [])
-        for item in phys_exam:
-            if isinstance(item, str):
-                # Remove leading system label (e.g., "Neurologic: Headache" -> "Headache")
-                clean_item = re.sub(r'^\w+:\s*', '', item)
-                defining_chars.append(clean_item)
-            elif isinstance(item, dict):
-                defining_chars.append(str(item))
-        if assessment_data.get('physical_exam_other'):
-            defining_chars.append(assessment_data['physical_exam_other'])
-
-        # Vital signs with clinical significance
-        vitals = assessment_data.get('vital_signs', {})
-        vital_parts = []
-        if vitals.get('Temp'):
-            temp = vitals['Temp']
-            temp_sig = vitals.get('additional_vitals', {}).get('Temperature Significance')
-            if temp_sig:
-                vital_parts.append(f"Temp: {temp}, {temp_sig}")
-            else:
-                vital_parts.append(f"Temp: {temp}")
-        if vitals.get('RR'):
-            rr = vitals['RR']
-            rr_sig = vitals.get('additional_vitals', {}).get('Respiratory Rate Significance')
-            if rr_sig:
-                vital_parts.append(f"RR: {rr}, {rr_sig}")
-            else:
-                vital_parts.append(f"RR: {rr}")
-
-        # Additional vitals: flatten and remove any "Label: value" prefix for consistency
-        additional_vitals = vitals.get('additional_vitals', {})
-        for vital_name, vital_value in additional_vitals.items():
-            if vital_value and vital_name not in ["Temperature Significance", "Respiratory Rate Significance"]:
-                # Remove "Label: " if present in value
-                if isinstance(vital_value, str):
-                    clean_value = re.sub(r'^\w+:\s*', '', vital_value)
-                else:
-                    clean_value = str(vital_value)
-                vital_parts.append(clean_value)
-
-        if vital_parts:
-            defining_chars.append('; '.join(vital_parts))
-
-        # 2. RELATED FACTORS (medical history, age, relevant cultural factors)
-        related_factors = []
-        med_history = assessment_data.get('medical_history', [])
-        if med_history:
-            related_factors.extend(med_history)
-        if assessment_data.get('medical_history_other'):
-            related_factors.append(assessment_data['medical_history_other'])
-
-        demographics = assessment_data.get('demographics', {})
-        age = demographics.get('age')
-        if age is not None:
-            try:
-                age_val = float(age)
-                if age_val < 18:
-                    related_factors.append('pediatric patient')
-                elif age_val > 65:
-                    related_factors.append('advanced age')
-            except Exception:
-                pass
-
-        cultural = assessment_data.get('cultural_considerations', {})
-        for key in ['family_involvement', 'health_beliefs']:
-            val = cultural.get(key)
-            if val:
-                related_factors.append(val)
-
-        # 3. RISK FACTORS
-        risk_factors = []
-        if assessment_data.get('risk_factors'):
-            risk_factors.extend(assessment_data['risk_factors'])
-        if assessment_data.get('risk_factors_other'):
-            risk_factors.append(assessment_data['risk_factors_other'])
-
-        # Compose embedding string: [defining chars] [related factors] [risk factors]
-        components = []
-        if defining_chars:
-            components.append(' '.join([str(x) for x in defining_chars if x]))
-        if related_factors:
-            components.append(' '.join([str(x) for x in related_factors if x]))
-        if risk_factors:
-            components.append(' '.join([str(x) for x in risk_factors if x]))
-
-        return ' '.join(components)
-
-    async def embed_assessment_data(self, assessment_data: Dict) -> List[float]:
-        """Convert assessment data to embedding vector using diagnosis-aligned format."""
+    async def embed_assessment_data(self, keywords: str) -> List[float]:
+        """Convert keywords string directly to embedding."""
         try:
-            # Use the new pipe-separated format that matches database embeddings
-            formatted_assessment = self.format_assessment_for_embedding(assessment_data)
-            logger.info(f"Formatted assessment for embedding: {formatted_assessment}")
-
-            # Create embedding using Gemini
             result = genai.embed_content(
                 model=self.embedding_model,
-                content=formatted_assessment,
+                content=keywords,
                 task_type="retrieval_query"
             )
-            
-            embedding = result['embedding']
-            logger.info(f"Generated embedding with {len(embedding)} dimensions")
-            return embedding
-            
+            return result['embedding']
         except Exception as e:
             logger.error(f"Error generating embedding: {str(e)}")
             raise
-
+        
     async def find_candidate_diagnoses(
         self, 
-        assessment_data: Dict, 
+        keywords: str, 
         top_n: int = 10, 
         similarity_threshold: float = 0.3
     ) -> List[Dict]:
-        """Find candidate diagnoses using vector similarity search via Supabase."""
+        """Find candidates using keywords string."""
         try:
-            # Generate embedding for assessment data
-            assessment_embedding = await self.embed_assessment_data(assessment_data)
+            # Generate embedding for the keywords
+            embedding = await self.embed_assessment_data(keywords)
             
-            # Use Supabase RPC for vector similarity search
-            result = self.client.rpc(
+            # Search for similar diagnoses
+            response = self.client.rpc(
                 'match_diagnoses',
                 {
-                    'query_embedding': assessment_embedding,
-                    'similarity_threshold': similarity_threshold,
+                    'query_embedding': embedding,
+                    'similarity_threshold': similarity_threshold, 
                     'match_count': top_n
                 }
             ).execute()
             
-            if result.data:
+            if response.data:
                 candidates = []
-                for row in result.data:
-                    # Keep similarity score for logging but exclude from candidate data
-                    similarity_score = float(row['similarity'])
-                    
+                for row in response.data:
                     candidate = {
                         "id": str(row['id']),
                         "diagnosis": row['diagnosis'],
@@ -207,23 +91,22 @@ class VectorDiagnosisMatcher:
                         "risk_factors": row['risk_factors'] or [],
                         "suggested_outcomes": row['suggested_outcomes'] or [],
                         "suggested_interventions": row['suggested_interventions'] or []
-                        # Note: similarity_score intentionally excluded from candidate data
                     }
                     candidates.append(candidate)
                 
-                logger.info(f"Found {len(candidates)} candidate diagnoses above threshold {similarity_threshold}")
-                # Log similarity scores for debugging/reference only
-                for i, (candidate, row) in enumerate(zip(candidates, result.data)):
-                    similarity_score = float(row['similarity'])
-                    logger.info(f"Candidate {i+1}: {candidate['diagnosis']} (similarity: {similarity_score:.3f})")
+                # Simple diagnosis + similarity logging
+                logger.info(f"Found {len(candidates)} candidates:")
+                for i, (candidate, row) in enumerate(zip(candidates, response.data), 1):
+                    similarity = float(row['similarity'])
+                    logger.info(f"  {i}. {candidate['diagnosis']} (similarity: {similarity:.3f})")
                 
                 return candidates
             else:
-                logger.info("No candidates found")
+                logger.warning("No candidates found")
                 return []
                 
         except Exception as e:
-            logger.error(f"Error finding candidate diagnoses: {str(e)}")
+            logger.error(f"Error finding candidates: {str(e)}")
             raise
 
     async def select_best_diagnosis(
@@ -232,31 +115,6 @@ class VectorDiagnosisMatcher:
         candidates: List[Dict]
     ) -> Dict:
         """Use AI to select the best diagnosis from candidates."""
-        
-        def validate_ai_selection(ai_response: Dict, candidates: List[Dict]) -> bool:
-            """Validate that AI selected a diagnosis from the candidate list."""
-            selected_diagnosis = ai_response.get('diagnosis', '').strip()
-            
-            if not selected_diagnosis:
-                return False
-            
-            # Check if the selected diagnosis matches any candidate (case-insensitive)
-            candidate_diagnoses = [candidate['diagnosis'].strip().lower() for candidate in candidates]
-            return selected_diagnosis.lower() in candidate_diagnoses
-        
-        def find_matching_candidate(ai_response: Dict, candidates: List[Dict]) -> Dict:
-            """Find the matching candidate and return its complete data."""
-            selected_diagnosis = ai_response.get('diagnosis', '').strip().lower()
-            
-            for candidate in candidates:
-                if candidate['diagnosis'].strip().lower() == selected_diagnosis:
-                    # Return the candidate data with AI reasoning
-                    return {
-                        **candidate,  # All original candidate data
-                        "reasoning": ai_response.get('reasoning', 'No reasoning provided')
-                    }
-            
-            return None
         
         try:
             if not candidates:
@@ -271,8 +129,8 @@ class VectorDiagnosisMatcher:
                     "reasoning": "No suitable diagnoses found for the provided assessment data."
                 }
             
-            # Format assessment and candidates for AI
-            formatted_assessment = format_structured_data(assessment_data)
+            # Format assessment data appropriately for the AI
+            formatted_assessment = format_assessment_for_selection(assessment_data)
             logger.info(f"Formatted assessment data for AI: {formatted_assessment}")
             
             candidates_text = ""
@@ -304,9 +162,9 @@ class VectorDiagnosisMatcher:
                 1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
                 * Select an ABC diagnosis **only if the assessment data clearly demonstrates current compromise of airway, breathing, or circulation.**
                 * Do **not** select an ABC diagnosis if the data merely shows the presence of external support or monitoring (e.g., intubation, IV line, mechanical ventilation) without explicit evidence of dysfunction.
-                * If no such evidence exists, evaluate other physiological needs according to Maslow’s hierarchy.
+                * If no such evidence exists, evaluate other physiological needs according to Maslow's hierarchy.
 
-                2. **Maslow’s Hierarchy of Needs**
+                2. **Maslow's Hierarchy of Needs**
                 * Physiological → pain, sleep, nutrition, elimination, hydration, mobility, thermoregulation.
                 * Safety → infection prevention, fall risk, injury prevention, protection from harm.
                 * Psychosocial → anxiety, coping, knowledge deficit, self-esteem, body image.
