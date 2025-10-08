@@ -27,5 +27,7 @@ form_context.md
 *.sln
 *.sw?
 
+ncp_requests
+
 venv/
 __pycache__/
