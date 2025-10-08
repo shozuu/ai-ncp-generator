@@ -19,6 +19,7 @@ from utils import (
 import google.generativeai as genai
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
+from ncp_request_tracker import start_ncp_request, track_api_call, track_error, complete_ncp_request 
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -72,7 +73,7 @@ generation_config = {
     "max_output_tokens": 10096,
 }
 model = genai.GenerativeModel(
-    model_name="gemini-2.5-flash",
+    model_name="gemini-2.5-pro",
     generation_config=generation_config
 )
 
@@ -247,6 +248,16 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         
         try:
             response = model.generate_content(prompt)
+            
+            # Track token usage
+            track_api_call(
+                response, 
+                step="generate_ncp",
+                operation="NCP Generation",
+                assessment_type=assessment_data.get('type', 'unknown'),
+                has_diagnosis=bool(assessment_data.get('diagnosis'))
+            )
+            
         except Exception as api_error:
             logger.error(f"API error: {str(api_error)}")
             raise HTTPException(
@@ -402,7 +413,7 @@ async def generate_explanation(request_data: Dict) -> Dict:
         # Generate explanation using Gemini
         logger.info("Calling Gemini API for enhanced explanation generation")
         response = model.generate_content(explanation_prompt)
-        
+                
         if not response or not response.text:
             raise Exception("No response from AI model")
 
@@ -426,6 +437,9 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
     """
     Generate detailed, database-aligned keywords from manual assessment data.
     """
+    # Start NCP request tracking
+    request_id = start_ncp_request(request_data, "manual_assessment")
+    
     try:
         subjective_data = request_data.get('subjective', [])
         objective_data = request_data.get('objective', [])
@@ -469,19 +483,39 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         """
 
         response = model.generate_content(prompt)
+        
+        # Track this API call
+        track_api_call(
+            response,
+            step="parse_assessment",
+            operation="Manual Assessment Parsing",
+            has_subjective=bool(subjective_data),
+            has_objective=bool(objective_data),
+            subjective_count=len(subjective_data),
+            objective_count=len(objective_data)
+        )
+        
         keywords = response.text.strip()
         
-        logger.info(f"Generated detailed keywords: {keywords}")
-        
-        return {
+        result = {
             "original_assessment": {
                 "subjective": subjective_data,
                 "objective": objective_data
             },
-            "embedding_keywords": keywords
+            "embedding_keywords": keywords,
+            "request_id": request_id
         }
         
+        logger.info(f"Generated detailed keywords: {keywords}")
+        return result
+        
     except Exception as e:
+        # Track the error
+        track_error("parse_assessment", str(e), error_type="parsing_error")
+        
+        # Complete request with failed status
+        complete_ncp_request({}, "failed")
+        
         logger.error(f"Error parsing manual assessment: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -501,6 +535,8 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         original_assessment = assessment_data.get('original_assessment')
         
         if not embedding_keywords:
+            track_error("suggest_diagnoses", "Missing embedding keywords")
+            complete_ncp_request({}, "failed")
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -511,6 +547,8 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
             )
         
         if not original_assessment:
+            track_error("suggest_diagnoses", "Missing original assessment")
+            complete_ncp_request({}, "failed")
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -523,19 +561,28 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         logger.info(f"Using keywords for diagnosis matching: {embedding_keywords}")
         logger.info(f"Original assessment: {original_assessment}")
         
-        # Find diagnosis using keywords
+        # Find diagnosis using keywords (this step doesn't use AI, so no token tracking)
         matcher = await create_vector_diagnosis_matcher()
         candidates = await matcher.find_candidate_diagnoses(embedding_keywords)
+        
+        # AI diagnosis selection - this will be tracked inside the matcher
         selected_diagnosis = await matcher.select_best_diagnosis(original_assessment, candidates)
         
         # Generate NCP using ORIGINAL assessment data
         ncp_data = await generate_structured_ncp(original_assessment, selected_diagnosis)
         
-        return {**selected_diagnosis, "ncp": ncp_data}
+        # Complete the NCP request with success
+        final_result = {**selected_diagnosis, "ncp": ncp_data}
+        complete_ncp_request(final_result, "completed")
+        
+        return final_result
         
     except HTTPException:
+        complete_ncp_request({}, "failed")
         raise
     except Exception as e:
+        track_error("suggest_diagnoses", str(e))
+        complete_ncp_request({}, "failed")
         logger.error(f"Error suggesting diagnoses: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -576,7 +623,7 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         - All outcomes, interventions, and rationales must directly address the selected nursing diagnosis as the primary clinical priority.
         - Always apply standard nursing prioritization frameworks:
             1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
-            2. **Maslow’s Hierarchy of Needs**
+            2. **Maslow's Hierarchy of Needs**
             3. **Actual Problems Over Risk Problems**
             4. **Acute Over Chronic**
         - Ensure that interventions and outcomes logically flow from the chief complaint and diagnosis, not from unrelated concerns.
@@ -761,6 +808,17 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
             
             response = model.generate_content(ncp_prompt)
             
+            # Track this API call
+            track_api_call(
+                response,
+                step="generate_ncp",
+                operation="Structured NCP Generation",
+                attempt=attempt + 1,
+                max_retries=max_retries,
+                diagnosis=selected_diagnosis.get('diagnosis', 'unknown'),
+                assessment_type=assessment_data.get('type', 'unknown')
+            )
+            
             if not response or not response.text:
                 raise Exception("No response from AI model")
             
@@ -800,10 +858,12 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         except json.JSONDecodeError as e:
             logger.warning(f"Attempt {attempt + 1}: JSON parsing failed - {str(e)}")
             if attempt == max_retries - 1:
+                track_error("generate_ncp", f"JSON parsing failed: {str(e)}")
                 raise Exception(f"JSON parsing failed after all retries: {str(e)}")
         except Exception as e:
             logger.warning(f"Attempt {attempt + 1}: Generation failed - {str(e)}")
             if attempt == max_retries - 1:
+                track_error("generate_ncp", f"NCP generation failed: {str(e)}")
                 raise Exception(f"NCP generation failed after all retries: {str(e)}")
     
     raise Exception("Failed to generate valid NCP after all retries")

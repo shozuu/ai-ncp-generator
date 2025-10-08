@@ -18,6 +18,24 @@ genai.configure(
 
 def main():
     try:
+        MODEL_ID = "gemini-2.5-flash"
+        
+        # Get model information
+        try:
+            client = genai.GenerativeServiceClient()
+            model_info = client.models.get(model=MODEL_ID)
+            print("Context window:", model_info.input_token_limit, "tokens")
+            print("Max output window:", model_info.output_token_limit, "tokens")
+        except Exception as model_info_error:
+            print(f"Could not get model info: {model_info_error}")
+            # Alternative approach
+            try:
+                model_info = genai.get_model(f"models/{MODEL_ID}")
+                print("Context window:", model_info.input_token_limit, "tokens")
+                print("Max output window:", model_info.output_token_limit, "tokens")
+            except Exception as alt_error:
+                print(f"Alternative model info failed: {alt_error}")
+
         # Set up the model
         generation_config = {
             "temperature": 0.7,
@@ -28,7 +46,7 @@ def main():
 
         # Initialize the model
         model = genai.GenerativeModel(
-            model_name="gemini-2.0-flash",
+            model_name=MODEL_ID,
             generation_config=generation_config
         )
 
@@ -40,6 +58,12 @@ def main():
         
         print("API key is working")
         print("Response:", response.text)
+
+        # Check for usage metadata in different possible locations
+        if hasattr(response, 'usage_metadata'):
+            print("Usage Metadata:", response.usage_metadata)
+        else:
+            print("Usage metadata not available in response")
         
     except Exception as e:
         logger.error(f"Gemini API error: {str(e)}", exc_info=True)

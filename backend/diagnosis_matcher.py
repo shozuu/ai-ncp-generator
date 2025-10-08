@@ -12,6 +12,7 @@ from utils import (
     validate_ai_selection,
     find_matching_candidate
 )
+from ncp_request_tracker import track_api_call, track_error
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +41,7 @@ class VectorDiagnosisMatcher:
                 "max_output_tokens": 5096,
             }
             self.model = genai.GenerativeModel(
-                model_name="gemini-2.5-flash",
+                model_name="gemini-2.5-pro",
                 generation_config=generation_config,
             )
         return self.model
@@ -199,6 +200,17 @@ class VectorDiagnosisMatcher:
                 try:
                     response = model.generate_content(ai_prompt)
                     
+                    # Track this API call using the new tracker
+                    track_api_call(
+                        response,
+                        step="select_diagnosis",
+                        operation="AI Diagnosis Selection",
+                        attempt=attempt + 1,
+                        max_retries=max_retries,
+                        candidates_count=len(candidates),
+                        assessment_type=assessment_data.get('type', 'unknown')
+                    )
+                    
                     if not response or not response.text:
                         logger.warning(f"Attempt {attempt + 1}: No response from AI model")
                         continue
@@ -254,12 +266,14 @@ class VectorDiagnosisMatcher:
             
             # If all retries failed, return the first candidate as fallback
             logger.error("All AI selection attempts failed, falling back to first candidate")
+            track_error("select_diagnosis", "All AI selection attempts failed")
             fallback = candidates[0].copy()
             fallback["reasoning"] = "AI selection failed after multiple attempts. Returned first candidate as fallback based on highest similarity score."
             return fallback
                 
         except Exception as e:
             logger.error(f"Error in AI diagnosis selection: {str(e)}")
+            track_error("select_diagnosis", f"Error in AI diagnosis selection: {str(e)}")
             raise
 
 
