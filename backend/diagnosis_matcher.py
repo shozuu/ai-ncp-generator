@@ -1,4 +1,5 @@
 import google.generativeai as genai
+from openai import OpenAI
 import json
 import logging
 import re
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class VectorDiagnosisMatcher:
     def __init__(self):
-        """Initialize with Supabase client."""
+        """Initialize with Supabase client and AI clients."""
         load_dotenv()
         
         self.supabase_url = os.getenv("SUPABASE_URL")
@@ -28,23 +29,34 @@ class VectorDiagnosisMatcher:
             raise ValueError("Supabase credentials not found in environment variables")
         
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
-        self.model = None
+        
+        # Initialize OpenAI client for text generation
+        openai_api_key = os.getenv("OPENAI_API_KEY")
+        if not openai_api_key:
+            raise ValueError("OpenAI API key not found in environment variables")
+        self.openai_client = OpenAI(api_key=openai_api_key)
+        
+        # Keep Gemini for embeddings
+        gemini_api_key = os.getenv("GEMINI_API_KEY")
+        if gemini_api_key:
+            genai.configure(api_key=gemini_api_key)
         self.embedding_model = "models/text-embedding-004"
         
-    def _get_model(self):
-        """Get the AI model instance (lazy loading)"""
-        if self.model is None:
-            genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
-            generation_config = {
-                "temperature": 0.3,
-                "top_p": 1,
-                "max_output_tokens": 5096,
-            }
-            self.model = genai.GenerativeModel(
-                model_name="gemini-2.5-pro",
-                generation_config=generation_config,
+    def _generate_openai_response(self, prompt: str) -> str:
+        """Generate response using OpenAI GPT-5 for text generation."""
+        try:
+            response = self.openai_client.chat.completions.create(
+                model="gpt-5",
+                messages=[
+                    {"role": "system", "content": "You are a helpful assistant specialized in nursing diagnoses and medical assessments."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_completion_tokens=10000
             )
-        return self.model
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            raise
 
     async def embed_assessment_data(self, keywords: str) -> List[float]:
         """Convert keywords string directly to embedding."""
@@ -191,18 +203,17 @@ class VectorDiagnosisMatcher:
                 }}
             """
             
-            model = self._get_model()
             max_retries = 3
             
             for attempt in range(max_retries):
                 logger.info(f"AI diagnosis selection attempt {attempt + 1}/{max_retries}")
 
                 try:
-                    response = model.generate_content(ai_prompt)
+                    response_text = self._generate_openai_response(ai_prompt)
                     
                     # Track this API call using the new tracker
                     track_api_call(
-                        response,
+                        {"text": response_text},  # OpenAI response format for tracking
                         step="select_diagnosis",
                         operation="AI Diagnosis Selection",
                         attempt=attempt + 1,
@@ -211,12 +222,12 @@ class VectorDiagnosisMatcher:
                         assessment_type=assessment_data.get('type', 'unknown')
                     )
                     
-                    if not response or not response.text:
+                    if not response_text:
                         logger.warning(f"Attempt {attempt + 1}: No response from AI model")
                         continue
                     
                     # Parse AI response
-                    raw_response = response.text.strip()
+                    raw_response = response_text.strip()
                     logger.info(f"Raw AI selection response (attempt {attempt + 1}): {raw_response}")
                     
                     # Clean and extract JSON

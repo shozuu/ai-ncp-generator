@@ -16,7 +16,7 @@ from utils import (
     safe_format_list,
     validate_ncp_structure
 )
-import google.generativeai as genai
+from openai import OpenAI
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
 from ncp_request_tracker import start_ncp_request, track_api_call, track_error, complete_ncp_request 
@@ -54,28 +54,58 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini API
-api_key = os.getenv("GEMINI_API_KEY")
+# Configure OpenAI API
+api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
-    logger.error("Gemini API key not found in environment variables")
-    raise RuntimeError("Gemini API key not configured")
+    logger.error("OpenAI API key not found in environment variables")
+    raise RuntimeError("OpenAI API key not configured")
 
-genai.configure(
-    api_key=api_key,
-    client_options={"api_endpoint": "generativelanguage.googleapis.com"}
-)
+# Initialize OpenAI client
+client = OpenAI(api_key=api_key)
 
 # Model configuration
-generation_config = {
-    "temperature": 0.7,
-    "top_p": 1,
-    "top_k": 1,
-    "max_output_tokens": 10096,
-}
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-pro",
-    generation_config=generation_config
-)
+MODEL_NAME = "gpt-5"  # Using GPT-5 as requested
+TEMPERATURE = 1.0  # GPT-5 only supports default temperature
+MAX_TOKENS = 10000
+
+def generate_ai_response(prompt: str, temperature: float = TEMPERATURE, max_tokens: int = MAX_TOKENS) -> tuple:
+    """
+    Generate response using OpenAI API
+    Returns tuple of (response_text, response_object_for_tracking)
+    """
+    try:
+        # Adjust system message for GPT-5 compatibility
+        if MODEL_NAME == "gpt-5":
+            system_message = "You are a helpful assistant specialized in nursing care plans and medical assessments."
+        else:
+            system_message = "You are a helpful assistant specialized in nursing care plan generation and medical assessment."
+        
+        # GPT-5 uses different parameters
+        if MODEL_NAME == "gpt-5":
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                # temperature not supported for GPT-5, uses default (1.0)
+                max_completion_tokens=max_tokens  # GPT-5 uses max_completion_tokens
+            )
+        else:
+            # For other models (gpt-4o, gpt-4o-mini, etc.)
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": system_message},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+        return response.choices[0].message.content, response
+    except Exception as e:
+        logger.error(f"OpenAI API error: {str(e)}")
+        raise
 
 @app.post("/api/generate-ncp")
 async def generate_ncp(assessment_data: Dict) -> Dict:
@@ -247,11 +277,11 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         logger.info("Calling API for NCP generation...")
         
         try:
-            response = model.generate_content(prompt)
+            response_text, response_obj = generate_ai_response(prompt)
             
-            # Track token usage
+            # Track API call with proper OpenAI response object
             track_api_call(
-                response, 
+                response_obj, 
                 step="generate_ncp",
                 operation="NCP Generation",
                 assessment_type=assessment_data.get('type', 'unknown'),
@@ -269,13 +299,9 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
                 }
             )
 
-        # Check for errors in the response
-        if hasattr(response, '_error') and response._error:
-            raise ValueError(f"AI model error: {response._error}")
-
         # Parse and validate the response
         try:
-            ncp_text = response.text
+            ncp_text = response_text
             sections = parse_ncp_response(ncp_text)
 
             if not all(sections.values()):
@@ -410,15 +436,15 @@ async def generate_explanation(request_data: Dict) -> Dict:
             Now provide explanations for each section in the exact format specified above.
         """
 
-        # Generate explanation using Gemini
-        logger.info("Calling Gemini API for enhanced explanation generation")
-        response = model.generate_content(explanation_prompt)
+        # Generate explanation using OpenAI
+        logger.info("Calling OpenAI API for enhanced explanation generation")
+        ai_explanation, _ = generate_ai_response(explanation_prompt)
                 
-        if not response or not response.text:
+        if not ai_explanation:
             raise Exception("No response from AI model")
 
         # Parse the AI response
-        ai_explanation = response.text.strip()
+        ai_explanation = ai_explanation.strip()
         logger.info(f"Received AI explanation length: {len(ai_explanation)} characters")
         
         # Parse the plain text response into our JSON structure
@@ -482,11 +508,11 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         Each keyword should be lowercase unless it is a proper medical acronym.
         """
 
-        response = model.generate_content(prompt)
+        response_text, response_obj = generate_ai_response(prompt)
         
         # Track this API call
         track_api_call(
-            response,
+            response_obj,
             step="parse_assessment",
             operation="Manual Assessment Parsing",
             has_subjective=bool(subjective_data),
@@ -495,7 +521,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             objective_count=len(objective_data)
         )
         
-        keywords = response.text.strip()
+        keywords = response_text.strip()
         
         result = {
             "original_assessment": {
@@ -806,11 +832,11 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         try:
             logger.info(f"Generating structured NCP - Attempt {attempt + 1}")
             
-            response = model.generate_content(ncp_prompt)
+            response_text, response_obj = generate_ai_response(ncp_prompt)
             
             # Track this API call
             track_api_call(
-                response,
+                response_obj,
                 step="generate_ncp",
                 operation="Structured NCP Generation",
                 attempt=attempt + 1,
@@ -819,11 +845,11 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 assessment_type=assessment_data.get('type', 'unknown')
             )
             
-            if not response or not response.text:
+            if not response_text:
                 raise Exception("No response from AI model")
             
             # Parse JSON response
-            raw_response = response.text.strip()
+            raw_response = response_text.strip()
             logger.info(f"Raw response from AI: {raw_response}")
             
             # Clean and extract JSON            

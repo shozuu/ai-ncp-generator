@@ -222,7 +222,16 @@ class NCPRequestTracker:
     
     def _extract_usage_metadata(self, response: Any) -> Optional[Dict]:
         """Extract usage metadata from the response object."""
-        if hasattr(response, 'usage_metadata'):
+        # Handle OpenAI response format
+        if hasattr(response, 'usage'):
+            usage = response.usage
+            return {
+                'input_tokens': getattr(usage, 'prompt_tokens', 0),
+                'output_tokens': getattr(usage, 'completion_tokens', 0),
+                'total_tokens': getattr(usage, 'total_tokens', 0)
+            }
+        # Handle legacy Gemini response format (if any remain)
+        elif hasattr(response, 'usage_metadata'):
             metadata = response.usage_metadata
             return {
                 'input_tokens': getattr(metadata, 'prompt_token_count', 0),

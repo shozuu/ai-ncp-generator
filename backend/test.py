@@ -1,4 +1,4 @@
-import google.generativeai as genai
+from openai import OpenAI
 from dotenv import load_dotenv
 import os
 import logging
@@ -10,63 +10,66 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
-# Configure Gemini with safety settings
-genai.configure(
-    api_key=os.getenv("GEMINI_API_KEY"),
-    client_options={"api_endpoint": "generativelanguage.googleapis.com"}
-)
+# Configure OpenAI client
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 def main():
     try:
-        MODEL_ID = "gemini-2.5-flash"
+        # Test both models
+        models_to_test = ["gpt-5"]
         
-        # Get model information
-        try:
-            client = genai.GenerativeServiceClient()
-            model_info = client.models.get(model=MODEL_ID)
-            print("Context window:", model_info.input_token_limit, "tokens")
-            print("Max output window:", model_info.output_token_limit, "tokens")
-        except Exception as model_info_error:
-            print(f"Could not get model info: {model_info_error}")
-            # Alternative approach
+        for MODEL_NAME in models_to_test:
+            print(f"\n=== Testing {MODEL_NAME} ===")
+            
+            # Test prompt
+            prompt = "Hello"
+            
+            logger.info(f"Sending test request to {MODEL_NAME}...")
+            
             try:
-                model_info = genai.get_model(f"models/{MODEL_ID}")
-                print("Context window:", model_info.input_token_limit, "tokens")
-                print("Max output window:", model_info.output_token_limit, "tokens")
-            except Exception as alt_error:
-                print(f"Alternative model info failed: {alt_error}")
-
-        # Set up the model
-        generation_config = {
-            "temperature": 0.7,
-            "top_p": 1,
-            "top_k": 1,
-            "max_output_tokens": 2048,
-        }
-
-        # Initialize the model
-        model = genai.GenerativeModel(
-            model_name=MODEL_ID,
-            generation_config=generation_config
-        )
-
-        # Test prompt
-        prompt = "Say hello and confirm you're working"
+                if MODEL_NAME == "gpt-5":
+                    response = client.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=[
+                            {"role": "system", "content": "You are a helpful assistant specialized in nursing care plans and medical assessments."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_completion_tokens=1000
+                    )
+                else:
+                    response = client.chat.completions.create(
+                        model=MODEL_NAME,
+                        messages=[
+                            {"role": "system", "content": "You are a helpful assistant specialized in nursing care plans and medical assessments."},
+                            {"role": "user", "content": prompt}
+                        ],
+                        max_tokens=1000
+                    )
+                
+                print(f"Model: {MODEL_NAME}")
+                response_content = response.choices[0].message.content
+                print(f"Response length: {len(response_content) if response_content else 'None'}")
+                print(f"Response repr: {repr(response_content)}")
+                print("Response:", response_content)
+                
+                # Check usage metadata
+                if hasattr(response, 'usage'):
+                    usage = response.usage
+                    print(f"Token usage - Prompt: {usage.prompt_tokens}, Completion: {usage.completion_tokens}, Total: {usage.total_tokens}")
+                
+            except Exception as model_error:
+                logger.error(f"Error with {MODEL_NAME}: {str(model_error)}")
+                continue
         
-        logger.info("Sending test request to Gemini API...")
-        response = model.generate_content(prompt)
-        
-        print("API key is working")
-        print("Response:", response.text)
-
-        # Check for usage metadata in different possible locations
-        if hasattr(response, 'usage_metadata'):
-            print("Usage Metadata:", response.usage_metadata)
+        # Check usage metadata
+        if hasattr(response, 'usage'):
+            usage = response.usage
+            print(f"Token usage - Prompt: {usage.prompt_tokens}, Completion: {usage.completion_tokens}, Total: {usage.total_tokens}")
         else:
             print("Usage metadata not available in response")
         
     except Exception as e:
-        logger.error(f"Gemini API error: {str(e)}", exc_info=True)
+        logger.error(f"OpenAI API error: {str(e)}", exc_info=True)
 
 if __name__ == "__main__":
     main()
