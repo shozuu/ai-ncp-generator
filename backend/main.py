@@ -17,6 +17,7 @@ from utils import (
     validate_ncp_structure
 )
 import google.generativeai as genai
+from anthropic import Anthropic
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
 from ncp_request_tracker import start_ncp_request, track_api_call, track_error, complete_ncp_request 
@@ -54,27 +55,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini API
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
+# Configure Claude API
+claude_api_key = os.getenv("CLAUDE_API_KEY")
+if not claude_api_key:
+    logger.error("Claude API key not found in environment variables")
+    raise RuntimeError("Claude API key not configured")
+
+# Initialize Claude client with timeout settings
+claude_client = Anthropic(
+    api_key=claude_api_key,
+    timeout=300.0  # 5 minutes timeout
+)
+
+# Claude model configuration
+CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+CLAUDE_MAX_TOKENS = 10000
+CLAUDE_TEMPERATURE = 0.3
+
+# Configure Gemini API (for embeddings only)
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if not gemini_api_key:
     logger.error("Gemini API key not found in environment variables")
     raise RuntimeError("Gemini API key not configured")
 
 genai.configure(
-    api_key=api_key,
+    api_key=gemini_api_key,
     client_options={"api_endpoint": "generativelanguage.googleapis.com"}
-)
-
-# Model configuration
-generation_config = {
-    "temperature": 0.7,
-    "top_p": 1,
-    "top_k": 1,
-    "max_output_tokens": 10096,
-}
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-pro",
-    generation_config=generation_config
 )
 
 @app.post("/api/generate-ncp")
@@ -244,10 +250,20 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
         """
         
-        logger.info("Calling API for NCP generation...")
+        logger.info("Calling Claude API for NCP generation...")
         
         try:
-            response = model.generate_content(prompt)
+            response = claude_client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=CLAUDE_MAX_TOKENS,
+                temperature=CLAUDE_TEMPERATURE,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
             
             # Track token usage
             track_api_call(
@@ -270,12 +286,12 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             )
 
         # Check for errors in the response
-        if hasattr(response, '_error') and response._error:
-            raise ValueError(f"AI model error: {response._error}")
+        if not response or not response.content:
+            raise ValueError(f"AI model returned empty response")
 
         # Parse and validate the response
         try:
-            ncp_text = response.text
+            ncp_text = response.content[0].text
             sections = parse_ncp_response(ncp_text)
 
             if not all(sections.values()):
@@ -410,15 +426,25 @@ async def generate_explanation(request_data: Dict) -> Dict:
             Now provide explanations for each section in the exact format specified above.
         """
 
-        # Generate explanation using Gemini
-        logger.info("Calling Gemini API for enhanced explanation generation")
-        response = model.generate_content(explanation_prompt)
+        # Generate explanation using Claude
+        logger.info("Calling Claude API for enhanced explanation generation")
+        response = claude_client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=CLAUDE_MAX_TOKENS,
+            temperature=CLAUDE_TEMPERATURE,
+            messages=[
+                {
+                    "role": "user",
+                    "content": explanation_prompt
+                }
+            ]
+        )
                 
-        if not response or not response.text:
+        if not response or not response.content:
             raise Exception("No response from AI model")
 
         # Parse the AI response
-        ai_explanation = response.text.strip()
+        ai_explanation = response.content[0].text.strip()
         logger.info(f"Received AI explanation length: {len(ai_explanation)} characters")
         
         # Parse the plain text response into our JSON structure
@@ -482,7 +508,17 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         Each keyword should be lowercase unless it is a proper medical acronym.
         """
 
-        response = model.generate_content(prompt)
+        response = claude_client.messages.create(
+            model=CLAUDE_MODEL,
+            max_tokens=CLAUDE_MAX_TOKENS,
+            temperature=CLAUDE_TEMPERATURE,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
         
         # Track this API call
         track_api_call(
@@ -495,7 +531,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
             objective_count=len(objective_data)
         )
         
-        keywords = response.text.strip()
+        keywords = response.content[0].text.strip()
         
         result = {
             "original_assessment": {
@@ -806,7 +842,17 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         try:
             logger.info(f"Generating structured NCP - Attempt {attempt + 1}")
             
-            response = model.generate_content(ncp_prompt)
+            response = claude_client.messages.create(
+                model=CLAUDE_MODEL,
+                max_tokens=CLAUDE_MAX_TOKENS,
+                temperature=CLAUDE_TEMPERATURE,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": ncp_prompt
+                    }
+                ]
+            )
             
             # Track this API call
             track_api_call(
@@ -819,11 +865,11 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 assessment_type=assessment_data.get('type', 'unknown')
             )
             
-            if not response or not response.text:
+            if not response or not response.content:
                 raise Exception("No response from AI model")
             
             # Parse JSON response
-            raw_response = response.text.strip()
+            raw_response = response.content[0].text.strip()
             logger.info(f"Raw response from AI: {raw_response}")
             
             # Clean and extract JSON            
