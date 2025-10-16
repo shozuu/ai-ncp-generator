@@ -28,6 +28,10 @@ const props = defineProps({
     type: String,
     required: true,
   },
+  fullNcp: {
+    type: Object,
+    default: null,
+  },
 })
 
 const isOpen = ref(false)
@@ -45,9 +49,18 @@ const previewData = computed(() => {
     // Convert text to structured format
     const structured = convertTextToStructured(props.textData, props.columnKey)
 
-    // Create a mock NCP object with just this column
+    // Create a mock NCP object with this column
     const mockNCP = {
       [props.columnKey]: structured,
+    }
+
+    // For rationale preview, we need interventions data for proper formatting
+    if (
+      props.columnKey === 'rationale' &&
+      props.fullNcp &&
+      props.fullNcp.interventions
+    ) {
+      mockNCP.interventions = props.fullNcp.interventions
     }
 
     // Format for display

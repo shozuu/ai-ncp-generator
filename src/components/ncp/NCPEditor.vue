@@ -169,6 +169,7 @@ watch(
                     :text-data="formData[column.key]"
                     :column-key="column.key"
                     :column-label="column.label"
+                    :full-ncp="ncp"
                   />
                 </div>
               </div>
