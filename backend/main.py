@@ -11,7 +11,6 @@ from utils import (
     format_structured_data, 
     parse_ncp_response, 
     validate_assessment_data, 
-    parse_explanation_text,
     format_assessment_for_ncp,
     safe_format_list,
     validate_ncp_structure
@@ -138,19 +137,8 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
             ---
 
-            PATIENT ASSESSMENT DATA
-
+            **PATIENT ASSESSMENT DATA**
             {formatted_assessment}
-
-            ---
-
-            Generate a complete Nursing Care Plan using the exact structure below:
-
-            1. Use **only** the specified section headings and format below.  
-            2. Include all sections: **Assessment**, **Diagnosis**, **Outcomes**, **Interventions**, **Rationale**, **Implementation**, and **Evaluation**.  
-            3. Use bullet points (*) for lists and sub-bullets (-) for nested items.  
-            4. Ensure that Outcomes and Interventions clearly reference the Nursing Diagnosis.  
-            5. Maintain a professional, concise, and clinical tone throughout.  
 
             ---
 
@@ -337,7 +325,7 @@ async def generate_explanation(request_data: Dict) -> Dict:
 
         logger.info(f"Generating explanation for NCP: {ncp.get('title', 'Unknown')}")
 
-        all_sections = ['assessment', 'diagnosis', 'outcomes', 'interventions', 'rationale', 'implementation', 'evaluation']
+        all_sections = ['diagnosis', 'outcomes', 'interventions', 'rationale', 'implementation', 'evaluation']
         
         # Filter out sections that don't have content (empty or None)
         available_sections = []
@@ -354,64 +342,236 @@ async def generate_explanation(request_data: Dict) -> Dict:
 
         logger.info(f"Generating explanations for sections: {available_sections}")
 
-        # Create the enhanced explanation prompt for plain text response
+        # Extract additional context for explanation generation
+        assessment_context = ""
+        diagnosis_reasoning = ""
+        
+        # Include assessment data context if available
+        if ncp.get('assessment'):
+            assessment_context = f"""
+            **ORIGINAL PATIENT ASSESSMENT DATA THAT GUIDED THIS NCP:**
+            {ncp.get('assessment')}
+            """
+        
+        # Include diagnosis reasoning if available  
+        if ncp.get('reasoning'):
+            diagnosis_reasoning = f"""
+            **DIAGNOSIS SELECTION REASONING:**
+            {ncp.get('reasoning')}
+            """
+
+        # Create the enhanced explanation prompt that mirrors the actual NCP generation process
         explanation_prompt = f"""
             You are a nursing educator with expertise in NANDA-I, NIC, and NOC standards.
-            Your primary goal is to teach nursing students how to think critically and apply 
-            evidence-based reasoning when creating Nursing Care Plans (NCPs).
+            Your primary goal is to teach nursing students the EXACT systematic process used to 
+            create this NCP, walking them through the same clinical reasoning frameworks and 
+            decision-making steps that professional nurses use in practice.
 
-            Ground all explanations in widely accepted nursing frameworks and references:
-            - NANDA-I taxonomy (2021–2023 updates)
+            **THE NCP GENERATION PROCESS YOU WILL EXPLAIN:**
+            This NCP was created using a systematic 4-step process that mirrors professional nursing practice:
+
+            **STEP 1: Assessment Data Analysis & Keyword Extraction**
+            - Raw patient data was analyzed to extract clinical keywords aligned with NANDA-I terminology
+            - Subjective and objective findings were normalized into standard clinical terms
+            - Keywords were selected to match NANDA-I diagnostic criteria (defining characteristics, related factors, risk factors)
+
+            **STEP 2: Diagnosis Selection Using Clinical Prioritization**
+            Multiple candidate diagnoses were evaluated using strict prioritization frameworks:
+            1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
+               - Life-threatening conditions take absolute priority
+               - Only selected if assessment shows clear evidence of compromise
+            2. **Maslow's Hierarchy of Needs**
+               - Physiological → Safety → Psychosocial
+               - Physiological needs: pain, nutrition, elimination, mobility, oxygenation
+               - Safety needs: infection prevention, fall risk, injury prevention
+               - Psychosocial needs: anxiety, coping, knowledge deficits
+            3. **Actual Problems Over Risk Problems**
+               - Current active problems prioritized over potential risks
+               - Exception: ABC-related risks may override lower-level actual problems
+            4. **Acute Over Chronic**
+               - New, severe, or unstable conditions prioritized over stable chronic conditions
+
+            **STEP 3: NOC Outcomes & NIC Interventions Selection**
+            - Outcomes based on evidence-based NOC classifications
+            - Interventions selected from NIC classifications and adapted to patient specifics
+            - All choices directly target the selected priority diagnosis
+            - SMART criteria applied to all outcome statements
+
+            **STEP 4: Implementation & Evaluation in Clinical Context**
+            - Implementation described in past tense with realistic patient responses
+            - Evaluation tied directly back to outcome achievement
+            - Timeframes set based on nursing student clinical realities
+
+            **EDUCATIONAL FOUNDATION:**
+            Base all explanations on the same evidence-based standards used in the generation:
+            - NANDA-I taxonomy (2021–2023)
             - NIC and NOC 7th editions
-            - Ackley et al. (2022), Nursing Diagnosis Handbook
-            - Doenges et al. (2021), Nurse’s Pocket Guide
+            - Ackley et al. (2022), Nursing Diagnosis Handbook, 12th Edition
+            - Doenges et al. (2021), Nurse's Pocket Guide, 15th Edition
+            - Moorhead et al. (2022) - NOC outcomes
+            - Butcher et al. (2022) - NIC interventions
 
-            Important rules for evidence use:
-            - Attribute concepts in a general way (e.g., “According to Ackley (2022)...” or 
-            “NANDA-I defines impaired gas exchange as...”).
-            - Do NOT invent page numbers, direct quotations, or hollow citations.
-            - If unsure of exact source details, explain the principle clearly and attribute 
-            it broadly to NANDA-I, NIC, NOC, or standard nursing references.
-            - Explanations must remain factual, professional, and educational.
+            **CRITICAL TEACHING OBJECTIVES:**
+            For each NCP section, help students understand:
+            1. **The Systematic Decision-Making Process**: Walk through the exact steps used
+            2. **Prioritization Framework Application**: Show how frameworks determined choices
+            3. **Evidence-Based Rationale**: Connect decisions to nursing standards and research
+            4. **Alternative Analysis**: Explain what other options existed and why they weren't chosen
+            5. **Patient Customization**: Show how textbook knowledge was adapted to this specific case
+            6. **Professional Integration**: Demonstrate how this mirrors real-world nursing practice
 
-            I will provide you with an NCP. For each section, generate explanations at three levels 
-            (Clinical Reasoning, Evidence-Based Support, and Student Guidance), each with a 
-            Summary and a Detailed version.
+            **EXPLANATION FRAMEWORK:**
+            Teach students to think like the AI system that generated this NCP by explaining the 
+            systematic process, not just the content. Show them the clinical reasoning pathway 
+            that led to each decision.
 
-            For each NCP section, use this EXACT format:
+            **CONTENT REQUIREMENTS FOR EACH NCP SECTION:**
 
-            **SECTION_NAME:**
+            For each section present in the NCP, provide explanations that help students understand:
 
-            Clinical Reasoning Summary:
-            [2–3 sentences: concise explanation of why this decision was made]
+            **Clinical Reasoning Component:**
+            - Summary (2-3 sentences): Explain the systematic decision-making process used for this section, 
+              specifically referencing how prioritization frameworks, NANDA-I criteria, or NIC/NOC 
+              standards guided the selection. Connect to the actual generation process used.
+            - Detailed (4-8 sentences): Provide step-by-step breakdown of the clinical reasoning process: 
+              How assessment data was analyzed, what prioritization framework was applied and why, 
+              how this choice ranked against alternatives using systematic criteria, what specific 
+              NANDA-I/NIC/NOC criteria were met, and how the final decision integrated patient-specific 
+              factors with evidence-based standards.
 
-            Clinical Reasoning Detailed:
-            [4–8 sentences: step-by-step reasoning process, including assessment priorities, 
-            differential considerations, and why certain options were chosen or excluded]
+            **Evidence-Based Support Component:**
+            - Summary (2-3 sentences): Connect the choices directly to evidence-based sources used in 
+              generation (NANDA-I taxonomy, NIC/NOC classifications, Ackley 2022, Doenges 2021) 
+              and explain how these standards guided the systematic selection process.
+            - Detailed (4-8 sentences): Explain the theoretical foundation: Which specific NANDA-I, NIC, 
+              or NOC classifications were referenced, how current nursing standards informed the decision, 
+              what evidence-based principles were applied, how this reflects current professional practice 
+              standards, and why these choices align with contemporary nursing education expectations.
 
-            Evidence-Based Support Summary:
-            [2–3 sentences: key evidence points with clinical guidelines or standards]
+            **Student Guidance Component:**
+            - Summary (2-3 sentences): Highlight the key systematic thinking skills students should develop 
+              to replicate this decision-making process in their own clinical practice.
+            - Detailed (4-8 sentences): Provide practical learning guidance: How students can apply the 
+              same prioritization frameworks in similar cases, what critical thinking questions to ask 
+              during each step, how to access and use NANDA-I/NIC/NOC resources effectively, common 
+              mistakes to avoid when applying these frameworks, practice exercises to master this 
+              systematic approach, and how to adapt this process for different patient populations.
 
-            Evidence-Based Support Detailed:
-            [4–8 sentences: explain the rationale and connect it to NANDA-I, NIC, NOC, 
-            and standard nursing references such as Ackley (2022) or Doenges (2021). 
-            Do not fabricate citations; attribute concepts broadly.]
+            **IMPORTANT PRINCIPLES:**
+            - Focus on teaching the SYSTEMATIC PROCESS that generated this NCP, not just content knowledge
+            - Explain the actual decision-making algorithms and frameworks used in generation
+            - Show students how to replicate the same clinical reasoning process
+            - Connect each section to the overall systematic methodology
+            - Emphasize the evidence-based selection criteria that were applied
+            - Help students understand the PROCESS behind each choice, not just the final result
+            - Demonstrate how this mirrors the systematic approach used in professional nursing practice
+            - Reference the specific generation steps (assessment analysis → diagnosis prioritization → NOC/NIC selection → implementation/evaluation)
 
-            Student Guidance Summary:
-            [2–3 sentences: main learning takeaways for students]
+            **CRITICAL OUTPUT FORMAT REQUIREMENTS:**
+            You MUST return your response as a valid JSON object with the exact structure below.
+            Do NOT include any text before or after the JSON.
+            Return ONLY the JSON object.
 
-            Student Guidance Detailed:
-            [4–8 sentences: practical learning pathway including reflection questions, 
-            case application examples, common mistakes to avoid, and skill-building exercises]
+            **REQUIRED JSON STRUCTURE:**
+            {{
+                "diagnosis": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining the systematic thinking process used",
+                        "detailed": "4-8 sentences walking through step-by-step clinical reasoning"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting choices to evidence-based sources",
+                        "detailed": "4-8 sentences explaining theoretical foundation and standards"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting key systematic thinking skills",
+                        "detailed": "4-8 sentences providing practical learning guidance"
+                    }}
+                }},
+                "outcomes": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining outcome selection process",
+                        "detailed": "4-8 sentences walking through NOC outcome selection reasoning"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to NOC standards",
+                        "detailed": "4-8 sentences explaining NOC classification alignment"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting outcome development skills",
+                        "detailed": "4-8 sentences providing SMART goal development guidance"
+                    }}
+                }},
+                "interventions": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining intervention selection process",
+                        "detailed": "4-8 sentences walking through NIC intervention selection reasoning"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to NIC standards",
+                        "detailed": "4-8 sentences explaining NIC classification alignment"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting intervention planning skills",
+                        "detailed": "4-8 sentences providing evidence-based intervention guidance"
+                    }}
+                }},
+                "rationale": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining rationale development process",
+                        "detailed": "4-8 sentences walking through evidence-based rationale creation"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to nursing literature",
+                        "detailed": "4-8 sentences explaining research and evidence base"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting critical thinking for rationales",
+                        "detailed": "4-8 sentences providing rationale development guidance"
+                    }}
+                }},
+                "implementation": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining implementation approach",
+                        "detailed": "4-8 sentences walking through systematic implementation process"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to practice standards",
+                        "detailed": "4-8 sentences explaining professional practice alignment"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting implementation skills",
+                        "detailed": "4-8 sentences providing practical implementation guidance"
+                    }}
+                }},
+                "evaluation": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining evaluation methodology",
+                        "detailed": "4-8 sentences walking through systematic evaluation process"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to outcome measurement standards",
+                        "detailed": "4-8 sentences explaining evidence-based evaluation methods"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting evaluation skills",
+                        "detailed": "4-8 sentences providing outcome evaluation guidance"
+                    }}
+                }}
+            }}
 
-            IMPORTANT RULES:
-            - Use the exact headers above
-            - Each explanation must be clear, professional, and educational
-            - Avoid special characters like quotes/apostrophes that may cause parsing issues
-            - If multiple valid options exist, explain why the chosen option is appropriate 
-            and what alternatives could be considered
+            **JSON FORMATTING RULES:**
+            - Use only the sections that exist in the provided NCP
+            - Each section must have all three components: clinical_reasoning, evidence_based_support, student_guidance
+            - Each component must have both summary and detailed explanations
+            
+            **ASSESSMENT CONTEXT:**
+            {assessment_context}
+            
+            **DIAGNOSIS REASONING:**
+            {diagnosis_reasoning}
 
-            Here is the NCP data:
+            Here is the NCP data to explain (generated using the systematic process described above):
         """
 
         for section in available_sections:
@@ -423,32 +583,96 @@ async def generate_explanation(request_data: Dict) -> Dict:
             """
 
         explanation_prompt += """
-            Now provide explanations for each section in the exact format specified above.
+            Now provide explanations for each section in the exact format specified above, 
+            teaching students the systematic clinical reasoning process and evidence-based 
+            frameworks that were actually used to generate this NCP. Focus on the METHODOLOGY 
+            and DECISION-MAKING ALGORITHMS rather than just content knowledge. Help students 
+            understand how to replicate this systematic approach in their own clinical practice.
         """
 
-        # Generate explanation using Claude
-        logger.info("Calling Claude API for enhanced explanation generation")
-        response = claude_client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=CLAUDE_MAX_TOKENS,
-            temperature=CLAUDE_TEMPERATURE,
-            messages=[
-                {
-                    "role": "user",
-                    "content": explanation_prompt
-                }
-            ]
+        # Generate explanation using Gemini 2.5 Pro
+        logger.info("Calling Gemini API for enhanced explanation generation")
+        
+        # Configure Gemini model
+        generation_config = {
+            "temperature": 0.3,
+            "top_p": 1,
+            "top_k": 1,
+            "max_output_tokens": 10000,
+        }
+
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-pro",
+            generation_config=generation_config
         )
+
+        response = model.generate_content(explanation_prompt)
                 
-        if not response or not response.content:
+        if not response or not response.text:
             raise Exception("No response from AI model")
 
-        # Parse the AI response
-        ai_explanation = response.content[0].text.strip()
+        # Parse the AI response as JSON
+        ai_explanation = response.text.strip()
         logger.info(f"Received AI explanation length: {len(ai_explanation)} characters")
         
-        # Parse the plain text response into our JSON structure
-        explanations = parse_explanation_text(ai_explanation, available_sections)
+        # Clean the response - remove markdown code blocks if present
+        cleaned_response = ai_explanation
+        if cleaned_response.startswith('```json'):
+            cleaned_response = cleaned_response[7:]  # Remove ```json
+        elif cleaned_response.startswith('```'):
+            cleaned_response = cleaned_response[3:]   # Remove ```
+        
+        if cleaned_response.endswith('```'):
+            cleaned_response = cleaned_response[:-3]  # Remove closing ```
+        
+        cleaned_response = cleaned_response.strip()
+        logger.info(f"Cleaned response preview: {cleaned_response[:200]}...")
+        
+        # Parse the JSON response directly
+        try:
+            explanations = json.loads(cleaned_response)
+            logger.info(f"Successfully parsed JSON explanations for sections: {list(explanations.keys())}")
+            
+            # Validate that we have the expected structure
+            for section in available_sections:
+                if section not in explanations:
+                    logger.warning(f"Missing section {section} in AI response, adding fallback")
+                    explanations[section] = {
+                        'clinical_reasoning': {
+                            'summary': f'Clinical reasoning for this {section.replace("_", " ")} component involves systematic analysis of patient data.',
+                            'detailed': f'The {section.replace("_", " ")} component requires comprehensive clinical thinking and evidence-based decision making.'
+                        },
+                        'evidence_based_support': {
+                            'summary': f'Evidence-based nursing practice supports comprehensive {section.replace("_", " ")} documentation.',
+                            'detailed': f'Current nursing literature emphasizes the importance of thorough {section.replace("_", " ")} documentation for quality outcomes.'
+                        },
+                        'student_guidance': {
+                            'summary': f'Students should understand the purpose and components of effective {section.replace("_", " ")}.',
+                            'detailed': f'Learning objectives include theoretical foundation and practical application in {section.replace("_", " ")}.'
+                        }
+                    }
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            logger.error(f"Cleaned response text: {cleaned_response}")
+            # Fallback to empty structure if JSON parsing fails
+            explanations = {
+                section: {
+                    'clinical_reasoning': {
+                        'summary': f'Clinical reasoning for this {section.replace("_", " ")} component involves systematic analysis of patient data.',
+                        'detailed': f'The {section.replace("_", " ")} component requires comprehensive clinical thinking and evidence-based decision making.'
+                    },
+                    'evidence_based_support': {
+                        'summary': f'Evidence-based nursing practice supports comprehensive {section.replace("_", " ")} documentation.',
+                        'detailed': f'Current nursing literature emphasizes the importance of thorough {section.replace("_", " ")} documentation for quality outcomes.'
+                    },
+                    'student_guidance': {
+                        'summary': f'Students should understand the purpose and components of effective {section.replace("_", " ")}.',
+                        'detailed': f'Learning objectives include theoretical foundation and practical application in {section.replace("_", " ")}.'
+                    }
+                }
+                for section in available_sections
+            }
         
         logger.info(f"Successfully parsed explanations for sections: {list(explanations.keys())}")
         logger.info(f"Explanations: {explanations}")

@@ -208,7 +208,6 @@ export const getAvailableSections = ncp => {
 
   const format = parseInt(ncp.format_type || '7')
   const allSections = [
-    'assessment',
     'diagnosis',
     'outcomes',
     'interventions',
@@ -216,7 +215,8 @@ export const getAvailableSections = ncp => {
     'implementation',
     'evaluation',
   ]
-  return allSections.slice(0, format)
+  // Adjust format to account for removed assessment section
+  return allSections.slice(0, format - 1)
 }
 
 /**
