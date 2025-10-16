@@ -1,4 +1,6 @@
 <script setup>
+import EditingHelp from '@/components/ncp/EditingHelp.vue'
+import EditingPreview from '@/components/ncp/EditingPreview.vue'
 import RenameNCPDialog from '@/components/ncp/RenameNCPDialog.vue'
 import StructuredNCPRenderer from '@/components/ncp/StructuredNCPRenderer.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -415,13 +417,31 @@ onMounted(() => {
                 v-else-if="
                   editableColumnsInFormat.some(col => col.key === column.key)
                 "
+                class="space-y-2"
               >
+                <EditingHelp :column-key="column.key" />
                 <Textarea
                   v-model="formData[column.key]"
                   :placeholder="`Enter ${column.label.toLowerCase()}...`"
-                  class="min-h-[50vh] resize-none focus:ring-2 focus:ring-primary"
+                  class="min-h-[50vh] resize-none focus:ring-2 focus:ring-primary font-mono text-xs"
                   :disabled="isSaving"
                 />
+                <div class="flex items-center justify-between">
+                  <div
+                    class="text-xs text-muted-foreground flex items-center gap-1"
+                  >
+                    <span>💡</span>
+                    <span
+                      >Use the structured format above or paste JSON directly -
+                      both work perfectly!</span
+                    >
+                  </div>
+                  <EditingPreview
+                    :text-data="formData[column.key]"
+                    :column-key="column.key"
+                    :column-label="column.label"
+                  />
+                </div>
               </div>
             </td>
           </tr>

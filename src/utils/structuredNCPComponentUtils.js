@@ -12,6 +12,10 @@ import {
   getEditableColumns,
   prepareExportData,
 } from '@/utils/structuredNCPUtils'
+import {
+  convertStructuredToText,
+  convertTextToStructured,
+} from '@/utils/structuredToTextConverter'
 import { computed, reactive, ref, toRef, watch } from 'vue'
 
 /**
@@ -41,10 +45,10 @@ export function useStructuredNCPEditor(ncp, format, emit) {
 
   const initializeFormData = () => {
     editableColumnsInFormat.value.forEach(column => {
-      // For structured data, we need to serialize complex objects as JSON strings for editing
+      // For structured data, convert to user-friendly text format for editing
       const value = ncpRef.value[column.key]
       if (typeof value === 'object' && value !== null) {
-        formData[column.key] = JSON.stringify(value, null, 2)
+        formData[column.key] = convertStructuredToText(value, column.key)
       } else {
         formData[column.key] = value || ''
       }
@@ -75,15 +79,21 @@ export function useStructuredNCPEditor(ncp, format, emit) {
   const saveChanges = async () => {
     isSaving.value = true
     try {
-      // Parse JSON strings back to objects before saving
+      // Convert text data back to structured format before saving
       const updateData = {}
       Object.keys(formData).forEach(key => {
+        const textData = formData[key]
         try {
-          // Try to parse as JSON first (for structured fields)
-          updateData[key] = JSON.parse(formData[key])
+          // First try to parse as JSON (in case user edited JSON directly)
+          const parsed = JSON.parse(textData)
+          if (typeof parsed === 'object' && parsed !== null) {
+            updateData[key] = parsed
+          } else {
+            updateData[key] = convertTextToStructured(textData, key)
+          }
         } catch {
-          // If not valid JSON, keep as string
-          updateData[key] = formData[key]
+          // Not valid JSON, convert from text format
+          updateData[key] = convertTextToStructured(textData, key)
         }
       })
 
