@@ -407,29 +407,6 @@ const formatDiagnosisSection = diagnosis => {
 const formatOutcomesSection = outcomes => {
   const items = []
 
-  // Helper function to safely process outcome lists
-  const processOutcomeList = outcomeList => {
-    if (!outcomeList) return []
-
-    // Handle different data formats
-    if (Array.isArray(outcomeList)) {
-      return outcomeList
-    } else if (typeof outcomeList === 'string') {
-      // Split by newlines or commas
-      return outcomeList
-        .split(/\n|,/)
-        .map(item => item.trim())
-        .filter(item => item.length > 0)
-    } else if (typeof outcomeList === 'object') {
-      // Try to extract values from object
-      return Object.values(outcomeList).filter(
-        item => item && typeof item === 'string'
-      )
-    }
-
-    return []
-  }
-
   // Check if outcomes is a string (plain text format) and handle it
   if (typeof outcomes === 'string') {
     // Parse plain text outcomes
@@ -472,6 +449,136 @@ const formatOutcomesSection = outcomes => {
     return items
   }
 
+  // Helper function to process timeframes (handles multiple data structures)
+  const processTimeframes = (timeframesData, termType) => {
+    if (!timeframesData) return []
+
+    console.log(`Processing ${termType} timeframes:`, timeframesData)
+    console.log(`${termType} timeframes type:`, typeof timeframesData)
+    console.log(
+      `${termType} timeframes is array:`,
+      Array.isArray(timeframesData)
+    )
+
+    const items = []
+
+    // Structure 1: timeframes is an array of objects with timeframe and outcomes properties
+    // Example: [{ timeframe: "Within 1 hour", outcomes: [...] }, ...]
+    if (Array.isArray(timeframesData)) {
+      console.log(`Processing ${termType} as array structure`)
+      timeframesData.forEach((timeframeObj, index) => {
+        console.log(
+          `Processing ${termType} timeframe item ${index}:`,
+          timeframeObj
+        )
+
+        if (timeframeObj && typeof timeframeObj === 'object') {
+          const timeframeLabel =
+            timeframeObj.timeframe || `Timeframe ${index + 1}`
+          const outcomes = timeframeObj.outcomes || []
+
+          items.push({
+            type: 'timeframe',
+            content: timeframeLabel,
+            className:
+              'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
+          })
+
+          console.log(`Processing outcomes for ${timeframeLabel}:`, outcomes)
+
+          if (Array.isArray(outcomes)) {
+            outcomes.forEach(outcome => {
+              if (outcome && typeof outcome === 'string') {
+                items.push({
+                  type: 'bullet',
+                  content: outcome,
+                })
+              }
+            })
+          }
+        }
+      })
+    }
+    // Structure 2: timeframes is an object with numeric string keys
+    // Example: { "0": { timeframe: "Within 1 hour", outcomes: [...] }, "1": {...} }
+    else if (typeof timeframesData === 'object') {
+      const keys = Object.keys(timeframesData)
+      console.log(`Processing ${termType} as object structure with keys:`, keys)
+
+      // Check if keys are numeric (Structure 2)
+      const areNumericKeys = keys.every(key => !isNaN(key))
+
+      if (areNumericKeys) {
+        console.log(`Processing ${termType} with numeric keys (Structure 2)`)
+        Object.values(timeframesData).forEach((timeframeObj, index) => {
+          console.log(
+            `Processing ${termType} timeframe object ${index}:`,
+            timeframeObj
+          )
+
+          if (timeframeObj && typeof timeframeObj === 'object') {
+            const timeframeLabel =
+              timeframeObj.timeframe || `Timeframe ${index + 1}`
+            const outcomes = timeframeObj.outcomes || []
+
+            items.push({
+              type: 'timeframe',
+              content: timeframeLabel,
+              className:
+                'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
+            })
+
+            console.log(`Processing outcomes for ${timeframeLabel}:`, outcomes)
+
+            if (Array.isArray(outcomes)) {
+              outcomes.forEach(outcome => {
+                if (outcome && typeof outcome === 'string') {
+                  items.push({
+                    type: 'bullet',
+                    content: outcome,
+                  })
+                }
+              })
+            }
+          }
+        })
+      } else {
+        // Structure 3: timeframes is an object with timeframe names as keys
+        // Example: { "Within 1 hour": [...], "Within 4 hours": [...] }
+        console.log(
+          `Processing ${termType} with timeframe name keys (Structure 3)`
+        )
+        Object.entries(timeframesData).forEach(([timeframeLabel, outcomes]) => {
+          console.log(
+            `Processing ${termType} timeframe "${timeframeLabel}":`,
+            outcomes
+          )
+
+          items.push({
+            type: 'timeframe',
+            content: timeframeLabel,
+            className:
+              'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
+          })
+
+          if (Array.isArray(outcomes)) {
+            outcomes.forEach(outcome => {
+              if (outcome && typeof outcome === 'string') {
+                items.push({
+                  type: 'bullet',
+                  content: outcome,
+                })
+              }
+            })
+          }
+        })
+      }
+    }
+
+    console.log(`Final ${termType} items:`, items)
+    return items
+  }
+
   // Handle structured format
   if (outcomes.short_term && outcomes.short_term.timeframes) {
     items.push({
@@ -480,24 +587,11 @@ const formatOutcomesSection = outcomes => {
       className: 'font-semibold text-xs mb-2',
     })
 
-    Object.entries(outcomes.short_term.timeframes).forEach(
-      ([timeframe, outcomeList]) => {
-        items.push({
-          type: 'timeframe',
-          content: timeframe,
-          className:
-            'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
-        })
-
-        const processedOutcomes = processOutcomeList(outcomeList)
-        processedOutcomes.forEach(outcome => {
-          items.push({
-            type: 'bullet',
-            content: outcome,
-          })
-        })
-      }
+    const shortTermItems = processTimeframes(
+      outcomes.short_term.timeframes,
+      'short-term'
     )
+    items.push(...shortTermItems)
   }
 
   if (outcomes.long_term && outcomes.long_term.timeframes) {
@@ -507,24 +601,50 @@ const formatOutcomesSection = outcomes => {
       className: 'font-semibold text-xs mb-2 mt-4',
     })
 
-    Object.entries(outcomes.long_term.timeframes).forEach(
-      ([timeframe, outcomeList]) => {
-        items.push({
-          type: 'timeframe',
-          content: timeframe,
-          className:
-            'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
-        })
-
-        const processedOutcomes = processOutcomeList(outcomeList)
-        processedOutcomes.forEach(outcome => {
-          items.push({
-            type: 'bullet',
-            content: outcome,
-          })
-        })
-      }
+    const longTermItems = processTimeframes(
+      outcomes.long_term.timeframes,
+      'long-term'
     )
+    items.push(...longTermItems)
+  }
+
+  // Fallback: if no items were added but outcomes exist, try to process as a generic object
+  if (items.length === 0 && outcomes && typeof outcomes === 'object') {
+    console.log('Falling back to generic outcomes processing:', outcomes)
+
+    // Try to find outcome arrays in the structure
+    const findOutcomesRecursively = (obj, prefix = '') => {
+      const foundItems = []
+
+      Object.entries(obj).forEach(([key, value]) => {
+        if (Array.isArray(value) && value.length > 0) {
+          // Check if this looks like an outcomes array
+          const isOutcomeArray = value.every(item => typeof item === 'string')
+          if (isOutcomeArray) {
+            foundItems.push({
+              type: 'subheading',
+              content: prefix ? `${prefix} - ${key}` : key,
+              className: 'font-semibold text-xs mb-2 mt-2',
+            })
+
+            value.forEach(outcome => {
+              foundItems.push({
+                type: 'bullet',
+                content: outcome,
+              })
+            })
+          }
+        } else if (typeof value === 'object' && value !== null) {
+          const nestedItems = findOutcomesRecursively(value, key)
+          foundItems.push(...nestedItems)
+        }
+      })
+
+      return foundItems
+    }
+
+    const fallbackItems = findOutcomesRecursively(outcomes)
+    items.push(...fallbackItems)
   }
 
   return items
