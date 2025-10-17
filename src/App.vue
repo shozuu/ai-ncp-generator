@@ -1,6 +1,6 @@
 <script setup>
-import { Toaster, ToastProvider } from '@/components/ui/toast'
 import BackgroundOperationsNotifier from '@/components/ui/BackgroundOperationsNotifier.vue'
+import { Toaster, ToastProvider } from '@/components/ui/toast'
 </script>
 
 <template>

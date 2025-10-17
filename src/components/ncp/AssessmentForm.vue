@@ -7,19 +7,21 @@ import ManualModeForm from './ManualModeForm.vue'
 const isSubmitting = ref(false)
 const abortController = ref(null)
 
-const { 
-  startOperation, 
-  completeOperation, 
-  failOperation, 
+const {
+  startOperation,
+  completeOperation,
+  failOperation,
   updateOperation,
-  hasActiveOperationType 
+  hasActiveOperationType,
 } = useBackgroundOperations()
 const { handleError, handleSuccess } = useGenerationErrorHandler()
 
 const emit = defineEmits(['submit'])
 
 // Check if NCP generation is currently running
-const isNCPGenerationActive = computed(() => hasActiveOperationType('ncp-generation'))
+const isNCPGenerationActive = computed(() =>
+  hasActiveOperationType('ncp-generation')
+)
 
 const props = defineProps({
   selectedFormat: {
@@ -33,25 +35,28 @@ const props = defineProps({
 const handleSubmit = async data => {
   // Prevent multiple concurrent NCP generations
   if (isNCPGenerationActive.value) {
-    handleError({ message: 'An NCP generation is already in progress. Please wait for it to complete or cancel it first.' })
+    handleError({
+      message:
+        'An NCP generation is already in progress. Please wait for it to complete or cancel it first.',
+    })
     return
   }
 
   isSubmitting.value = true
-  
+
   // Create a new AbortController for this generation
   abortController.value = new AbortController()
-  
+
   // Generate unique operation ID
   const operationId = `ncp-generation-${Date.now()}`
-  
+
   try {
     // Start background operation
     startOperation(operationId, 'ncp-generation', {
       title: 'NCP Generation',
       description: 'Parsing assessment data...',
       abortController: abortController.value,
-      onComplete: (result) => {
+      onComplete: result => {
         if (result.ncp) {
           const dataWithNCP = {
             generatedNCP: result.ncp,
@@ -69,19 +74,19 @@ const handleSubmit = async data => {
           emit('submit', dataWithDiagnoses)
         }
       },
-      onError: (error) => {
+      onError: error => {
         handleError(error)
-      }
+      },
     })
 
     let structuredData
 
     // Step 1: Parse manual assessment
-    updateOperation(operationId, { 
+    updateOperation(operationId, {
       description: 'Parsing manual assessment data...',
-      progress: 20
+      progress: 20,
     })
-    
+
     try {
       const parsedData = await ncpService.parseManualAssessment(
         data,
@@ -93,16 +98,19 @@ const handleSubmit = async data => {
       }
     } catch (parseError) {
       // Check if it was cancelled
-      if (parseError.name === 'AbortError' || parseError.name === 'CanceledError') {
+      if (
+        parseError.name === 'AbortError' ||
+        parseError.name === 'CanceledError'
+      ) {
         return // Exit silently for cancellation
       }
       throw parseError
     }
 
     // Step 2: Generate NCP
-    updateOperation(operationId, { 
+    updateOperation(operationId, {
       description: 'Generating comprehensive care plan...',
-      progress: 60
+      progress: 60,
     })
 
     try {
@@ -112,31 +120,32 @@ const handleSubmit = async data => {
       )
 
       // Step 3: Complete
-      updateOperation(operationId, { 
+      updateOperation(operationId, {
         description: 'Finalizing NCP...',
-        progress: 90
+        progress: 90,
       })
 
       // Complete the operation with the result
-      completeOperation(operationId, { 
-        ...result, 
-        structuredData 
+      completeOperation(operationId, {
+        ...result,
+        structuredData,
       })
-
     } catch (comprehensiveError) {
       // Check if it was cancelled
-      if (comprehensiveError.name === 'AbortError' || comprehensiveError.name === 'CanceledError') {
+      if (
+        comprehensiveError.name === 'AbortError' ||
+        comprehensiveError.name === 'CanceledError'
+      ) {
         return // Exit silently for cancellation
       }
       throw comprehensiveError
     }
-
   } catch (error) {
     // Check if it was cancelled
     if (error.name === 'AbortError' || error.name === 'CanceledError') {
       return // Exit silently for cancellation
     }
-    
+
     // Handle other errors
     let suggestion = ''
     let errorMessage = error.message || ''
@@ -147,7 +156,7 @@ const handleSubmit = async data => {
         suggestion = parts[1].trim()
       }
     }
-    
+
     failOperation(operationId, { message: errorMessage, suggestion })
   } finally {
     isSubmitting.value = false
@@ -170,14 +179,15 @@ const handleSubmit = async data => {
         <p class="text-muted-foreground text-sm mb-4">
           Enter your assessment details to generate an NCP.
         </p>
-        
+
         <!-- Active generation warning -->
-        <div 
+        <div
           v-if="isNCPGenerationActive"
           class="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
         >
           <p class="text-amber-800 dark:text-amber-200 text-sm font-medium">
-            🔄 NCP generation is running in the background. You can navigate freely, but please wait before starting a new generation.
+            🔄 NCP generation is running in the background. You can navigate
+            freely, but please wait before starting a new generation.
           </p>
         </div>
       </div>
@@ -185,8 +195,8 @@ const handleSubmit = async data => {
 
     <!-- Form Section -->
     <div>
-      <ManualModeForm 
-        @submit="handleSubmit" 
+      <ManualModeForm
+        @submit="handleSubmit"
         :disabled="isNCPGenerationActive"
       />
     </div>

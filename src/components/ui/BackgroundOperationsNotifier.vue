@@ -10,7 +10,7 @@ const { activeOperations, cancelOperation } = useBackgroundOperations()
 
 const shouldShow = computed(() => activeOperations.value.length > 0)
 
-const getOperationIcon = (type) => {
+const getOperationIcon = type => {
   switch (type) {
     case 'ncp-generation':
     case 'explanation-generation':
@@ -20,9 +20,9 @@ const getOperationIcon = (type) => {
   }
 }
 
-const getOperationProgress = (operation) => {
+const getOperationProgress = operation => {
   if (operation.progress) return operation.progress
-  
+
   // Calculate estimated progress based on time elapsed (rough estimation)
   const elapsed = Date.now() - operation.startTime
   const maxTime = 120000 // 2 minutes max estimate
@@ -49,7 +49,7 @@ const getOperationProgress = (operation) => {
                 class="h-5 w-5 text-primary animate-pulse"
               />
             </div>
-            
+
             <div class="flex-1 min-w-0 space-y-2">
               <div class="flex items-center justify-between">
                 <p class="text-sm font-medium text-foreground truncate">
@@ -64,15 +64,12 @@ const getOperationProgress = (operation) => {
                   <X class="h-3 w-3" />
                 </Button>
               </div>
-              
+
               <p class="text-xs text-muted-foreground">
                 {{ operation.description }}
               </p>
-              
-              <Progress 
-                :value="getOperationProgress(operation)" 
-                class="h-2"
-              />
+
+              <Progress :value="getOperationProgress(operation)" class="h-2" />
             </div>
           </div>
         </CardContent>

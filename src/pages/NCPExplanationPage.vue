@@ -56,16 +56,18 @@ const isDisclaimerCollapsed = ref(false)
 const disclaimerContainer = ref(null)
 const abortController = ref(null)
 
-const { 
-  startOperation, 
-  completeOperation, 
-  failOperation, 
+const {
+  startOperation,
+  completeOperation,
+  failOperation,
   updateOperation,
-  hasActiveOperationType 
+  hasActiveOperationType,
 } = useBackgroundOperations()
 
 // Check if explanation generation is currently running
-const isExplanationGenerationActive = computed(() => hasActiveOperationType('explanation-generation'))
+const isExplanationGenerationActive = computed(() =>
+  hasActiveOperationType('explanation-generation')
+)
 
 const ncpId = route.params.id
 
@@ -149,7 +151,8 @@ const generateExplanation = async () => {
   if (isExplanationGenerationActive.value) {
     toast({
       title: 'Generation in Progress',
-      description: 'An explanation generation is already running. Please wait for it to complete.',
+      description:
+        'An explanation generation is already running. Please wait for it to complete.',
       variant: 'destructive',
     })
     return
@@ -160,29 +163,29 @@ const generateExplanation = async () => {
 
   // Create a new AbortController for this generation
   abortController.value = new AbortController()
-  
+
   // Generate unique operation ID
   const operationId = `explanation-generation-${ncpId}-${Date.now()}`
-  
+
   try {
     // Start background operation
     startOperation(operationId, 'explanation-generation', {
       title: 'Explanation Generation',
       description: 'Generating educational explanations...',
       abortController: abortController.value,
-      onComplete: (result) => {
+      onComplete: result => {
         explanation.value = result
         hasExplanation.value = true
       },
-      onError: (error) => {
+      onError: error => {
         generationError.value = error.message
-      }
+      },
     })
 
     // Generate explanation
-    updateOperation(operationId, { 
+    updateOperation(operationId, {
       description: 'Analyzing NCP components...',
-      progress: 30
+      progress: 30,
     })
 
     const result = await explanationService.generateExplanation(
@@ -190,14 +193,13 @@ const generateExplanation = async () => {
       abortController.value.signal
     )
 
-    updateOperation(operationId, { 
+    updateOperation(operationId, {
       description: 'Finalizing explanations...',
-      progress: 90
+      progress: 90,
     })
 
     // Complete the operation
     completeOperation(operationId, result)
-
   } catch (error) {
     // Check if it was cancelled
     if (error.name === 'AbortError' || error.name === 'CanceledError') {
@@ -437,17 +439,18 @@ const setLevelContainerRef = (section, levelKey) => {
                   class="w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Sparkles class="h-4 w-4 mr-2" />
-                  {{ 
-                    isExplanationGenerationActive 
-                      ? 'Generation Running...' 
-                      : hasExplanation 
-                        ? 'Regenerate' 
-                        : 'Generate' 
-                  }} Explanations
+                  {{
+                    isExplanationGenerationActive
+                      ? 'Generation Running...'
+                      : hasExplanation
+                        ? 'Regenerate'
+                        : 'Generate'
+                  }}
+                  Explanations
                 </Button>
-                
+
                 <!-- Status message for active generation -->
-                <p 
+                <p
                   v-if="isExplanationGenerationActive"
                   class="text-xs text-muted-foreground text-center"
                 >

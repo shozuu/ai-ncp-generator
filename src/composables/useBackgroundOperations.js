@@ -25,7 +25,7 @@ export function useBackgroundOperations() {
       onComplete: options.onComplete || null,
       onError: options.onError || null,
     })
-    
+
     console.log(`Started background operation: ${type} (${id})`)
   }
 
@@ -52,7 +52,7 @@ export function useBackgroundOperations() {
       operation.status = 'completed'
       operation.result = result
       operation.endTime = Date.now()
-      
+
       // Show success notification
       toast({
         title: 'Success',
@@ -93,7 +93,11 @@ export function useBackgroundOperations() {
       }
 
       // Call error handler if provided
-      if (operation.onError && error.name !== 'AbortError' && error.name !== 'CanceledError') {
+      if (
+        operation.onError &&
+        error.name !== 'AbortError' &&
+        error.name !== 'CanceledError'
+      ) {
         operation.onError(error)
       }
 
@@ -108,7 +112,7 @@ export function useBackgroundOperations() {
    * Cancel an operation
    * @param {string} id - Operation ID
    */
-  const cancelOperation = (id) => {
+  const cancelOperation = id => {
     const operation = operations.get(id)
     if (operation && operation.status === 'in-progress') {
       // Abort the request
@@ -135,7 +139,9 @@ export function useBackgroundOperations() {
    * Get all active operations
    */
   const activeOperations = computed(() => {
-    return Array.from(operations.values()).filter(op => op.status === 'in-progress')
+    return Array.from(operations.values()).filter(
+      op => op.status === 'in-progress'
+    )
   })
 
   /**
@@ -149,7 +155,7 @@ export function useBackgroundOperations() {
    * Check if a specific type of operation is active
    * @param {string} type - Operation type to check
    */
-  const hasActiveOperationType = (type) => {
+  const hasActiveOperationType = type => {
     return activeOperations.value.some(op => op.type === type)
   }
 
@@ -157,7 +163,7 @@ export function useBackgroundOperations() {
    * Get operation by ID
    * @param {string} id - Operation ID
    */
-  const getOperation = (id) => {
+  const getOperation = id => {
     return operations.get(id)
   }
 

@@ -25,10 +25,12 @@ const progressPercentage = computed(() => {
 
 <template>
   <div
-    :class="cn(
-      'relative h-2 w-full overflow-hidden rounded-full bg-secondary',
-      props.class
-    )"
+    :class="
+      cn(
+        'relative h-2 w-full overflow-hidden rounded-full bg-secondary',
+        props.class
+      )
+    "
   >
     <div
       class="h-full w-full flex-1 bg-primary transition-all duration-300 ease-in-out"
