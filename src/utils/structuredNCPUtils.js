@@ -256,20 +256,6 @@ export const formatStructuredNCPForDisplay = ncp => {
   // Helper function to safely format sections
   const safeFormat = (section, formatter, sectionName) => {
     try {
-      // Add debugging for outcomes section
-      if (sectionName === 'outcomes') {
-        console.log('Outcomes data structure:', section)
-        console.log('Outcomes type:', typeof section)
-        if (section && typeof section === 'object') {
-          console.log('Outcomes keys:', Object.keys(section))
-          if (section.short_term) {
-            console.log('Short term structure:', section.short_term)
-          }
-          if (section.long_term) {
-            console.log('Long term structure:', section.long_term)
-          }
-        }
-      }
       return formatter(section)
     } catch (error) {
       console.warn(`Error formatting ${sectionName} section:`, error)
@@ -450,28 +436,15 @@ const formatOutcomesSection = outcomes => {
   }
 
   // Helper function to process timeframes (handles multiple data structures)
-  const processTimeframes = (timeframesData, termType) => {
+  const processTimeframes = timeframesData => {
     if (!timeframesData) return []
-
-    console.log(`Processing ${termType} timeframes:`, timeframesData)
-    console.log(`${termType} timeframes type:`, typeof timeframesData)
-    console.log(
-      `${termType} timeframes is array:`,
-      Array.isArray(timeframesData)
-    )
 
     const items = []
 
     // Structure 1: timeframes is an array of objects with timeframe and outcomes properties
     // Example: [{ timeframe: "Within 1 hour", outcomes: [...] }, ...]
     if (Array.isArray(timeframesData)) {
-      console.log(`Processing ${termType} as array structure`)
       timeframesData.forEach((timeframeObj, index) => {
-        console.log(
-          `Processing ${termType} timeframe item ${index}:`,
-          timeframeObj
-        )
-
         if (timeframeObj && typeof timeframeObj === 'object') {
           const timeframeLabel =
             timeframeObj.timeframe || `Timeframe ${index + 1}`
@@ -483,8 +456,6 @@ const formatOutcomesSection = outcomes => {
             className:
               'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
           })
-
-          console.log(`Processing outcomes for ${timeframeLabel}:`, outcomes)
 
           if (Array.isArray(outcomes)) {
             outcomes.forEach(outcome => {
@@ -503,19 +474,12 @@ const formatOutcomesSection = outcomes => {
     // Example: { "0": { timeframe: "Within 1 hour", outcomes: [...] }, "1": {...} }
     else if (typeof timeframesData === 'object') {
       const keys = Object.keys(timeframesData)
-      console.log(`Processing ${termType} as object structure with keys:`, keys)
 
       // Check if keys are numeric (Structure 2)
       const areNumericKeys = keys.every(key => !isNaN(key))
 
       if (areNumericKeys) {
-        console.log(`Processing ${termType} with numeric keys (Structure 2)`)
         Object.values(timeframesData).forEach((timeframeObj, index) => {
-          console.log(
-            `Processing ${termType} timeframe object ${index}:`,
-            timeframeObj
-          )
-
           if (timeframeObj && typeof timeframeObj === 'object') {
             const timeframeLabel =
               timeframeObj.timeframe || `Timeframe ${index + 1}`
@@ -527,8 +491,6 @@ const formatOutcomesSection = outcomes => {
               className:
                 'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
             })
-
-            console.log(`Processing outcomes for ${timeframeLabel}:`, outcomes)
 
             if (Array.isArray(outcomes)) {
               outcomes.forEach(outcome => {
@@ -545,15 +507,7 @@ const formatOutcomesSection = outcomes => {
       } else {
         // Structure 3: timeframes is an object with timeframe names as keys
         // Example: { "Within 1 hour": [...], "Within 4 hours": [...] }
-        console.log(
-          `Processing ${termType} with timeframe name keys (Structure 3)`
-        )
         Object.entries(timeframesData).forEach(([timeframeLabel, outcomes]) => {
-          console.log(
-            `Processing ${termType} timeframe "${timeframeLabel}":`,
-            outcomes
-          )
-
           items.push({
             type: 'timeframe',
             content: timeframeLabel,
@@ -574,8 +528,6 @@ const formatOutcomesSection = outcomes => {
         })
       }
     }
-
-    console.log(`Final ${termType} items:`, items)
     return items
   }
 
@@ -610,8 +562,6 @@ const formatOutcomesSection = outcomes => {
 
   // Fallback: if no items were added but outcomes exist, try to process as a generic object
   if (items.length === 0 && outcomes && typeof outcomes === 'object') {
-    console.log('Falling back to generic outcomes processing:', outcomes)
-
     // Try to find outcome arrays in the structure
     const findOutcomesRecursively = (obj, prefix = '') => {
       const foundItems = []

@@ -21,7 +21,7 @@ const getHelpContent = columnKey => {
   switch (columnKey) {
     case 'diagnosis':
       return {
-        title: 'Diagnosis Format Help',
+        title: 'Format Help',
         content: `📝 Enter the nursing diagnosis statement as plain text:
 
 "Acute Pain related to physical injury agent as evidenced by pain scale of 7/10, facial grimace, pallor, restlessness, and diaphoresis with HR 115 bpm"
@@ -30,7 +30,7 @@ const getHelpContent = columnKey => {
       }
     case 'outcomes':
       return {
-        title: 'Outcomes Format Help',
+        title: 'Format Help',
         content: `🎯 Use clear sections for short-term and long-term outcomes:
 
 SHORT-TERM OUTCOMES:
@@ -49,7 +49,7 @@ Within 48 hours of nursing interventions:
       }
     case 'interventions':
       return {
-        title: 'Interventions Format Help',
+        title: 'Format Help',
         content: `🩺 Organize by intervention categories:
 
 INDEPENDENT INTERVENTIONS:
@@ -71,7 +71,7 @@ COLLABORATIVE INTERVENTIONS:
       }
     case 'rationale':
       return {
-        title: 'Rationale Format Help',
+        title: 'Format Help',
         content: `💡 Link rationales to specific interventions:
 
 INTERVENTION RATIONALES:
@@ -89,7 +89,7 @@ Evidence: Joint Commission, 2024
       }
     case 'implementation':
       return {
-        title: 'Implementation Format Help',
+        title: 'Format Help',
         content: `✅ Document completed actions by category:
 
 INDEPENDENT ACTIONS:
@@ -112,7 +112,7 @@ COLLABORATIVE ACTIONS:
       }
     case 'evaluation':
       return {
-        title: 'Evaluation Format Help',
+        title: 'Format Help',
         content: `📊 Evaluate outcomes with clear status indicators:
 
 SHORT-TERM EVALUATION:
@@ -152,7 +152,7 @@ const helpContent = getHelpContent(props.columnKey)
       >
         <div class="flex items-center gap-1">
           <Info class="w-3 h-3" />
-          <span>{{ helpContent.title }} - Click for format help</span>
+          <span>{{ helpContent.title }}</span>
         </div>
         <ChevronDown
           class="w-3 h-3 transition-transform duration-200"

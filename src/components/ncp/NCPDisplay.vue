@@ -426,16 +426,7 @@ onMounted(() => {
                   class="min-h-[50vh] resize-none focus:ring-2 focus:ring-primary font-mono text-xs"
                   :disabled="isSaving"
                 />
-                <div class="flex items-center justify-between">
-                  <div
-                    class="text-xs text-muted-foreground flex items-center gap-1"
-                  >
-                    <span>💡</span>
-                    <span
-                      >Use the structured format above or paste JSON directly -
-                      both work perfectly!</span
-                    >
-                  </div>
+                <div class="">
                   <EditingPreview
                     :text-data="formData[column.key]"
                     :column-key="column.key"
