@@ -16,7 +16,7 @@ export const explanationService = {
     return data
   },
 
-  async generateExplanation(ncpId) {
+  async generateExplanation(ncpId, abortSignal = null) {
     // First get the NCP data
     const { data: ncp, error: ncpError } = await supabase
       .from('ncps')
@@ -27,12 +27,19 @@ export const explanationService = {
     if (ncpError) throw ncpError
 
     // Call backend to generate explanation
+    const config = {
+      headers: { 'Content-Type': 'application/json' },
+    }
+
+    // Add abort signal if provided
+    if (abortSignal) {
+      config.signal = abortSignal
+    }
+
     const response = await axios.post(
       `${API_BASE_URL}/api/generate-explanation`,
       { ncp },
-      {
-        headers: { 'Content-Type': 'application/json' },
-      }
+      config
     )
 
     const explanationData = response.data

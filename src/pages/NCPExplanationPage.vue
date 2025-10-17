@@ -37,6 +37,7 @@ import {
   Sparkles,
   Stethoscope,
   Target,
+  X,
 } from 'lucide-vue-next'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -53,6 +54,7 @@ const hasExplanation = ref(false)
 const generationError = ref(null)
 const isDisclaimerCollapsed = ref(false)
 const disclaimerContainer = ref(null)
+const abortController = ref(null)
 
 const ncpId = route.params.id
 
@@ -130,13 +132,33 @@ const loadNCPAndExplanation = async () => {
   }
 }
 
+const cancelExplanation = () => {
+  if (abortController.value) {
+    abortController.value.abort()
+    abortController.value = null
+  }
+  isGeneratingExplanation.value = false
+  generationError.value = null
+
+  toast({
+    title: 'Cancelled',
+    description: 'Explanation generation was cancelled.',
+  })
+}
+
 const generateExplanation = async () => {
   isGeneratingExplanation.value = true
   isLoading.value = false
   generationError.value = null
 
+  // Create a new AbortController for this generation
+  abortController.value = new AbortController()
+
   try {
-    explanation.value = await explanationService.generateExplanation(ncpId)
+    explanation.value = await explanationService.generateExplanation(
+      ncpId,
+      abortController.value.signal
+    )
     hasExplanation.value = true
 
     toast({
@@ -144,6 +166,11 @@ const generateExplanation = async () => {
       description: 'Educational explanations generated successfully!',
     })
   } catch (error) {
+    // Check if it was cancelled
+    if (error.name === 'AbortError' || error.name === 'CanceledError') {
+      return // Exit silently for cancellation
+    }
+
     console.error('Error generating explanation:', error)
     generationError.value = error.message
 
@@ -155,6 +182,7 @@ const generateExplanation = async () => {
     })
   } finally {
     isGeneratingExplanation.value = false
+    abortController.value = null
   }
 }
 
@@ -204,7 +232,7 @@ const setLevelContainerRef = (section, levelKey) => {
     <!-- Single Loading State Handler -->
     <div
       v-if="currentLoadingState"
-      class="flex items-center justify-center h-screen"
+      class="flex flex-col items-center justify-center h-screen space-y-4"
     >
       <LoadingIndicator
         :messages="
@@ -217,6 +245,17 @@ const setLevelContainerRef = (section, levelKey) => {
               ]
         "
       />
+
+      <!-- Cancel button only for explanation generation -->
+      <Button
+        v-if="currentLoadingState === 'generating' && isGeneratingExplanation"
+        @click="cancelExplanation"
+        variant="outline"
+        class="mt-4"
+      >
+        <X class="h-4 w-4 mr-2" />
+        Cancel Generation
+      </Button>
     </div>
 
     <div v-else class="space-y-4 sm:space-y-6 px-2 sm:px-0">
@@ -379,14 +418,27 @@ const setLevelContainerRef = (section, levelKey) => {
                   each NCP component.
                 </p>
               </div>
-              <Button
-                @click="generateExplanation"
-                :disabled="isGeneratingExplanation"
-                class="w-full text-sm"
-              >
-                <Sparkles class="h-4 w-4 mr-2" />
-                {{ hasExplanation ? 'Regenerate' : 'Generate' }} Explanations
-              </Button>
+              <!-- Generate/Cancel buttons -->
+              <div class="space-y-2">
+                <Button
+                  v-if="!isGeneratingExplanation"
+                  @click="generateExplanation"
+                  class="w-full text-sm"
+                >
+                  <Sparkles class="h-4 w-4 mr-2" />
+                  {{ hasExplanation ? 'Regenerate' : 'Generate' }} Explanations
+                </Button>
+
+                <Button
+                  v-else
+                  @click="cancelExplanation"
+                  variant="outline"
+                  class="w-full text-sm"
+                >
+                  <X class="h-4 w-4 mr-2" />
+                  Cancel Generation
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -624,17 +676,28 @@ const setLevelContainerRef = (section, levelKey) => {
             </Card>
           </div>
 
-          <!-- Regenerate Button -->
+          <!-- Regenerate/Cancel Button -->
           <div class="text-center pt-4 sm:pt-6">
             <Button
+              v-if="!isGeneratingExplanation"
               variant="outline"
               size="default"
               @click="generateExplanation"
-              :disabled="isGeneratingExplanation"
               class="min-w-[180px] sm:min-w-[200px] text-sm"
             >
               <RefreshCw class="h-4 w-4 mr-2" />
               Regenerate All Explanations
+            </Button>
+
+            <Button
+              v-else
+              variant="outline"
+              size="default"
+              @click="cancelExplanation"
+              class="min-w-[180px] sm:min-w-[200px] text-sm"
+            >
+              <X class="h-4 w-4 mr-2" />
+              Cancel Generation
             </Button>
           </div>
         </div>

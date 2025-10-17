@@ -1,10 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
 import os
 import logging
 import json
 import re
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from utils import (
@@ -82,8 +83,86 @@ genai.configure(
     client_options={"api_endpoint": "generativelanguage.googleapis.com"}
 )
 
+async def call_claude_with_cancellation(request: Request, client, **kwargs):
+    """
+    Call Claude API with cancellation support when client disconnects.
+    """
+    # Create a task for the Claude API call
+    claude_task = asyncio.create_task(
+        asyncio.to_thread(client.messages.create, **kwargs)
+    )
+    
+    # Create a task to check for client disconnection
+    async def check_client_disconnection():
+        while not claude_task.done():
+            if await request.is_disconnected():
+                logger.info("Client disconnected, cancelling Claude API call")
+                claude_task.cancel()
+                raise asyncio.CancelledError("Client disconnected")
+            await asyncio.sleep(0.1)  # Check every 100ms
+    
+    disconnection_task = asyncio.create_task(check_client_disconnection())
+    
+    try:
+        # Wait for either the Claude call to complete or client disconnection
+        response = await claude_task
+        disconnection_task.cancel()
+        return response
+    except asyncio.CancelledError:
+        # Clean up both tasks
+        claude_task.cancel()
+        disconnection_task.cancel()
+        logger.info("Claude API call cancelled due to client disconnection")
+        raise HTTPException(
+            status_code=499,  # Client Closed Request
+            detail={
+                "message": "Request was cancelled",
+                "error_type": "cancelled",
+                "suggestion": "The request was cancelled by the client."
+            }
+        )
+
+async def call_gemini_with_cancellation(request: Request, model, prompt):
+    """
+    Call Gemini API with cancellation support when client disconnects.
+    """
+    # Create a task for the Gemini API call
+    gemini_task = asyncio.create_task(
+        asyncio.to_thread(model.generate_content, prompt)
+    )
+    
+    # Create a task to check for client disconnection
+    async def check_client_disconnection():
+        while not gemini_task.done():
+            if await request.is_disconnected():
+                logger.info("Client disconnected, cancelling Gemini API call")
+                gemini_task.cancel()
+                raise asyncio.CancelledError("Client disconnected")
+            await asyncio.sleep(0.1)  # Check every 100ms
+    
+    disconnection_task = asyncio.create_task(check_client_disconnection())
+    
+    try:
+        # Wait for either the Gemini call to complete or client disconnection
+        response = await gemini_task
+        disconnection_task.cancel()
+        return response
+    except asyncio.CancelledError:
+        # Clean up both tasks
+        gemini_task.cancel()
+        disconnection_task.cancel()
+        logger.info("Gemini API call cancelled due to client disconnection")
+        raise HTTPException(
+            status_code=499,  # Client Closed Request
+            detail={
+                "message": "Request was cancelled",
+                "error_type": "cancelled",
+                "suggestion": "The request was cancelled by the client."
+            }
+        )
+
 @app.post("/api/generate-ncp")
-async def generate_ncp(assessment_data: Dict) -> Dict:
+async def generate_ncp(request: Request, assessment_data: Dict) -> Dict:
     """
     Generate a Nursing Care Plan (NCP) based on assessment data.
     """
@@ -241,7 +320,9 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         logger.info("Calling Claude API for NCP generation...")
         
         try:
-            response = claude_client.messages.create(
+            response = await call_claude_with_cancellation(
+                request,
+                claude_client,
                 model=CLAUDE_MODEL,
                 max_tokens=CLAUDE_MAX_TOKENS,
                 temperature=CLAUDE_TEMPERATURE,
@@ -314,7 +395,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         )
 
 @app.post("/api/generate-explanation")
-async def generate_explanation(request_data: Dict) -> Dict:
+async def generate_explanation(request: Request, request_data: Dict) -> Dict:
     """
     Generate explanations for each component of an NCP using AI.
     """
@@ -606,7 +687,7 @@ async def generate_explanation(request_data: Dict) -> Dict:
             generation_config=generation_config
         )
 
-        response = model.generate_content(explanation_prompt)
+        response = await call_gemini_with_cancellation(request, model, explanation_prompt)
                 
         if not response or not response.text:
             raise Exception("No response from AI model")
@@ -683,7 +764,7 @@ async def generate_explanation(request_data: Dict) -> Dict:
         raise Exception(f"Failed to generate explanation: {str(e)}")
 
 @app.post("/api/parse-manual-assessment")
-async def parse_manual_assessment(request_data: Dict) -> Dict:
+async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
     """
     Generate detailed, database-aligned keywords from manual assessment data.
     """
@@ -732,7 +813,9 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         Each keyword should be lowercase unless it is a proper medical acronym.
         """
 
-        response = claude_client.messages.create(
+        response = await call_claude_with_cancellation(
+            request,
+            claude_client,
             model=CLAUDE_MODEL,
             max_tokens=CLAUDE_MAX_TOKENS,
             temperature=CLAUDE_TEMPERATURE,
@@ -787,7 +870,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         )
 
 @app.post("/api/suggest-diagnoses")
-async def suggest_diagnoses(assessment_data: Dict) -> Dict:
+async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
     """Use original assessment + keywords for diagnosis matching."""
     try:
         # Extract the keywords and original data
@@ -829,7 +912,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         selected_diagnosis = await matcher.select_best_diagnosis(original_assessment, candidates)
         
         # Generate NCP using ORIGINAL assessment data
-        ncp_data = await generate_structured_ncp(original_assessment, selected_diagnosis)
+        ncp_data = await generate_structured_ncp(request, original_assessment, selected_diagnosis)
         
         # Complete the NCP request with success
         final_result = {**selected_diagnosis, "ncp": ncp_data}
@@ -853,7 +936,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
             }
         )
 
-async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dict, max_retries: int = 3) -> Dict:
+async def generate_structured_ncp(request: Request, assessment_data: Dict, selected_diagnosis: Dict, max_retries: int = 3) -> Dict:
     """
     Generate a structured NCP in JSON format with validation and retry logic.
     """
@@ -1066,7 +1149,9 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         try:
             logger.info(f"Generating structured NCP - Attempt {attempt + 1}")
             
-            response = claude_client.messages.create(
+            response = await call_claude_with_cancellation(
+                request,
+                claude_client,
                 model=CLAUDE_MODEL,
                 max_tokens=CLAUDE_MAX_TOKENS,
                 temperature=CLAUDE_TEMPERATURE,

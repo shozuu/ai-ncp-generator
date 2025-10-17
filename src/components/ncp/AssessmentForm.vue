@@ -1,8 +1,10 @@
 <script setup>
+import Button from '@/components/ui/button/Button.vue'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import Switch from '@/components/ui/switch/Switch.vue'
 import { useGenerationErrorHandler } from '@/composables/useGenerationErrorHandler'
 import { ncpService } from '@/services/ncpService'
+import { X } from 'lucide-vue-next'
 import { computed, ref } from 'vue'
 import AssistantModeForm from './AssistantModeForm.vue'
 import ManualModeForm from './ManualModeForm.vue'
@@ -10,6 +12,7 @@ import ManualModeForm from './ManualModeForm.vue'
 const isAssistantMode = ref(false)
 const isSubmitting = ref(false)
 const currentStep = ref('idle')
+const abortController = ref(null)
 
 const loadingMessages = computed(() => {
   switch (currentStep.value) {
@@ -43,8 +46,22 @@ const props = defineProps({
   },
 })
 
+const cancelGeneration = () => {
+  if (abortController.value) {
+    abortController.value.abort()
+    abortController.value = null
+  }
+  isSubmitting.value = false
+  currentStep.value = 'idle'
+  handleSuccess('cancelled')
+}
+
 const handleSubmit = async data => {
   isSubmitting.value = true
+
+  // Create a new AbortController for this generation
+  abortController.value = new AbortController()
+
   try {
     let structuredData
 
@@ -57,7 +74,10 @@ const handleSubmit = async data => {
       currentStep.value = 'parsing'
       handleSuccess('processing')
       try {
-        const parsedData = await ncpService.parseManualAssessment(data)
+        const parsedData = await ncpService.parseManualAssessment(
+          data,
+          abortController.value.signal
+        )
         // Use the parsed data directly - it contains original_assessment + embedding_keywords
         structuredData = {
           ...parsedData,
@@ -65,6 +85,14 @@ const handleSubmit = async data => {
         }
         handleSuccess('processed')
       } catch (parseError) {
+        // Check if it was cancelled
+        if (
+          parseError.name === 'AbortError' ||
+          parseError.name === 'CanceledError'
+        ) {
+          return // Exit silently for cancellation
+        }
+
         let suggestion = ''
         let errorMessage = parseError.message || ''
         if (errorMessage.includes('suggestion')) {
@@ -85,7 +113,10 @@ const handleSubmit = async data => {
       handleSuccess('generating')
 
       let result
-      result = await ncpService.generateComprehensiveNCP(structuredData)
+      result = await ncpService.generateComprehensiveNCP(
+        structuredData,
+        abortController.value.signal
+      )
 
       currentStep.value = 'saving'
       if (result.ncp) {
@@ -105,10 +136,21 @@ const handleSubmit = async data => {
         emit('submit', dataWithDiagnoses)
       }
     } catch (comprehensiveError) {
+      // Check if it was cancelled
+      if (
+        comprehensiveError.name === 'AbortError' ||
+        comprehensiveError.name === 'CanceledError'
+      ) {
+        return // Exit silently for cancellation
+      }
       handleError(comprehensiveError)
       emit('submit', structuredData)
     }
   } catch (error) {
+    // Check if it was cancelled
+    if (error.name === 'AbortError' || error.name === 'CanceledError') {
+      return // Exit silently for cancellation
+    }
     let suggestion = ''
     let errorMessage = error.message || ''
     if (errorMessage.includes('suggestion')) {
@@ -122,8 +164,14 @@ const handleSubmit = async data => {
   } finally {
     isSubmitting.value = false
     currentStep.value = 'idle'
+    abortController.value = null
   }
 }
+
+// Expose cancelGeneration for parent component
+defineExpose({
+  cancelGeneration,
+})
 </script>
 
 <template>
@@ -132,7 +180,17 @@ const handleSubmit = async data => {
     v-if="isSubmitting"
     class="fixed inset-0 bg-background flex items-center justify-center z-50"
   >
-    <LoadingIndicator :messages="loadingMessages" />
+    <div class="flex flex-col items-center space-y-6">
+      <LoadingIndicator :messages="loadingMessages" />
+      <Button
+        variant="outline"
+        @click="cancelGeneration"
+        class="flex items-center gap-2"
+      >
+        <X class="h-4 w-4" />
+        Cancel Generation
+      </Button>
+    </div>
   </div>
 
   <!-- Main content -->
