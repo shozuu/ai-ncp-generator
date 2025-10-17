@@ -17,6 +17,13 @@ import Textarea from '../ui/textarea/Textarea.vue'
 
 const emit = defineEmits(['submit'])
 
+const props = defineProps({
+  disabled: {
+    type: Boolean,
+    default: false,
+  },
+})
+
 const form = useForm({
   validationSchema: toTypedSchema(manualModeSchema),
 })
@@ -112,9 +119,10 @@ const onSubmit = form.handleSubmit(values => {
     <div class="flex justify-end">
       <Button
         type="submit"
-        class="px-8 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-lg"
+        :disabled="props.disabled"
+        class="px-8 py-3 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
       >
-        Submit
+        {{ props.disabled ? 'Generation in Progress...' : 'Submit' }}
       </Button>
     </div>
   </form>

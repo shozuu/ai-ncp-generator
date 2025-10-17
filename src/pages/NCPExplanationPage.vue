@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
 import { useToast } from '@/components/ui/toast/use-toast'
+import { useBackgroundOperations } from '@/composables/useBackgroundOperations'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
 import { explanationService } from '@/services/explanationService'
 import { ncpService } from '@/services/ncpService'
@@ -16,7 +17,6 @@ import {
   getExplanationContent,
   hasAnyValidExplanations,
   hasValidSectionExplanation,
-  loadingMessages,
   sectionIcons,
   sectionTitles,
 } from '@/utils/ncpUtils'
@@ -56,6 +56,17 @@ const isDisclaimerCollapsed = ref(false)
 const disclaimerContainer = ref(null)
 const abortController = ref(null)
 
+const { 
+  startOperation, 
+  completeOperation, 
+  failOperation, 
+  updateOperation,
+  hasActiveOperationType 
+} = useBackgroundOperations()
+
+// Check if explanation generation is currently running
+const isExplanationGenerationActive = computed(() => hasActiveOperationType('explanation-generation'))
+
 const ncpId = route.params.id
 
 // Convert string icon names to actual icon components
@@ -79,9 +90,8 @@ const hasAnyValidExplanationsComputed = computed(() =>
 )
 
 const currentLoadingState = computed(() => {
-  if (isGeneratingExplanation.value) {
-    return 'generating'
-  } else if (isLoading.value) {
+  // Only show loading state for initial page load, not for generation
+  if (isLoading.value) {
     return 'loading'
   }
   return null
@@ -132,39 +142,62 @@ const loadNCPAndExplanation = async () => {
   }
 }
 
-const cancelExplanation = () => {
-  if (abortController.value) {
-    abortController.value.abort()
-    abortController.value = null
-  }
-  isGeneratingExplanation.value = false
-  generationError.value = null
-
-  toast({
-    title: 'Cancelled',
-    description: 'Explanation generation was cancelled.',
-  })
-}
+// Cancellation is now handled by the background operations system
 
 const generateExplanation = async () => {
+  // Prevent multiple concurrent explanation generations
+  if (isExplanationGenerationActive.value) {
+    toast({
+      title: 'Generation in Progress',
+      description: 'An explanation generation is already running. Please wait for it to complete.',
+      variant: 'destructive',
+    })
+    return
+  }
+
   isGeneratingExplanation.value = true
-  isLoading.value = false
   generationError.value = null
 
   // Create a new AbortController for this generation
   abortController.value = new AbortController()
-
+  
+  // Generate unique operation ID
+  const operationId = `explanation-generation-${ncpId}-${Date.now()}`
+  
   try {
-    explanation.value = await explanationService.generateExplanation(
+    // Start background operation
+    startOperation(operationId, 'explanation-generation', {
+      title: 'Explanation Generation',
+      description: 'Generating educational explanations...',
+      abortController: abortController.value,
+      onComplete: (result) => {
+        explanation.value = result
+        hasExplanation.value = true
+      },
+      onError: (error) => {
+        generationError.value = error.message
+      }
+    })
+
+    // Generate explanation
+    updateOperation(operationId, { 
+      description: 'Analyzing NCP components...',
+      progress: 30
+    })
+
+    const result = await explanationService.generateExplanation(
       ncpId,
       abortController.value.signal
     )
-    hasExplanation.value = true
 
-    toast({
-      title: 'Success',
-      description: 'Educational explanations generated successfully!',
+    updateOperation(operationId, { 
+      description: 'Finalizing explanations...',
+      progress: 90
     })
+
+    // Complete the operation
+    completeOperation(operationId, result)
+
   } catch (error) {
     // Check if it was cancelled
     if (error.name === 'AbortError' || error.name === 'CanceledError') {
@@ -172,14 +205,7 @@ const generateExplanation = async () => {
     }
 
     console.error('Error generating explanation:', error)
-    generationError.value = error.message
-
-    toast({
-      title: 'Error',
-      description:
-        error.message || 'Failed to generate explanation. Please try again.',
-      variant: 'destructive',
-    })
+    failOperation(operationId, error)
   } finally {
     isGeneratingExplanation.value = false
     abortController.value = null
@@ -229,33 +255,18 @@ const setLevelContainerRef = (section, levelKey) => {
 <template>
   <PageHead :title="`- ${ncp?.title || 'NCP Explanation'}`" />
   <SidebarLayout>
-    <!-- Single Loading State Handler -->
+    <!-- Initial Loading State -->
     <div
       v-if="currentLoadingState"
       class="flex flex-col items-center justify-center h-screen space-y-4"
     >
       <LoadingIndicator
-        :messages="
-          currentLoadingState === 'generating'
-            ? loadingMessages
-            : [
-                'Loading NCP data...',
-                'Retrieving explanations...',
-                'Preparing educational content...',
-              ]
-        "
+        :messages="[
+          'Loading NCP data...',
+          'Retrieving explanations...',
+          'Preparing educational content...',
+        ]"
       />
-
-      <!-- Cancel button only for explanation generation -->
-      <Button
-        v-if="currentLoadingState === 'generating' && isGeneratingExplanation"
-        @click="cancelExplanation"
-        variant="outline"
-        class="mt-4"
-      >
-        <X class="h-4 w-4 mr-2" />
-        Cancel Generation
-      </Button>
     </div>
 
     <div v-else class="space-y-4 sm:space-y-6 px-2 sm:px-0">
@@ -418,26 +429,30 @@ const setLevelContainerRef = (section, levelKey) => {
                   each NCP component.
                 </p>
               </div>
-              <!-- Generate/Cancel buttons -->
+              <!-- Generate button -->
               <div class="space-y-2">
                 <Button
-                  v-if="!isGeneratingExplanation"
                   @click="generateExplanation"
-                  class="w-full text-sm"
+                  :disabled="isExplanationGenerationActive"
+                  class="w-full text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Sparkles class="h-4 w-4 mr-2" />
-                  {{ hasExplanation ? 'Regenerate' : 'Generate' }} Explanations
+                  {{ 
+                    isExplanationGenerationActive 
+                      ? 'Generation Running...' 
+                      : hasExplanation 
+                        ? 'Regenerate' 
+                        : 'Generate' 
+                  }} Explanations
                 </Button>
-
-                <Button
-                  v-else
-                  @click="cancelExplanation"
-                  variant="outline"
-                  class="w-full text-sm"
+                
+                <!-- Status message for active generation -->
+                <p 
+                  v-if="isExplanationGenerationActive"
+                  class="text-xs text-muted-foreground text-center"
                 >
-                  <X class="h-4 w-4 mr-2" />
-                  Cancel Generation
-                </Button>
+                  Check the notification in the bottom-right corner
+                </p>
               </div>
             </CardContent>
           </Card>

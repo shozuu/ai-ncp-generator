@@ -327,7 +327,7 @@ onMounted(() => {
           target="_blank"
           rel="noopener noreferrer"
           variant="link"
-          class="inline-flex items-center px-1"
+          class="inline-flex items-center px-1 text-wrap"
         >
           Ackley and Ladwig’s Nursing Diagnosis Handbook (13th Edition).
         </Button>
