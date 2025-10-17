@@ -371,11 +371,7 @@ function convertTextToInterventions(text) {
 // === RATIONALE CONVERTERS ===
 
 function convertRationaleToText(rationale) {
-  // Debug logging for rationale structure
-  console.log('Converting rationale to text:', rationale)
-
   if (!rationale || typeof rationale !== 'object') {
-    console.log('Rationale is null or not an object')
     return ''
   }
 
@@ -387,7 +383,6 @@ function convertRationaleToText(rationale) {
     rationale.interventions &&
     Object.keys(rationale.interventions).length > 0
   ) {
-    console.log('Found interventions structure in rationale')
     text += 'INTERVENTION RATIONALES:\n\n'
 
     Object.entries(rationale.interventions).forEach(([id, data]) => {
@@ -408,7 +403,6 @@ function convertRationaleToText(rationale) {
     rationale.dependent ||
     rationale.collaborative
   ) {
-    console.log('Found category-based structure in rationale')
     text += 'INTERVENTION RATIONALES:\n\n'
 
     const categories = [
@@ -434,11 +428,6 @@ function convertRationaleToText(rationale) {
   }
   // Handle simple key-value rationale structure
   else {
-    console.log(
-      'Trying to handle unknown rationale structure, keys:',
-      Object.keys(rationale)
-    )
-
     // Try to extract rationale content from any structure
     const possibleRationaleKeys = [
       'rationale',
@@ -473,7 +462,6 @@ function convertRationaleToText(rationale) {
       })
     } else if (Object.keys(rationale).length > 0) {
       // Last resort: show as JSON
-      console.log('Falling back to JSON representation')
       return JSON.stringify(rationale, null, 2)
     }
   }
@@ -482,21 +470,31 @@ function convertRationaleToText(rationale) {
 }
 
 function convertTextToRationale(text) {
-  console.log('=== RATIONALE TEXT TO CONVERT ===')
-  console.log('Input text:', text)
+  // Validate input
+  if (!text || typeof text !== 'string' || !text.trim()) {
+    return { interventions: {} }
+  }
 
   // Try to parse as JSON first (in case user pasted JSON)
   try {
     const parsed = JSON.parse(text)
     if (typeof parsed === 'object' && parsed !== null) {
-      console.log('Successfully parsed as JSON:', parsed)
-      return parsed
+      // Validate that the parsed JSON has a reasonable structure
+      if (
+        parsed.interventions ||
+        parsed.independent ||
+        parsed.dependent ||
+        parsed.collaborative
+      ) {
+        return parsed
+      }
     }
   } catch {
     // Not JSON, continue with text parsing
   }
 
   const rationale = { interventions: {} }
+  let rationaleCount = 0 // Track how many rationales we find
 
   // Handle multiple formats:
   // 1. "Intervention ID:" format (from help content)
@@ -528,6 +526,7 @@ function convertTextToRationale(text) {
           rationale: rationaleText,
           evidence: evidence,
         }
+        rationaleCount++
       }
     })
   } else if (text.toUpperCase().includes('INTERVENTION RATIONALES:')) {
@@ -539,7 +538,7 @@ function convertTextToRationale(text) {
       let currentId = null
 
       lines.forEach(line => {
-        if (line && /^[A-Z0-9_-]+\s*:?\s*$/.test(line)) {
+        if (line && /^[A-Za-z0-9_-]+\s*:?\s*$/.test(line)) {
           // This looks like an intervention ID
           currentId = line.replace(':', '').trim()
         } else if (line.toLowerCase().startsWith('rationale:') && currentId) {
@@ -549,30 +548,42 @@ function convertTextToRationale(text) {
               rationale: rationaleText,
               evidence: '',
             }
+            rationaleCount++
+          }
+        } else if (line.toLowerCase().startsWith('evidence:') && currentId) {
+          const evidence = line.replace(/^evidence:\s*/i, '').trim()
+          if (rationale.interventions[currentId]) {
+            rationale.interventions[currentId].evidence = evidence
           }
         }
       })
     })
   } else {
-    // Format 3: Try to parse as simple key-value pairs
+    // Format 3: Try to parse as simple key-value pairs or plain text
     const lines = text
       .split('\n')
       .map(line => line.trim())
       .filter(line => line)
+
     let currentId = null
+    let nextIdCounter = 1
 
     lines.forEach(line => {
       if (line.includes(':')) {
-        const [key, value] = line.split(':').map(s => s.trim())
+        const colonIndex = line.indexOf(':')
+        const key = line.substring(0, colonIndex).trim()
+        const value = line.substring(colonIndex + 1).trim()
+
         if (value) {
           // Could be "ID: rationale" format
-          rationale.interventions[key] = {
+          rationale.interventions[key || `intervention_${nextIdCounter++}`] = {
             rationale: value,
             evidence: '',
           }
+          rationaleCount++
         } else if (key) {
           // Could be just "ID:" waiting for next line
-          currentId = key
+          currentId = key || `intervention_${nextIdCounter++}`
         }
       } else if (currentId && line) {
         // This line could be the rationale for the previous ID
@@ -580,13 +591,28 @@ function convertTextToRationale(text) {
           rationale: line,
           evidence: '',
         }
+        rationaleCount++
         currentId = null
+      } else if (line && !currentId) {
+        // Standalone rationale text without explicit ID
+        const id = `intervention_${nextIdCounter++}`
+        rationale.interventions[id] = {
+          rationale: line,
+          evidence: '',
+        }
+        rationaleCount++
       }
     })
   }
 
-  console.log('=== CONVERTED RATIONALE RESULT ===')
-  console.log('Result:', rationale)
+  // If we didn't find any structured rationales, but there's text content,
+  // store it as a single generic rationale
+  if (rationaleCount === 0 && text.trim()) {
+    rationale.interventions['general'] = {
+      rationale: text.trim(),
+      evidence: '',
+    }
+  }
 
   return rationale
 }

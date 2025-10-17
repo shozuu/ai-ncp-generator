@@ -307,13 +307,61 @@ export const formatStructuredNCPForDisplay = ncp => {
     )
   }
 
-  // Format Rationale
+  // Format Rationale - with error recovery
   if (ncp.rationale) {
-    formatted.rationale = safeFormat(
-      ncp.rationale,
-      rationale => formatRationaleSection(rationale, ncp.interventions),
-      'rationale'
-    )
+    try {
+      const rationaleItems = formatRationaleSection(
+        ncp.rationale,
+        ncp.interventions
+      )
+
+      // Extra check: if no items were formatted but rationale exists,
+      // try to display it as raw content
+      if (rationaleItems.length === 0 && ncp.rationale) {
+        // Try to extract any meaningful content from the rationale object
+        if (typeof ncp.rationale === 'string' && ncp.rationale.trim()) {
+          rationaleItems.push({
+            type: 'text',
+            content: ncp.rationale.trim(),
+          })
+        } else if (
+          typeof ncp.rationale === 'object' &&
+          ncp.rationale !== null
+        ) {
+          // Show the raw JSON as a fallback if nothing else works
+          rationaleItems.push({
+            type: 'text',
+            content:
+              'Rationale data could not be formatted properly. Please edit this section to fix the display.',
+            className: 'text-muted-foreground text-xs mb-2',
+          })
+          rationaleItems.push({
+            type: 'text',
+            content: JSON.stringify(ncp.rationale, null, 2),
+            className: 'font-mono text-xs bg-muted p-2 rounded',
+          })
+        }
+      }
+
+      formatted.rationale = rationaleItems
+    } catch (error) {
+      console.error('Error formatting rationale section:', error)
+
+      // Fallback: show error message and raw data
+      formatted.rationale = [
+        {
+          type: 'text',
+          content:
+            'Error displaying rationale section. Please edit this section to fix the display.',
+          className: 'text-destructive text-sm mb-2',
+        },
+        {
+          type: 'text',
+          content: JSON.stringify(ncp.rationale, null, 2),
+          className: 'font-mono text-xs bg-muted p-2 rounded',
+        },
+      ]
+    }
   }
 
   // Format Implementation
@@ -677,7 +725,12 @@ const formatInterventionsSection = interventions => {
 const formatRationaleSection = (rationale, interventions) => {
   const items = []
 
-  if (rationale.interventions) {
+  if (!rationale) {
+    return items
+  }
+
+  // Handle rationale.interventions structure
+  if (rationale.interventions && typeof rationale.interventions === 'object') {
     // Group rationales by intervention type
     const categories = [
       {
@@ -694,38 +747,183 @@ const formatRationaleSection = (rationale, interventions) => {
       },
     ]
 
+    let hasAnyRationales = false
+
     categories.forEach(({ key, label, color }) => {
+      let categoryHasRationales = false
+      const categoryItems = []
+
       if (
         interventions &&
         interventions[key] &&
         Array.isArray(interventions[key])
       ) {
-        const hasRationales = interventions[key].some(
-          intervention => rationale.interventions[intervention.id]
-        )
+        // Try to match rationales with interventions by ID
+        interventions[key].forEach(intervention => {
+          const rationaleData = rationale.interventions[intervention.id]
+          if (rationaleData) {
+            categoryItems.push({
+              type: 'rationale',
+              intervention: intervention.intervention,
+              rationale: rationaleData.rationale,
+              evidence: rationaleData.evidence,
+              id: intervention.id,
+            })
+            categoryHasRationales = true
+          }
+        })
+      }
 
-        if (hasRationales) {
-          items.push({
-            type: 'subheading',
-            content: label,
-            className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
-          })
-
-          interventions[key].forEach(intervention => {
-            const rationaleData = rationale.interventions[intervention.id]
-            if (rationaleData) {
-              items.push({
+      // If no matches found but rationales exist for this category, show them anyway
+      if (!categoryHasRationales) {
+        Object.entries(rationale.interventions).forEach(
+          ([id, rationaleData]) => {
+            // Check if this rationale ID might belong to this category
+            if (
+              id.toLowerCase().includes(key) ||
+              (key === 'independent' &&
+                !id.toLowerCase().includes('dependent') &&
+                !id.toLowerCase().includes('collaborative')) ||
+              rationaleData?.category === key
+            ) {
+              categoryItems.push({
                 type: 'rationale',
-                intervention: intervention.intervention,
+                intervention:
+                  rationaleData.intervention || `Intervention ${id}`,
                 rationale: rationaleData.rationale,
                 evidence: rationaleData.evidence,
-                id: intervention.id,
+                id: id,
               })
+              categoryHasRationales = true
             }
-          })
-        }
+          }
+        )
+      }
+
+      if (categoryHasRationales) {
+        items.push({
+          type: 'subheading',
+          content: label,
+          className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+        })
+        items.push(...categoryItems)
+        hasAnyRationales = true
       }
     })
+
+    // If we still haven't found any rationales, show all rationales without categorization
+    if (!hasAnyRationales && Object.keys(rationale.interventions).length > 0) {
+      items.push({
+        type: 'subheading',
+        content: 'Intervention Rationales',
+        className: 'font-semibold text-xs mb-2',
+      })
+
+      Object.entries(rationale.interventions).forEach(([id, rationaleData]) => {
+        if (
+          rationaleData &&
+          (rationaleData.rationale || rationaleData.evidence)
+        ) {
+          items.push({
+            type: 'rationale',
+            intervention: rationaleData.intervention || `Intervention ${id}`,
+            rationale: rationaleData.rationale,
+            evidence: rationaleData.evidence,
+            id: id,
+          })
+        }
+      })
+    }
+  }
+  // Handle alternative rationale structures
+  else if (
+    rationale.independent ||
+    rationale.dependent ||
+    rationale.collaborative
+  ) {
+    const categories = [
+      { key: 'independent', label: 'Independent Interventions' },
+      { key: 'dependent', label: 'Dependent Interventions' },
+      { key: 'collaborative', label: 'Collaborative Interventions' },
+    ]
+
+    categories.forEach(({ key, label }) => {
+      if (rationale[key] && Object.keys(rationale[key]).length > 0) {
+        items.push({
+          type: 'subheading',
+          content: label,
+          className: `font-semibold text-xs mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+        })
+
+        Object.entries(rationale[key]).forEach(([index, data]) => {
+          const rationaleText = typeof data === 'string' ? data : data.rationale
+          const evidence = typeof data === 'object' ? data.evidence : ''
+
+          if (rationaleText) {
+            items.push({
+              type: 'rationale',
+              intervention: `Intervention ${parseInt(index) + 1}`,
+              rationale: rationaleText,
+              evidence: evidence,
+              id: `${key}_${index}`,
+            })
+          }
+        })
+      }
+    })
+  }
+  // Handle simple text rationale or any other structure
+  else if (typeof rationale === 'string' && rationale.trim()) {
+    items.push({
+      type: 'text',
+      content: rationale.trim(),
+    })
+  }
+  // Handle unknown object structures - try to extract meaningful content
+  else if (typeof rationale === 'object' && rationale !== null) {
+    // Look for any rationale-like content in the object
+    const rationaleEntries = []
+
+    const extractRationales = (obj, prefix = '') => {
+      Object.entries(obj).forEach(([key, value]) => {
+        if (typeof value === 'string' && value.trim()) {
+          rationaleEntries.push({
+            key: prefix ? `${prefix}.${key}` : key,
+            content: value.trim(),
+          })
+        } else if (typeof value === 'object' && value !== null) {
+          if (value.rationale && typeof value.rationale === 'string') {
+            rationaleEntries.push({
+              key: prefix ? `${prefix}.${key}` : key,
+              content: value.rationale,
+              evidence: value.evidence,
+            })
+          } else {
+            extractRationales(value, prefix ? `${prefix}.${key}` : key)
+          }
+        }
+      })
+    }
+
+    extractRationales(rationale)
+
+    if (rationaleEntries.length > 0) {
+      items.push({
+        type: 'subheading',
+        content: 'Rationales',
+        className: 'font-semibold text-xs mb-2',
+      })
+
+      rationaleEntries.forEach((entry, index) => {
+        items.push({
+          type: 'rationale',
+          intervention: entry.key,
+          rationale: entry.content,
+          evidence: entry.evidence || '',
+          id: `extracted_${index}`,
+        })
+      })
+    }
   }
 
   return items
