@@ -267,10 +267,10 @@ export function useStructuredNCPExporter(ncp, format, formattedNCP) {
           await exportUtils.toXLSX(finalExportData, columnLabels, false)
           break
         case 'word':
-          await exportUtils.toWord(finalExportData, columnLabels, false)
+          await exportUtils.toWordEnhanced(finalExportData, columnLabels, false)
           break
         case 'png':
-          await exportUtils.toPNG(finalExportData, columnLabels, false)
+          await exportUtils.toPNGEnhanced(finalExportData, columnLabels, false)
           break
         default:
           throw new Error('Unsupported export format')

@@ -1265,4 +1265,475 @@ export const exportUtils = {
       },
     })
   },
+
+  /**
+   * Enhanced PNG export using html2canvas with improved styling and rendering
+   */
+  async toPNGEnhanced(ncp, columnLabels = null, isFormatted = false) {
+    try {
+      // Get user details for accountability
+      const userDetails = await userService.getUserProfile()
+
+      // Extract title for filename
+      const { title } = ncp
+      const ncpTitle = title || 'Nursing Care Plan'
+
+      // Create a temporary DOM element for rendering
+      const tempContainer = document.createElement('div')
+      tempContainer.style.position = 'absolute'
+      tempContainer.style.left = '0'
+      tempContainer.style.top = '0'
+      tempContainer.style.width = '1200px'
+      tempContainer.style.minHeight = '600px'
+      tempContainer.style.backgroundColor = '#ffffff'
+      tempContainer.style.color = '#000000'
+      tempContainer.style.padding = '20px'
+      tempContainer.style.fontFamily =
+        "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+      tempContainer.style.fontSize = '14px'
+      tempContainer.style.lineHeight = '1.6'
+      tempContainer.style.visibility = 'hidden'
+      tempContainer.style.pointerEvents = 'none'
+      tempContainer.style.zIndex = '99999'
+
+      // Generate enhanced HTML content with simpler styling for better html2canvas compatibility
+      tempContainer.innerHTML = this.generateSimpleHTML(
+        ncp,
+        columnLabels,
+        isFormatted,
+        userDetails
+      )
+
+      document.body.appendChild(tempContainer)
+
+      // Wait for content to render and fonts to load
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Make visible for capture
+      tempContainer.style.visibility = 'visible'
+
+      // Take screenshot with html2canvas with simpler, more reliable options
+      const canvas = await html2canvas(tempContainer, {
+        backgroundColor: '#ffffff',
+        scale: 1, // Use scale 1 first to ensure it works
+        useCORS: true,
+        allowTaint: false,
+        foreignObjectRendering: false, // Disable for better compatibility
+        logging: true, // Enable logging to debug issues
+        width: 1240, // Container width + padding
+        height: tempContainer.scrollHeight + 40,
+        scrollX: 0,
+        scrollY: 0,
+        removeContainer: false,
+      })
+
+      // Clean up
+      document.body.removeChild(tempContainer)
+
+      // Debug: Check if canvas has content
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Canvas has zero dimensions')
+      }
+
+      // Convert canvas to blob and download
+      canvas.toBlob(
+        blob => {
+          if (!blob) {
+            throw new Error('Failed to create blob from canvas')
+          }
+
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.png`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        },
+        'image/png',
+        1.0
+      )
+    } catch (error) {
+      console.error('Enhanced PNG export failed:', error)
+
+      // Fallback to original PNG method
+      console.log('Falling back to original PNG method...')
+      return this.toPNG(ncp, columnLabels, isFormatted)
+    }
+  },
+
+  /**
+   * Enhanced Word export using proper DOCX generation
+   */
+  async toWordEnhanced(ncp, columnLabels = null, isFormatted = false) {
+    try {
+      const {
+        Document,
+        Packer,
+        Paragraph,
+        Table,
+        TableCell,
+        TableRow,
+        TextRun,
+        WidthType,
+        AlignmentType,
+        HeadingLevel,
+      } = await import('docx')
+
+      // Get user details for accountability
+      const userDetails = await userService.getUserProfile()
+
+      // Extract title and modification status
+      const { title, is_modified, ...ncpData } = ncp
+      const ncpTitle = title || 'Nursing Care Plan'
+
+      const columns =
+        columnLabels ||
+        Object.keys(ncpData).map(
+          key => key.charAt(0).toUpperCase() + key.slice(1)
+        )
+
+      // Process text for better formatting in Word
+      const processTextForWord = data => {
+        if (isFormatted && Array.isArray(data)) {
+          return data
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .join('\n')
+        } else {
+          if (!data) return ''
+          return data
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .join('\n')
+        }
+      }
+
+      // Create document header
+      const headerParagraphs = [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: ncpTitle,
+              bold: true,
+              size: 32,
+              color: '2d3748',
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          heading: HeadingLevel.HEADING_1,
+        }),
+      ]
+
+      if (is_modified) {
+        headerParagraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: '(Modified by User)',
+                italics: true,
+                size: 20,
+                color: 'd97706',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+          })
+        )
+      }
+
+      // Create table rows
+      const tableRows = [
+        // Header row
+        new TableRow({
+          children: columns.map(
+            col =>
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: col,
+                        bold: true,
+                        color: 'ffffff',
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: {
+                  fill: '1e293b',
+                },
+              })
+          ),
+        }),
+        // Data row
+        new TableRow({
+          children: Object.values(ncpData).map(
+            value =>
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: processTextForWord(value),
+                      }),
+                    ],
+                  }),
+                ],
+              })
+          ),
+        }),
+      ]
+
+      // Create the table
+      const table = new Table({
+        rows: tableRows,
+        width: {
+          size: 100,
+          type: WidthType.PERCENTAGE,
+        },
+      })
+
+      // Create footer
+      const footerParagraphs = [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
+              size: 18,
+              color: '64748b',
+            }),
+          ],
+        }),
+      ]
+
+      if (userDetails?.email) {
+        footerParagraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `Generated by: ${userDetails.email}`,
+                size: 18,
+                color: '64748b',
+              }),
+            ],
+          })
+        )
+      }
+
+      footerParagraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'SmartCare NCP Generator - Professional Nursing Care Plan System',
+              bold: true,
+              size: 18,
+              color: '4a5568',
+            }),
+          ],
+        })
+      )
+
+      // Create document
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              ...headerParagraphs,
+              new Paragraph({ text: '' }), // spacing
+              table,
+              new Paragraph({ text: '' }), // spacing
+              ...footerParagraphs,
+            ],
+          },
+        ],
+      })
+
+      // Generate and download
+      const buffer = await Packer.toBuffer(doc)
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.docx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Enhanced Word export failed:', error)
+
+      // Fallback to original Word method
+      console.log('Falling back to original Word method...')
+      return this.toWord(ncp, columnLabels, isFormatted)
+    }
+  },
+
+  /**
+   * Generate enhanced HTML for better rendering
+   */
+  generateEnhancedHTML(ncp, columnLabels, isFormatted, userDetails) {
+    const { title, is_modified, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
+    const columns =
+      columnLabels ||
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
+
+    // Process text for better formatting
+    const processText = data => {
+      if (isFormatted && Array.isArray(data)) {
+        return data
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => {
+            // Handle numbered lists
+            if (line.match(/^\d+\./)) {
+              return `<div style="margin-bottom: 6px; padding-left: 8px; line-height: 1.5;">${line}</div>`
+            }
+            // Handle bullet points
+            if (line.startsWith('-')) {
+              return `<div style="margin-bottom: 6px; padding-left: 12px; line-height: 1.5;">${line}</div>`
+            }
+            // Regular text
+            return `<div style="margin-bottom: 8px; line-height: 1.5;">${line}</div>`
+          })
+          .join('')
+      } else {
+        if (!data) return ''
+        return data
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(
+            line =>
+              `<div style="margin-bottom: 8px; line-height: 1.5;">${line}</div>`
+          )
+          .join('')
+      }
+    }
+
+    // Generate table rows
+    const tableData = Object.values(ncpData).map(value => processText(value))
+
+    return `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: white; color: #1e293b; line-height: 1.6; max-width: 100%; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4299e1; padding-bottom: 20px;">
+          <h1 style="font-size: 24px; font-weight: bold; color: #2d3748; margin-bottom: 8px; margin-top: 0;">${ncpTitle}</h1>
+          ${is_modified ? '<div style="font-size: 12px; color: #d97706; font-style: italic; margin-bottom: 10px;">(Modified by User)</div>' : ''}
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr>
+              ${columns.map(col => `<th style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: #f8fafc; padding: 16px 12px; text-align: left; font-weight: 600; font-size: 14px; border: none;">${col}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              ${tableData.map((data, index) => `<td style="padding: 16px 12px; border: 1px solid #e2e8f0; vertical-align: top; background: ${index % 2 === 0 ? 'white' : '#f8fafc'};">${data}</td>`).join('')}
+            </tr>
+          </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
+            ${userDetails?.email ? `<div>Generated by: ${userDetails.email}</div>` : ''}
+          </div>
+          <div style="margin-top: 10px; font-weight: 600;">
+            SmartCare NCP Generator - Professional Nursing Care Plan System
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  /**
+   * Generate simple HTML for PNG exports (html2canvas compatible)
+   */
+  generateSimpleHTML(ncp, columnLabels, isFormatted, userDetails) {
+    const { title, is_modified, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
+    const columns =
+      columnLabels ||
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
+
+    // Process text for better formatting
+    const processText = data => {
+      if (isFormatted && Array.isArray(data)) {
+        return data
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => {
+            // Handle numbered lists
+            if (line.match(/^\d+\./)) {
+              return `<div style="margin-bottom: 6px; padding-left: 8px; line-height: 1.5; color: #1e293b;">${line}</div>`
+            }
+            // Handle bullet points
+            if (line.startsWith('-')) {
+              return `<div style="margin-bottom: 6px; padding-left: 12px; line-height: 1.5; color: #1e293b;">${line}</div>`
+            }
+            // Regular text
+            return `<div style="margin-bottom: 8px; line-height: 1.5; color: #1e293b;">${line}</div>`
+          })
+          .join('')
+      } else {
+        if (!data) return ''
+        return data
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(
+            line =>
+              `<div style="margin-bottom: 8px; line-height: 1.5; color: #1e293b;">${line}</div>`
+          )
+          .join('')
+      }
+    }
+
+    // Generate table rows
+    const tableData = Object.values(ncpData).map(value => processText(value))
+
+    return `
+      <div style="font-family: Arial, sans-serif; background-color: #ffffff; color: #1e293b; line-height: 1.6; padding: 20px; width: 1160px;">
+        <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4299e1; padding-bottom: 20px;">
+          <h1 style="font-size: 24px; font-weight: bold; color: #2d3748; margin: 0 0 8px 0; font-family: Arial, sans-serif;">${ncpTitle}</h1>
+          ${is_modified ? '<div style="font-size: 12px; color: #d97706; font-style: italic; margin-bottom: 10px; font-family: Arial, sans-serif;">(Modified by User)</div>' : ''}
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; border: 2px solid #1e293b;">
+          <thead>
+            <tr>
+              ${columns.map(col => `<th style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: left; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif;">${col}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              ${tableData.map((data, index) => `<td style="padding: 16px 12px; border: 1px solid #e2e8f0; vertical-align: top; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; font-family: Arial, sans-serif; color: #1e293b;">${data}</td>`).join('')}
+            </tr>
+          </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">
+          <div style="margin-bottom: 10px;">
+            <span>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</span>
+            ${userDetails?.email ? `<span style="margin-left: 20px;">Generated by: ${userDetails.email}</span>` : ''}
+          </div>
+          <div style="font-weight: bold; color: #4a5568;">
+            SmartCare NCP Generator - Professional Nursing Care Plan System
+          </div>
+        </div>
+      </div>
+    `
+  },
 }
