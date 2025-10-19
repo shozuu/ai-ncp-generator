@@ -3,18 +3,27 @@ import PageHead from '@/components/PageHead.vue'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useAuth } from '@/composables/useAuth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { vAutoAnimate } from '@formkit/auto-animate'
-import { Eye, EyeOff, Sparkles, X } from 'lucide-vue-next'
+import { Eye, EyeOff, Mail, Sparkles, X } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const router = useRouter()
 const route = useRoute()
-const { signIn } = useAuth()
+const { signIn, resetPassword } = useAuth()
 
 const form = ref({
   email: '',
@@ -23,6 +32,13 @@ const form = ref({
 const loading = ref(false)
 const error = ref('')
 const showPassword = ref(false)
+
+// Forgot password state
+const showForgotPasswordDialog = ref(false)
+const forgotPasswordEmail = ref('')
+const forgotPasswordLoading = ref(false)
+const forgotPasswordError = ref('')
+const forgotPasswordSuccess = ref(false)
 
 const handleSubmit = async () => {
   error.value = ''
@@ -41,6 +57,38 @@ const handleSubmit = async () => {
   }
 
   loading.value = false
+}
+
+const handleForgotPassword = async () => {
+  forgotPasswordError.value = ''
+  forgotPasswordSuccess.value = false
+  forgotPasswordLoading.value = true
+
+  const { error: resetError } = await resetPassword(forgotPasswordEmail.value)
+
+  if (resetError) {
+    forgotPasswordError.value = resetError.message
+  } else {
+    forgotPasswordSuccess.value = true
+    // Reset form after success
+    setTimeout(() => {
+      showForgotPasswordDialog.value = false
+      forgotPasswordEmail.value = ''
+      forgotPasswordSuccess.value = false
+    }, 3000)
+  }
+
+  forgotPasswordLoading.value = false
+}
+
+const openForgotPasswordDialog = () => {
+  // Pre-fill email if user has entered one in the main form
+  if (form.value.email) {
+    forgotPasswordEmail.value = form.value.email
+  }
+  forgotPasswordError.value = ''
+  forgotPasswordSuccess.value = false
+  showForgotPasswordDialog.value = true
 }
 </script>
 
@@ -83,6 +131,17 @@ const handleSubmit = async () => {
           </CardHeader>
 
           <CardContent class="space-y-6" v-auto-animate>
+            <!-- Success Message (from password reset) -->
+            <Alert
+              v-if="route.query.message"
+              class="border-green-200 bg-green-50 dark:bg-green-900/20"
+            >
+              <Mail class="h-4 w-4 text-green-600" />
+              <AlertDescription class="text-green-800 dark:text-green-200">
+                {{ route.query.message }}
+              </AlertDescription>
+            </Alert>
+
             <!-- Error Alert -->
             <Alert
               v-if="error"
@@ -147,14 +206,109 @@ const handleSubmit = async () => {
 
             <!-- Additional Options -->
             <div class="space-y-4">
-              <!-- Forgot Password Link -->
+              <!-- Forgot Password Dialog -->
               <div class="text-center">
-                <a
-                  href="#"
-                  class="text-sm text-blue-600 dark:text-blue-400 hover:underline transition-colors duration-200"
-                >
-                  Forgot your password?
-                </a>
+                <Dialog v-model:open="showForgotPasswordDialog">
+                  <DialogTrigger as-child>
+                    <button
+                      @click="openForgotPasswordDialog"
+                      type="button"
+                      class="text-sm text-blue-600 dark:text-blue-400 hover:underline transition-colors duration-200"
+                    >
+                      Forgot your password?
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent class="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle class="flex items-center space-x-2">
+                        <Mail class="h-5 w-5 text-blue-600" />
+                        <span>Reset Your Password</span>
+                      </DialogTitle>
+                      <DialogDescription>
+                        Enter your email address and we'll send you a link to
+                        reset your password.
+                      </DialogDescription>
+                    </DialogHeader>
+
+                    <div class="space-y-4" v-auto-animate>
+                      <!-- Success Message -->
+                      <Alert
+                        v-if="forgotPasswordSuccess"
+                        class="border-green-200 bg-green-50 dark:bg-green-900/20"
+                      >
+                        <Mail class="h-4 w-4 text-green-600" />
+                        <AlertDescription
+                          class="text-green-800 dark:text-green-200"
+                        >
+                          Password reset email sent successfully! Check your
+                          inbox for further instructions.
+                        </AlertDescription>
+                      </Alert>
+
+                      <!-- Error Message -->
+                      <Alert
+                        v-if="forgotPasswordError"
+                        variant="destructive"
+                        class="border-red-200 bg-red-50 dark:bg-red-900/20"
+                      >
+                        <X class="h-4 w-4" />
+                        <AlertDescription>{{
+                          forgotPasswordError
+                        }}</AlertDescription>
+                      </Alert>
+
+                      <!-- Email Input Form -->
+                      <form
+                        v-if="!forgotPasswordSuccess"
+                        @submit.prevent="handleForgotPassword"
+                        class="space-y-4"
+                      >
+                        <div class="space-y-2">
+                          <Label for="forgot-email" class="text-sm font-medium"
+                            >Email Address</Label
+                          >
+                          <Input
+                            id="forgot-email"
+                            v-model="forgotPasswordEmail"
+                            type="email"
+                            placeholder="john.doe@example.com"
+                            required
+                            class="transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                          />
+                        </div>
+
+                        <DialogFooter class="gap-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            @click="showForgotPasswordDialog = false"
+                            :disabled="forgotPasswordLoading"
+                          >
+                            Cancel
+                          </Button>
+                          <Button
+                            type="submit"
+                            :disabled="
+                              forgotPasswordLoading ||
+                              !forgotPasswordEmail.trim()
+                            "
+                            class="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                          >
+                            <Mail
+                              v-if="!forgotPasswordLoading"
+                              class="h-4 w-4 mr-2"
+                            />
+                            {{
+                              forgotPasswordLoading
+                                ? 'Sending...'
+                                : 'Send Reset Email'
+                            }}
+                          </Button>
+                        </DialogFooter>
+                      </form>
+                    </div>
+                  </DialogContent>
+                </Dialog>
               </div>
 
               <!-- Divider -->
