@@ -114,6 +114,14 @@
   list-style-position: inside; /* Optional: Align bullet points with text */
 }
 
+/* Grid background pattern */
+.bg-grid-pattern {
+  background-image:
+    linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
 @layer base {
   * {
     @apply border-border;
