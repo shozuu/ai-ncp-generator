@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { useAuth } from '@/composables/useAuth'
 import DefaultLayout from '@/layouts/DefaultLayout.vue'
 import { vAutoAnimate } from '@formkit/auto-animate'
-import { Eye, EyeOff, LogIn, Sparkles, X } from 'lucide-vue-next'
+import { Eye, EyeOff, Sparkles, X } from 'lucide-vue-next'
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -71,11 +71,6 @@ const handleSubmit = async () => {
         >
           <CardHeader class="text-center space-y-2 pb-6">
             <div class="flex items-center justify-center space-x-2 mb-2">
-              <div
-                class="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600"
-              >
-                <LogIn class="w-6 h-6 text-white" />
-              </div>
               <CardTitle
                 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
               >

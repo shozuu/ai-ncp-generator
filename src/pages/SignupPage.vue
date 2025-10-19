@@ -20,7 +20,7 @@ import {
   validatePasswordStrength,
 } from '@/utils/passwordUtils'
 import { vAutoAnimate } from '@formkit/auto-animate'
-import { Check, Eye, EyeOff, Sparkles, X } from 'lucide-vue-next'
+import { Check, Eye, EyeOff, X } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
@@ -146,11 +146,6 @@ const handleSubmit = async () => {
         >
           <CardHeader class="text-center space-y-2 pb-6">
             <div class="flex items-center justify-center space-x-2 mb-2">
-              <div
-                class="p-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-600"
-              >
-                <Sparkles class="w-6 h-6 text-white" />
-              </div>
               <CardTitle
                 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
               >
@@ -237,8 +232,8 @@ const handleSubmit = async () => {
                 <Input
                   id="organization"
                   v-model="form.organization"
-                    type="text"
-                    placeholder="Organization or School"
+                  type="text"
+                  placeholder="Organization or School"
                   required
                   class="transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
                 />
