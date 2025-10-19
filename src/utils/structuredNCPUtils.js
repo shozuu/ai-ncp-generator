@@ -1101,13 +1101,22 @@ export const hasPlaceholderColumns = columns => {
 
 /**
  * Generate format options for display
+ * Starts at 4 columns since that's the minimum for NCP generation
  */
 export const generateFormatOptions = allColumns => {
-  return allColumns.map((_, index) => ({
-    value: (index + 1).toString(),
-    label: `${index + 1} Column${index !== 0 ? 's' : ''}`,
-    description: `Display ${index + 1} column${index !== 0 ? 's' : ''} of the NCP`,
-  }))
+  // Start from 4 columns minimum, but don't exceed the total available columns
+  const minColumns = 4
+  const maxColumns = allColumns.length
+  const startIndex = Math.min(minColumns - 1, maxColumns - 1)
+
+  return allColumns.slice(startIndex).map((_, index) => {
+    const columnCount = startIndex + index + 1
+    return {
+      value: columnCount.toString(),
+      label: `${columnCount} Column${columnCount !== 1 ? 's' : ''}`,
+      description: `Display ${columnCount} column${columnCount !== 1 ? 's' : ''} of the NCP`,
+    }
+  })
 }
 
 /**
