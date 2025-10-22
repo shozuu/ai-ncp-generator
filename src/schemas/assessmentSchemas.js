@@ -78,7 +78,7 @@ export const manualModeSchema = z.object({
     .refine(value => !value || value.trim().length <= 300, {
       message: 'Medical impression should not exceed 300 characters',
     }),
-  associated_symptoms: z.array(z.string()).optional(),
+  associated_symptoms: z.array(z.string()).optional().default([]),
   other_symptoms: z
     .string()
     .optional()
@@ -87,7 +87,7 @@ export const manualModeSchema = z.object({
     }),
 
   // Risk Factors
-  risk_factors: z.array(z.string()).optional(),
+  risk_factors: z.array(z.string()).optional().default([]),
   other_risk_factors: z
     .string()
     .optional()
@@ -96,7 +96,7 @@ export const manualModeSchema = z.object({
     }),
 
   // Past Medical History
-  medical_history: z.array(z.string()).optional(),
+  medical_history: z.array(z.string()).optional().default([]),
   other_medical_history: z
     .string()
     .optional()
@@ -105,7 +105,7 @@ export const manualModeSchema = z.object({
     }),
 
   // Family History
-  family_history: z.array(z.string()).optional(),
+  family_history: z.array(z.string()).optional().default([]),
   other_family_history: z
     .string()
     .optional()

@@ -58,6 +58,13 @@ const props = defineProps({
 
 const form = useForm({
   validationSchema: toTypedSchema(manualModeSchema),
+  initialValues: {
+    associated_symptoms: [],
+    risk_factors: [],
+    medical_history: [],
+    family_history: [],
+    cephalocaudal_assessment: {},
+  },
 })
 
 // Collapsible section state management
@@ -71,8 +78,8 @@ const sectionStates = ref({
   vitalSigns: false,
   physicalExam: false,
   labFindings: false,
-  subjective: false, // Keep subjective expanded as it's part of original form
-  objective: false, // Keep objective expanded as it's part of original form
+  subjective: true, // Keep subjective expanded as it's part of original form
+  objective: true, // Keep objective expanded as it's part of original form
 })
 
 // Checkbox options arrays
@@ -149,53 +156,59 @@ const collapseAllSections = () => {
 // Define checkbox options
 const onSubmit = form.handleSubmit(values => {
   const cleanText = text => {
+    if (!text) return []
     return text
       .split('\n')
-      .map(
-        line =>
-          line
-            .trim() // Remove leading/trailing whitespace
-            .replace(/^[-•*]\s*/, '') // Remove leading bullets/dashes
-            .replace(/^\d+\.\s*/, '') // Remove leading numbers (1. 2. etc)
-            .trim() // Trim again after removing prefixes
+      .map(line =>
+        line
+          .trim()
+          .replace(/^[-•*]\s*/, '')
+          .replace(/^\d+\.\s*/, '')
+          .trim()
       )
-      .filter(line => line !== '' && line.length > 0) // Remove empty lines
+      .filter(line => line !== '' && line.length > 0)
   }
 
   const formattedData = {
     // Patient Demographics
     age: values.age,
     sex: values.sex,
-    occupation: values.occupation,
-    religion: values.religion,
-    cultural_background: values.cultural_background,
-    language: values.language,
+    occupation: values.occupation || '',
+    religion: values.religion || '',
+    cultural_background: values.cultural_background || '',
+    language: values.language || '',
 
     // Chief Complaint
-    general_condition: values.general_condition,
+    general_condition: values.general_condition || '',
 
     // History of Present Illness
-    onset_duration: values.onset_duration,
-    severity_progression: values.severity_progression,
-    medical_impression: values.medical_impression,
-    associated_symptoms: values.associated_symptoms || [],
-    other_symptoms: values.other_symptoms,
+    onset_duration: values.onset_duration || '',
+    severity_progression: values.severity_progression || '',
+    medical_impression: values.medical_impression || '',
+    associated_symptoms: Array.isArray(values.associated_symptoms)
+      ? values.associated_symptoms
+      : [],
+    other_symptoms: values.other_symptoms || '',
 
     // Risk Factors
-    risk_factors: values.risk_factors || [],
-    other_risk_factors: values.other_risk_factors,
+    risk_factors: Array.isArray(values.risk_factors) ? values.risk_factors : [],
+    other_risk_factors: values.other_risk_factors || '',
 
     // Past Medical History
-    medical_history: values.medical_history || [],
-    other_medical_history: values.other_medical_history,
+    medical_history: Array.isArray(values.medical_history)
+      ? values.medical_history
+      : [],
+    other_medical_history: values.other_medical_history || '',
 
     // Family History
-    family_history: values.family_history || [],
-    other_family_history: values.other_family_history,
+    family_history: Array.isArray(values.family_history)
+      ? values.family_history
+      : [],
+    other_family_history: values.other_family_history || '',
 
     // Vital Signs
     heart_rate_bpm: values.heart_rate_bpm,
-    blood_pressure_mmhg: values.blood_pressure_mmhg,
+    blood_pressure_mmhg: values.blood_pressure_mmhg || '',
     respiratory_rate_min: values.respiratory_rate_min,
     oxygen_saturation_percent: values.oxygen_saturation_percent,
     temperature_celsius: values.temperature_celsius,
@@ -206,12 +219,14 @@ const onSubmit = form.handleSubmit(values => {
     cephalocaudal_assessment: values.cephalocaudal_assessment || {},
 
     // Laboratory Findings
-    laboratory_results: values.laboratory_results,
+    laboratory_results: values.laboratory_results || '',
 
     // Keep existing subjective and objective data processing
     subjective: values.subjective ? cleanText(values.subjective) : [],
     objective: values.objective ? cleanText(values.objective) : [],
   }
+
+  console.log('Formatted data being emitted:', formattedData) // Debug log
   emit('submit', formattedData)
 })
 </script>
@@ -582,7 +597,7 @@ const onSubmit = form.handleSubmit(values => {
             <div class="space-y-3">
               <FormField
                 name="associated_symptoms"
-                v-slot="{ componentField, errorMessage }"
+                v-slot="{ value, handleChange, errorMessage }"
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Associated Symptoms</FormLabel>
@@ -596,23 +611,20 @@ const onSubmit = form.handleSubmit(values => {
                     >
                       <Checkbox
                         :id="symptom"
-                        :checked="componentField.value?.includes(symptom)"
-                        @update:checked="
+                        :model-value="value?.includes(symptom)"
+                        @update:model-value="
                           checked => {
-                            const current = componentField.value || []
-                            if (checked) {
-                              componentField.onChange([...current, symptom])
-                            } else {
-                              componentField.onChange(
-                                current.filter(s => s !== symptom)
-                              )
-                            }
+                            const current = value || []
+                            const newValue = checked
+                              ? [...current, symptom]
+                              : current.filter(s => s !== symptom)
+                            handleChange(newValue)
                           }
                         "
                       />
                       <label
                         :for="symptom"
-                        class="text-sm sm:text-base font-medium leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize cursor-pointer"
+                        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
                       >
                         {{ symptom }}
                       </label>
@@ -680,7 +692,7 @@ const onSubmit = form.handleSubmit(values => {
             <div class="space-y-3">
               <FormField
                 name="risk_factors"
-                v-slot="{ componentField, errorMessage }"
+                v-slot="{ value, handleChange, errorMessage }"
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Risk Factors</FormLabel>
@@ -694,17 +706,14 @@ const onSubmit = form.handleSubmit(values => {
                     >
                       <Checkbox
                         :id="factor"
-                        :checked="componentField.value?.includes(factor)"
-                        @update:checked="
+                        :model-value="value?.includes(factor)"
+                        @update:model-value="
                           checked => {
-                            const current = componentField.value || []
-                            if (checked) {
-                              componentField.onChange([...current, factor])
-                            } else {
-                              componentField.onChange(
-                                current.filter(f => f !== factor)
-                              )
-                            }
+                            const current = value || []
+                            const newValue = checked
+                              ? [...current, factor]
+                              : current.filter(f => f !== factor)
+                            handleChange(newValue)
                           }
                         "
                       />
@@ -780,7 +789,7 @@ const onSubmit = form.handleSubmit(values => {
             <div class="space-y-3">
               <FormField
                 name="medical_history"
-                v-slot="{ componentField, errorMessage }"
+                v-slot="{ value, handleChange, errorMessage }"
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Medical History</FormLabel>
@@ -794,17 +803,14 @@ const onSubmit = form.handleSubmit(values => {
                     >
                       <Checkbox
                         :id="condition"
-                        :checked="componentField.value?.includes(condition)"
-                        @update:checked="
+                        :model-value="value?.includes(condition)"
+                        @update:model-value="
                           checked => {
-                            const current = componentField.value || []
-                            if (checked) {
-                              componentField.onChange([...current, condition])
-                            } else {
-                              componentField.onChange(
-                                current.filter(c => c !== condition)
-                              )
-                            }
+                            const current = value || []
+                            const newValue = checked
+                              ? [...current, condition]
+                              : current.filter(c => c !== condition)
+                            handleChange(newValue)
                           }
                         "
                       />
@@ -878,7 +884,7 @@ const onSubmit = form.handleSubmit(values => {
             <div class="space-y-3">
               <FormField
                 name="family_history"
-                v-slot="{ componentField, errorMessage }"
+                v-slot="{ value, handleChange, errorMessage }"
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Family History</FormLabel>
@@ -892,17 +898,14 @@ const onSubmit = form.handleSubmit(values => {
                     >
                       <Checkbox
                         :id="`family-${condition}`"
-                        :checked="componentField.value?.includes(condition)"
-                        @update:checked="
+                        :model-value="value?.includes(condition)"
+                        @update:model-value="
                           checked => {
-                            const current = componentField.value || []
-                            if (checked) {
-                              componentField.onChange([...current, condition])
-                            } else {
-                              componentField.onChange(
-                                current.filter(c => c !== condition)
-                              )
-                            }
+                            const current = value || []
+                            const newValue = checked
+                              ? [...current, condition]
+                              : current.filter(c => c !== condition)
+                            handleChange(newValue)
                           }
                         "
                       />
