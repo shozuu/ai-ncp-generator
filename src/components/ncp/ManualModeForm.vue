@@ -217,66 +217,70 @@ const onSubmit = form.handleSubmit(values => {
 </script>
 
 <template>
-  <form @submit="onSubmit" class="space-y-6">
+  <form @submit="onSubmit" class="space-y-4 sm:space-y-6 px-2 sm:px-0">
     <!-- Enhanced Instructions Banner -->
     <div
-      class="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6"
+      class="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 sm:p-6"
     >
       <div class="relative z-10">
-        <div class="flex items-start space-x-4">
-          <div class="flex-shrink-0">
+        <div
+          class="flex flex-col sm:flex-row items-start space-y-3 sm:space-y-0 sm:space-x-4"
+        >
+          <div class="flex-shrink-0 self-center sm:self-start">
             <div
               class="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg"
             >
               <FileText class="w-5 h-5 text-white" />
             </div>
           </div>
-          <div class="flex-1">
+          <div class="flex-1 text-center sm:text-left">
             <h3
-              class="text-xl font-semibold text-blue-900 dark:text-blue-100 mb-2"
+              class="text-lg sm:text-xl font-semibold text-blue-900 dark:text-blue-100 mb-2"
             >
               🏥 Comprehensive Nursing Assessment
             </h3>
-            <p class="text-blue-700 dark:text-blue-300 mb-4 leading-relaxed">
+            <p
+              class="text-sm sm:text-base text-blue-700 dark:text-blue-300 mb-4 leading-relaxed"
+            >
               Complete the relevant sections below to create a thorough patient
               assessment. Use the collapsible sections to focus on specific
               areas and maintain a clean workspace.
             </p>
-            <div class="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                @click="expandAllSections"
-                class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm"
-              >
-                <ChevronDown class="w-3 h-3 mr-1" />
-                Expand All
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                @click="collapseAllSections"
-                class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm"
-              >
-                Collapse All
-              </Button>
-              <span
-                class="text-xs text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900/50 px-3 py-1 rounded-full font-medium"
-              >
-                ✨ Click section headers to expand/collapse
-              </span>
+            <div
+              class="flex flex-col sm:flex-row flex-wrap gap-2 items-center sm:items-start"
+            >
+              <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  @click="expandAllSections"
+                  class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm w-full sm:w-auto"
+                >
+                  <span class="hidden sm:inline">Expand All</span>
+                  <span class="sm:hidden">Expand</span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  @click="collapseAllSections"
+                  class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm w-full sm:w-auto"
+                >
+                  <span class="hidden sm:inline">Collapse All</span>
+                  <span class="sm:hidden">Collapse</span>
+                </Button>
+              </div>
             </div>
           </div>
         </div>
       </div>
       <!-- Decorative background -->
       <div
-        class="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-200/30 to-transparent rounded-full -mr-16 -mt-16"
+        class="hidden sm:block absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-200/30 to-transparent rounded-full -mr-16 -mt-16"
       ></div>
       <div
-        class="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-200/30 to-transparent rounded-full -ml-12 -mb-12"
+        class="hidden sm:block absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-200/30 to-transparent rounded-full -ml-12 -mb-12"
       ></div>
     </div>
 
@@ -287,24 +291,23 @@ const onSubmit = form.handleSubmit(values => {
       <Collapsible v-model:open="sectionStates.demographics">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <User class="w-5 h-5 text-primary" />
-                <span>Patient Demographics</span>
-                <span
-                  class="text-xs bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300 px-2 py-1 rounded-full font-medium"
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <User
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Patient Demographics</span
                 >
-                  Basic Info
-                </span>
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.demographics }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Basic patient information and background details.
             </CardDescription>
           </CardHeader>
@@ -441,26 +444,25 @@ const onSubmit = form.handleSubmit(values => {
       <Collapsible v-model:open="sectionStates.chiefComplaint">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Clipboard class="w-5 h-5 text-primary" />
-                <span>Chief Complaint</span>
-                <span
-                  class="text-xs bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300 px-2 py-1 rounded-full font-medium"
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Clipboard
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Chief Complaint</span
                 >
-                  Primary Concern
-                </span>
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{
                   'transform rotate-180': sectionStates.chiefComplaint,
                 }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Patient's main reason for seeking care.
             </CardDescription>
           </CardHeader>
@@ -496,26 +498,25 @@ const onSubmit = form.handleSubmit(values => {
       <Collapsible v-model:open="sectionStates.presentIllness">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Activity class="w-5 h-5 text-primary" />
-                <span>History of Present Illness</span>
-                <span
-                  class="text-xs bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300 px-2 py-1 rounded-full font-medium"
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Activity
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >History of Present Illness</span
                 >
-                  Illness Details
-                </span>
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{
                   'transform rotate-180': sectionStates.presentIllness,
                 }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Detailed information about the current illness.
             </CardDescription>
           </CardHeader>
@@ -585,11 +586,13 @@ const onSubmit = form.handleSubmit(values => {
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Associated Symptoms</FormLabel>
-                  <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div
+                    class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
+                  >
                     <div
                       v-for="symptom in associatedSymptomsOptions"
                       :key="symptom"
-                      class="flex items-center space-x-2"
+                      class="flex items-center space-x-2 py-1"
                     >
                       <Checkbox
                         :id="symptom"
@@ -609,7 +612,7 @@ const onSubmit = form.handleSubmit(values => {
                       />
                       <label
                         :for="symptom"
-                        class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize"
+                        class="text-sm sm:text-base font-medium leading-relaxed peer-disabled:cursor-not-allowed peer-disabled:opacity-70 capitalize cursor-pointer"
                       >
                         {{ symptom }}
                       </label>
@@ -651,24 +654,23 @@ const onSubmit = form.handleSubmit(values => {
       <Collapsible v-model:open="sectionStates.riskFactors">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Users class="w-5 h-5 text-primary" />
-                <span>Risk Factors</span>
-                <span
-                  class="text-xs bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300 px-2 py-1 rounded-full font-medium"
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Users
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Risk Factors</span
                 >
-                  Risk Assessment
-                </span>
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.riskFactors }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Factors that may contribute to patient's condition.
             </CardDescription>
           </CardHeader>
@@ -682,11 +684,13 @@ const onSubmit = form.handleSubmit(values => {
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Risk Factors</FormLabel>
-                  <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div
+                    class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
+                  >
                     <div
                       v-for="factor in riskFactorsOptions"
                       :key="factor"
-                      class="flex items-center space-x-2"
+                      class="flex items-center space-x-2 py-1"
                     >
                       <Checkbox
                         :id="factor"
@@ -748,26 +752,25 @@ const onSubmit = form.handleSubmit(values => {
       <Collapsible v-model:open="sectionStates.medicalHistory">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Heart class="w-5 h-5 text-primary" />
-                <span>Past Medical History</span>
-                <span
-                  class="text-xs bg-pink-100 text-pink-700 dark:bg-pink-900/50 dark:text-pink-300 px-2 py-1 rounded-full font-medium"
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Heart
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Past Medical History</span
                 >
-                  Medical Background
-                </span>
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{
                   'transform rotate-180': sectionStates.medicalHistory,
                 }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Previous medical conditions and treatments.
             </CardDescription>
           </CardHeader>
@@ -781,11 +784,13 @@ const onSubmit = form.handleSubmit(values => {
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Medical History</FormLabel>
-                  <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div
+                    class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
+                  >
                     <div
                       v-for="condition in medicalHistoryOptions"
                       :key="condition"
-                      class="flex items-center space-x-2"
+                      class="flex items-center space-x-2 py-1"
                     >
                       <Checkbox
                         :id="condition"
@@ -847,24 +852,23 @@ const onSubmit = form.handleSubmit(values => {
       <Collapsible v-model:open="sectionStates.familyHistory">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Users class="w-5 h-5 text-primary" />
-                <span>Family History</span>
-                <span
-                  class="text-xs bg-indigo-100 text-indigo-700 dark:bg-indigo-900/50 dark:text-indigo-300 px-2 py-1 rounded-full font-medium"
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Users
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Family History</span
                 >
-                  Genetic Factors
-                </span>
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.familyHistory }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Family medical history and genetic predispositions.
             </CardDescription>
           </CardHeader>
@@ -878,11 +882,13 @@ const onSubmit = form.handleSubmit(values => {
               >
                 <FormItem v-auto-animate>
                   <FormLabel>Family History</FormLabel>
-                  <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <div
+                    class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3"
+                  >
                     <div
                       v-for="condition in familyHistoryOptions"
                       :key="condition"
-                      class="flex items-center space-x-2"
+                      class="flex items-center space-x-2 py-1"
                     >
                       <Checkbox
                         :id="`family-${condition}`"
@@ -944,24 +950,23 @@ const onSubmit = form.handleSubmit(values => {
       <Collapsible v-model:open="sectionStates.vitalSigns">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Thermometer class="w-5 h-5 text-primary" />
-                <span>Vital Signs</span>
-                <span
-                  class="text-xs bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300 px-2 py-1 rounded-full font-medium"
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Thermometer
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Vital Signs</span
                 >
-                  Critical Measurements
-                </span>
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.vitalSigns }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Patient's current vital sign measurements.
             </CardDescription>
           </CardHeader>
@@ -1087,11 +1092,6 @@ const onSubmit = form.handleSubmit(values => {
               <div class="flex items-center space-x-3">
                 <Activity class="w-5 h-5 text-primary" />
                 <span>Physical Examination Findings</span>
-                <span
-                  class="text-xs bg-teal-100 text-teal-700 dark:bg-teal-900/50 dark:text-teal-300 px-2 py-1 rounded-full font-medium"
-                >
-                  Physical Assessment
-                </span>
               </div>
               <ChevronDown
                 class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
@@ -1194,11 +1194,6 @@ const onSubmit = form.handleSubmit(values => {
               <div class="flex items-center space-x-3">
                 <FlaskConical class="w-5 h-5 text-primary" />
                 <span>Laboratory Findings</span>
-                <span
-                  class="text-xs bg-cyan-100 text-cyan-700 dark:bg-cyan-900/50 dark:text-cyan-300 px-2 py-1 rounded-full font-medium"
-                >
-                  Lab Results
-                </span>
               </div>
               <ChevronDown
                 class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
@@ -1252,11 +1247,6 @@ const onSubmit = form.handleSubmit(values => {
               <div class="flex items-center space-x-3">
                 <Clipboard class="w-5 h-5 text-primary" />
                 <span>Subjective Data</span>
-                <span
-                  class="text-xs bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300 px-2 py-1 rounded-full font-medium"
-                >
-                  Patient Reports
-                </span>
               </div>
               <ChevronDown
                 class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
@@ -1311,11 +1301,6 @@ const onSubmit = form.handleSubmit(values => {
               <div class="flex items-center space-x-3">
                 <Clipboard class="w-5 h-5 text-primary" />
                 <span>Objective Data</span>
-                <span
-                  class="text-xs bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-300 px-2 py-1 rounded-full font-medium"
-                >
-                  Observable Findings
-                </span>
               </div>
               <ChevronDown
                 class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
@@ -1359,13 +1344,15 @@ const onSubmit = form.handleSubmit(values => {
 
     <!-- Enhanced Submit Section -->
     <div
-      class="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-muted p-6 rounded-lg shadow-lg"
+      class="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-muted p-4 sm:p-6 rounded-lg shadow-lg"
     >
       <div
-        class="flex flex-col sm:flex-row items-center justify-between space-y-4 sm:space-y-0"
+        class="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
       >
-        <div class="flex items-center space-x-4">
-          <div class="text-sm text-muted-foreground">
+        <div class="flex items-center justify-center sm:justify-start">
+          <div
+            class="text-xs sm:text-sm text-muted-foreground text-center sm:text-left"
+          >
             <span class="font-medium">Progress:</span>
             <span class="text-primary"
               >{{ Object.values(sectionStates).filter(Boolean).length }}/{{
@@ -1375,27 +1362,36 @@ const onSubmit = form.handleSubmit(values => {
             >
           </div>
         </div>
-        <div class="flex space-x-3">
+        <div
+          class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto"
+        >
           <Button
             type="button"
             variant="outline"
             @click="expandAllSections"
-            class="px-6"
+            class="px-4 sm:px-6 w-full sm:w-auto text-sm"
           >
-            Expand All
+            <span class="sm:hidden">Expand</span>
+            <span class="hidden sm:inline">Expand All</span>
           </Button>
           <Button
             type="submit"
             :disabled="props.disabled"
-            class="px-8 py-3 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+            class="px-6 sm:px-8 py-3 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
           >
-            <span v-if="props.disabled" class="flex items-center space-x-2">
+            <span
+              v-if="props.disabled"
+              class="flex items-center justify-center space-x-2"
+            >
               <div
                 class="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"
               ></div>
-              <span>Generating...</span>
+              <span class="text-sm sm:text-base">Generating...</span>
             </span>
-            <span v-else>Submit Assessment</span>
+            <span v-else class="text-sm sm:text-base font-medium">
+              <span class="sm:hidden">Submit</span>
+              <span class="hidden sm:inline">Submit Assessment</span>
+            </span>
           </Button>
         </div>
       </div>

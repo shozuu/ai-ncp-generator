@@ -173,8 +173,9 @@ const handleSubmit = async data => {
   <!-- Main content -->
   <section class="space-y-8 w-full">
     <!-- Header Section -->
-    <div>
+    <div class="pb-2 border-b border-muted">
       <div>
+
         <!-- Active generation warning -->
         <div
           v-if="isNCPGenerationActive"
