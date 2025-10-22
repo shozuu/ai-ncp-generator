@@ -766,22 +766,26 @@ async def generate_explanation(request: Request, request_data: Dict) -> Dict:
 @app.post("/api/parse-manual-assessment")
 async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
     """
-    Generate detailed, database-aligned keywords from manual assessment data.
+    Generate detailed, database-aligned keywords from comprehensive manual assessment data.
     """
     # Start NCP request tracking
     request_id = start_ncp_request(request_data, "manual_assessment")
     
     try:
-        subjective_data = request_data.get('subjective', [])
-        objective_data = request_data.get('objective', [])
+        # Validate the comprehensive form data
+        if not validate_assessment_data(request_data):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid assessment data format. Please ensure all required fields are provided."
+            )
         
-        subjective_text = '\n'.join(f"- {item}" for item in subjective_data)
-        objective_text = '\n'.join(f"- {item}" for item in objective_data)
+        logger.info("Processing comprehensive form format for manual assessment parsing")
+        formatted_assessment = format_structured_data(request_data)
         
         prompt = f"""
         You are a clinical expert specializing in NANDA-I nursing diagnosis matching with deep knowledge of nursing diagnosis terminology, defining characteristics, related factors, risk factors, associated conditions, and at risk populations.
 
-        Your task is to analyze assessment data and extract detailed clinical keywords that will match entries in a NANDA-I nursing diagnosis database. The database contains diagnoses with these key fields:
+        Your task is to analyze comprehensive assessment data and extract detailed clinical keywords that will match entries in a NANDA-I nursing diagnosis database. The database contains diagnoses with these key fields:
         - Diagnosis names
         - Defining characteristics (signs/symptoms)
         - Related factors (etiologies/causes)
@@ -789,17 +793,17 @@ async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
         - Associated conditions (medical comorbidities/pathophysiology)
         - At risk populations (demographics/clinical states)
 
-        ASSESSMENT DATA TO ANALYZE:
-        SUBJECTIVE: {subjective_text}
-        OBJECTIVE: {objective_text}
+        COMPREHENSIVE ASSESSMENT DATA TO ANALYZE:
+        {formatted_assessment}
 
         INSTRUCTIONS:
         1. Extract ONLY keywords directly supported by the assessment data (no assumptions).
         2. Normalize raw findings into standard clinical terminology aligned with NANDA-I 
         (e.g., "shortness of breath" → dyspnea, "RR 28" → tachypnea, "SpO₂ 89%" → hypoxemia).
         3. Include both actual problems (current symptoms/conditions) and potential risks (predisposing factors).
-        4. Capture physiological, psychological, and safety-related findings.
+        4. Capture physiological, psychological, and safety-related findings from all sections.
         5. Prefer precise medical/nursing terms. Include both lay and NANDA terms if needed for matching.
+        6. Consider demographics, vital signs, physical examination, history, and all clinical data provided.
 
         QUALITY CHECKS:
         - Do NOT add findings not present in the data.
@@ -827,29 +831,24 @@ async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
             ]
         )
         
-        # Track this API call
+        # Track this API call for comprehensive form
         track_api_call(
             response,
             step="parse_assessment",
-            operation="Manual Assessment Parsing",
-            has_subjective=bool(subjective_data),
-            has_objective=bool(objective_data),
-            subjective_count=len(subjective_data),
-            objective_count=len(objective_data)
+            operation="Manual Assessment Parsing (Comprehensive)",
+            has_comprehensive_data=True,
+            data_fields_count=len([k for k, v in request_data.items() if v and v != ''])
         )
         
         keywords = response.content[0].text.strip()
         
         result = {
-            "original_assessment": {
-                "subjective": subjective_data,
-                "objective": objective_data
-            },
+            "original_assessment": request_data,
             "embedding_keywords": keywords,
             "request_id": request_id
         }
         
-        logger.info(f"Generated detailed keywords: {keywords}")
+        logger.info(f"Generated detailed keywords from comprehensive assessment: {keywords}")
         return result
         
     except Exception as e:

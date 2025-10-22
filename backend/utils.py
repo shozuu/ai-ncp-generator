@@ -7,8 +7,9 @@ logger = logging.getLogger(__name__)
 def validate_assessment_data(data: Dict):
     """Validate the incoming assessment data (enhanced version)."""
     
-    # Check if this is the new structured format
+    # Check if this is the legacy structured format first
     if 'demographics' in data and 'chief_complaint' in data:
+        # Legacy structured format validation
         required_keys = ['demographics', 'chief_complaint', 'history', 'medical_history', 
                         'vital_signs', 'physical_exam', 'risk_factors', 'nurse_notes']
         
@@ -143,7 +144,58 @@ def validate_assessment_data(data: Dict):
         logger.info("Structured assessment data validation passed")
         return True
     
-    raise ValueError("Invalid data format. Expected structured format with demographics and chief complaint.")
+    # Default to comprehensive form validation for any non-legacy format
+    logger.info("Detected comprehensive manual form format")
+    
+    # Check for meaningful clinical data
+    def has_meaningful_value(value):
+        """Check if a value is meaningful (not None, empty string, or empty array)"""
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return len(value.strip()) > 0
+        if isinstance(value, list):
+            return len(value) > 0 and any(item.strip() if isinstance(item, str) else item for item in value)
+        if isinstance(value, (int, float)):
+            return True
+        return bool(value)
+    
+    # Count clinical data categories
+    clinical_data_categories = [
+        has_meaningful_value(data.get('occupation')),
+        has_meaningful_value(data.get('general_condition')),
+        has_meaningful_value(data.get('onset_duration')),
+        has_meaningful_value(data.get('severity_progression')),
+        has_meaningful_value(data.get('medical_impression')),
+        has_meaningful_value(data.get('associated_symptoms')),
+        has_meaningful_value(data.get('other_symptoms')),
+        has_meaningful_value(data.get('risk_factors')),
+        has_meaningful_value(data.get('other_risk_factors')),
+        has_meaningful_value(data.get('medical_history')),
+        has_meaningful_value(data.get('other_medical_history')),
+        has_meaningful_value(data.get('family_history')),
+        has_meaningful_value(data.get('other_family_history')),
+        has_meaningful_value(data.get('heart_rate_bpm')),
+        has_meaningful_value(data.get('blood_pressure_mmhg')),
+        has_meaningful_value(data.get('respiratory_rate_min')),
+        has_meaningful_value(data.get('oxygen_saturation_percent')),
+        has_meaningful_value(data.get('temperature_celsius')),
+        has_meaningful_value(data.get('height')),
+        has_meaningful_value(data.get('weight')),
+        has_meaningful_value(data.get('cephalocaudal_assessment')),
+        has_meaningful_value(data.get('laboratory_results')),
+        has_meaningful_value(data.get('subjective')),
+        has_meaningful_value(data.get('objective')),
+    ]
+    
+    clinical_data_count = sum(clinical_data_categories)
+    
+    # Flexible validation - require at least some clinical data
+    if clinical_data_count < 1:
+        raise ValueError("Please provide some clinical information to generate a meaningful nursing care plan.")
+    
+    logger.info(f"Comprehensive form validation passed with {clinical_data_count} clinical data categories")
+    return True
 
 def parse_ncp_response(text: str) -> Dict:
     """
@@ -331,53 +383,150 @@ def format_structured_data(structured_data) -> str:
     """Format structured assessment data into a string for AI processing."""
     formatted_sections = []
     
-    # Demographics
-    demographics = structured_data.get('demographics', {})
-    if any(demographics.values()):
+    # Check if this is the new comprehensive manual form format (flat structure)
+    if any(key in structured_data for key in ['age', 'sex', 'general_condition', 'onset_duration', 'heart_rate_bpm']):
+        # Format comprehensive manual form data
+        
+        # Demographics
         demo_info = []
-        if demographics.get('age'): demo_info.append(f"Age: {demographics['age']}")
-        if demographics.get('sex'): demo_info.append(f"Sex: {demographics['sex']}")
-        if demographics.get('occupation'): demo_info.append(f"Occupation: {demographics['occupation']}")
-        if demographics.get('religion'): demo_info.append(f"Religion: {demographics['religion']}")
-        if demographics.get('cultural_background'): demo_info.append(f"Cultural Background: {demographics['cultural_background']}")
-        if demographics.get('language') and demographics['language'].lower() != 'english': 
-            demo_info.append(f"Language: {demographics['language']}")
+        if structured_data.get('age'): demo_info.append(f"Age: {structured_data['age']}")
+        if structured_data.get('sex'): demo_info.append(f"Sex: {structured_data['sex']}")
+        if structured_data.get('occupation'): demo_info.append(f"Occupation: {structured_data['occupation']}")
+        if structured_data.get('religion'): demo_info.append(f"Religion: {structured_data['religion']}")
+        if structured_data.get('cultural_background'): demo_info.append(f"Cultural Background: {structured_data['cultural_background']}")
+        if structured_data.get('language') and structured_data['language'].lower() != 'english': 
+            demo_info.append(f"Language: {structured_data['language']}")
         if demo_info:
-            formatted_sections.append(f"Demographics:\n- {'; '.join(demo_info)}")
-    
-    # Chief Complaint
-    if structured_data.get('chief_complaint'):
-        formatted_sections.append(f"Chief Complaint:\n- {structured_data['chief_complaint']}")
-    
-    # History
-    history = structured_data.get('history', {})
-    if any(history.values()):
+            formatted_sections.append(f"Patient Demographics:\n- {'; '.join(demo_info)}")
+        
+        # Chief Complaint
+        if structured_data.get('general_condition'):
+            formatted_sections.append(f"Chief Complaint:\n- {structured_data['general_condition']}")
+        
+        # History of Present Illness
         history_info = []
-        if history.get('onset_duration'): history_info.append(f"Onset/Duration: {history['onset_duration']}")
-        if history.get('severity'): history_info.append(f"Severity: {history['severity']}")
-        if history.get('associated_symptoms'): 
-            history_info.append(f"Associated symptoms: {', '.join(history['associated_symptoms'])}")
-        if history.get('other_symptoms'): history_info.append(f"Other symptoms: {history['other_symptoms']}")
+        if structured_data.get('onset_duration'): history_info.append(f"Onset/Duration: {structured_data['onset_duration']}")
+        if structured_data.get('severity_progression'): history_info.append(f"Severity/Progression: {structured_data['severity_progression']}")
+        if structured_data.get('medical_impression'): history_info.append(f"Medical Impression: {structured_data['medical_impression']}")
+        if structured_data.get('associated_symptoms'): 
+            history_info.append(f"Associated symptoms: {', '.join(structured_data['associated_symptoms'])}")
+        if structured_data.get('other_symptoms'): history_info.append(f"Other symptoms: {structured_data['other_symptoms']}")
         if history_info:
             formatted_sections.append(f"History of Present Illness:\n- {'; '.join(history_info)}")
-    
-    # Medical History
-    med_history = structured_data.get('medical_history', [])
-    med_history_other = structured_data.get('medical_history_other', '')
-    if med_history or med_history_other:
-        history_items = med_history.copy()
-        if med_history_other: history_items.append(med_history_other)
-        formatted_sections.append(f"Past Medical History:\n- {', '.join(history_items)}")
-    
-    # Vital Signs
-    vitals = structured_data.get('vital_signs', {})
-    if any(v for v in vitals.values() if v is not None and v != ''):
+        
+        # Risk Factors
+        risk_factors = []
+        if structured_data.get('risk_factors'): risk_factors.extend(structured_data['risk_factors'])
+        if structured_data.get('other_risk_factors'): risk_factors.append(structured_data['other_risk_factors'])
+        if risk_factors:
+            formatted_sections.append(f"Risk Factors:\n- {', '.join(risk_factors)}")
+        
+        # Past Medical History
+        med_history = []
+        if structured_data.get('medical_history'): med_history.extend(structured_data['medical_history'])
+        if structured_data.get('other_medical_history'): med_history.append(structured_data['other_medical_history'])
+        if med_history:
+            formatted_sections.append(f"Past Medical History:\n- {', '.join(med_history)}")
+        
+        # Family History
+        family_history = []
+        if structured_data.get('family_history'): family_history.extend(structured_data['family_history'])
+        if structured_data.get('other_family_history'): family_history.append(structured_data['other_family_history'])
+        if family_history:
+            formatted_sections.append(f"Family History:\n- {', '.join(family_history)}")
+        
+        # Vital Signs
         vital_info = []
-        if vitals.get('HR'): vital_info.append(f"HR: {vitals['HR']} bpm")
-        if vitals.get('BP'): vital_info.append(f"BP: {vitals['BP']} mmHg")
-        if vitals.get('RR'): vital_info.append(f"RR: {vitals['RR']}/min")
-        if vitals.get('SpO2'): vital_info.append(f"SpO2: {vitals['SpO2']}%")
-        if vitals.get('Temp'): vital_info.append(f"Temp: {vitals['Temp']}°C")
+        if structured_data.get('heart_rate_bpm'): vital_info.append(f"Heart Rate: {structured_data['heart_rate_bpm']} bpm")
+        if structured_data.get('blood_pressure_mmhg'): vital_info.append(f"Blood Pressure: {structured_data['blood_pressure_mmhg']} mmHg")
+        if structured_data.get('respiratory_rate_min'): vital_info.append(f"Respiratory Rate: {structured_data['respiratory_rate_min']}/min")
+        if structured_data.get('oxygen_saturation_percent'): vital_info.append(f"SpO2: {structured_data['oxygen_saturation_percent']}%")
+        if structured_data.get('temperature_celsius'): vital_info.append(f"Temperature: {structured_data['temperature_celsius']}°C")
+        if vital_info:
+            formatted_sections.append(f"Vital Signs:\n- {'; '.join(vital_info)}")
+        
+        # Physical Examination
+        physical_exam = []
+        if structured_data.get('height'): physical_exam.append(f"Height: {structured_data['height']}")
+        if structured_data.get('weight'): physical_exam.append(f"Weight: {structured_data['weight']}")
+        
+        # Cephalocaudal Assessment
+        cephalocaudal = structured_data.get('cephalocaudal_assessment', {})
+        if isinstance(cephalocaudal, dict) and any(cephalocaudal.values()):
+            cc_findings = []
+            for system, findings in cephalocaudal.items():
+                if findings and isinstance(findings, str) and findings.strip():
+                    cc_findings.append(f"{system.replace('_', ' ').title()}: {findings}")
+            if cc_findings:
+                physical_exam.extend(cc_findings)
+        
+        if physical_exam:
+            formatted_sections.append(f"Physical Examination:\n- {'; '.join(physical_exam)}")
+        
+        # Laboratory Findings
+        if structured_data.get('laboratory_results'):
+            formatted_sections.append(f"Laboratory Results:\n- {structured_data['laboratory_results']}")
+        
+        # Subjective and Objective Data (if present)
+        subjective_data = structured_data.get('subjective', [])
+        if subjective_data and isinstance(subjective_data, list) and subjective_data:
+            formatted_sections.append(f"Subjective Data:\n- {chr(10).join([f'• {item}' for item in subjective_data if item.strip()])}")
+        
+        objective_data = structured_data.get('objective', [])
+        if objective_data and isinstance(objective_data, list) and objective_data:
+            formatted_sections.append(f"Objective Data:\n- {chr(10).join([f'• {item}' for item in objective_data if item.strip()])}")
+        
+        return '\n\n'.join(formatted_sections)
+    
+    # Legacy structured format handling
+    else:
+        # Demographics
+        demographics = structured_data.get('demographics', {})
+        if any(demographics.values()):
+            demo_info = []
+            if demographics.get('age'): demo_info.append(f"Age: {demographics['age']}")
+            if demographics.get('sex'): demo_info.append(f"Sex: {demographics['sex']}")
+            if demographics.get('occupation'): demo_info.append(f"Occupation: {demographics['occupation']}")
+            if demographics.get('religion'): demo_info.append(f"Religion: {demographics['religion']}")
+            if demographics.get('cultural_background'): demo_info.append(f"Cultural Background: {demographics['cultural_background']}")
+            if demographics.get('language') and demographics['language'].lower() != 'english': 
+                demo_info.append(f"Language: {demographics['language']}")
+            if demo_info:
+                formatted_sections.append(f"Demographics:\n- {'; '.join(demo_info)}")
+        
+        # Chief Complaint
+        if structured_data.get('chief_complaint'):
+            formatted_sections.append(f"Chief Complaint:\n- {structured_data['chief_complaint']}")
+        
+        # History
+        history = structured_data.get('history', {})
+        if any(history.values()):
+            history_info = []
+            if history.get('onset_duration'): history_info.append(f"Onset/Duration: {history['onset_duration']}")
+            if history.get('severity'): history_info.append(f"Severity: {history['severity']}")
+            if history.get('associated_symptoms'): 
+                history_info.append(f"Associated symptoms: {', '.join(history['associated_symptoms'])}")
+            if history.get('other_symptoms'): history_info.append(f"Other symptoms: {history['other_symptoms']}")
+            if history_info:
+                formatted_sections.append(f"History of Present Illness:\n- {'; '.join(history_info)}")
+        
+        # Medical History
+        med_history = structured_data.get('medical_history', [])
+        med_history_other = structured_data.get('medical_history_other', '')
+        if med_history or med_history_other:
+            history_items = med_history.copy()
+            if med_history_other: history_items.append(med_history_other)
+            formatted_sections.append(f"Past Medical History:\n- {', '.join(history_items)}")
+        
+        # Vital Signs
+        vitals = structured_data.get('vital_signs', {})
+        if any(v for v in vitals.values() if v is not None and v != ''):
+            vital_info = []
+            if vitals.get('HR'): vital_info.append(f"HR: {vitals['HR']} bpm")
+            if vitals.get('BP'): vital_info.append(f"BP: {vitals['BP']} mmHg")
+            if vitals.get('RR'): vital_info.append(f"RR: {vitals['RR']}/min")
+            if vitals.get('SpO2'): vital_info.append(f"SpO2: {vitals['SpO2']}%")
+            if vitals.get('Temp'): vital_info.append(f"Temp: {vitals['Temp']}°C")
         
         # Add additional vitals
         additional_vitals = vitals.get('additional_vitals', {})
@@ -431,8 +580,14 @@ def format_structured_data(structured_data) -> str:
 
 def format_assessment_for_selection(assessment_data: Dict) -> str:
     """Format assessment data specifically for diagnosis selection."""
-    # Check if this is manual mode format (subjective/objective lists)
-    if 'subjective' in assessment_data and 'objective' in assessment_data:
+    # Check if this is the new comprehensive manual form format
+    if any(key in assessment_data for key in ['age', 'sex', 'general_condition', 'onset_duration', 'heart_rate_bpm']):
+        # Use the comprehensive formatter with selection header
+        formatted_data = format_structured_data(assessment_data)
+        return f"**PATIENT ASSESSMENT DATA:**\n\n{formatted_data}"
+    
+    # Check if this is legacy manual mode format (subjective/objective lists only)
+    elif 'subjective' in assessment_data and 'objective' in assessment_data and len(assessment_data) <= 3:
         subjective_items = assessment_data.get('subjective', [])
         objective_items = assessment_data.get('objective', [])
         
@@ -457,8 +612,14 @@ def format_assessment_for_selection(assessment_data: Dict) -> str:
 
 def format_assessment_for_ncp(assessment_data: Dict) -> str:
     """Format assessment data specifically for NCP generation."""
-    # Check if this is manual mode format (subjective/objective lists)
-    if 'subjective' in assessment_data and 'objective' in assessment_data:
+    # Check if this is the new comprehensive manual form format
+    if any(key in assessment_data for key in ['age', 'sex', 'general_condition', 'onset_duration', 'heart_rate_bpm']):
+        # Use the comprehensive formatter with NCP header
+        formatted_data = format_structured_data(assessment_data)
+        return f"**PATIENT ASSESSMENT DATA:**\n\n{formatted_data}"
+    
+    # Check if this is legacy manual mode format (subjective/objective lists only)
+    elif 'subjective' in assessment_data and 'objective' in assessment_data and len(assessment_data) <= 3:
         subjective_items = assessment_data.get('subjective', [])
         objective_items = assessment_data.get('objective', [])
         

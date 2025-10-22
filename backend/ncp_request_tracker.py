@@ -65,10 +65,36 @@ class NCPRequestTracker:
             "type": "unknown"
         }
         
-        # Check if this is manual assessment format
-        if 'subjective' in assessment_data and 'objective' in assessment_data:
+        # Check if this is the new comprehensive manual form format
+        if any(key in assessment_data for key in ['age', 'sex', 'general_condition', 'onset_duration', 'heart_rate_bpm']):
+            # Count non-empty fields
+            filled_fields = len([k for k, v in assessment_data.items() if v and str(v).strip()])
+            
+            # Identify key sections that have data
+            sections_with_data = []
+            if assessment_data.get('age') or assessment_data.get('sex'): sections_with_data.append('demographics')
+            if assessment_data.get('general_condition'): sections_with_data.append('chief_complaint')
+            if assessment_data.get('onset_duration') or assessment_data.get('severity_progression'): sections_with_data.append('history')
+            if assessment_data.get('risk_factors'): sections_with_data.append('risk_factors')
+            if assessment_data.get('medical_history'): sections_with_data.append('medical_history')
+            if assessment_data.get('family_history'): sections_with_data.append('family_history')
+            if assessment_data.get('heart_rate_bpm') or assessment_data.get('blood_pressure_mmhg'): sections_with_data.append('vital_signs')
+            if assessment_data.get('height') or assessment_data.get('weight') or assessment_data.get('cephalocaudal_assessment'): sections_with_data.append('physical_exam')
+            if assessment_data.get('laboratory_results'): sections_with_data.append('lab_results')
+            if assessment_data.get('subjective'): sections_with_data.append('subjective_data')
+            if assessment_data.get('objective'): sections_with_data.append('objective_data')
+            
             summary.update({
-                "type": "manual",
+                "type": "comprehensive_manual",
+                "filled_fields_count": filled_fields,
+                "total_possible_fields": len(assessment_data),
+                "sections_with_data": sections_with_data,
+                "sections_count": len(sections_with_data)
+            })
+        # Check if this is legacy manual assessment format
+        elif 'subjective' in assessment_data and 'objective' in assessment_data and len(assessment_data) <= 3:
+            summary.update({
+                "type": "legacy_manual",
                 "subjective_count": len(assessment_data.get('subjective', [])),
                 "objective_count": len(assessment_data.get('objective', [])),
                 "has_subjective": bool(assessment_data.get('subjective')),
@@ -81,7 +107,7 @@ class NCPRequestTracker:
                 "has_original_assessment": bool(assessment_data.get('original_assessment'))
             })
         else:
-            # This might be structured assessment data
+            # This might be other structured assessment data
             summary["type"] = "structured"
             summary["fields_present"] = list(assessment_data.keys())
         
