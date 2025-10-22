@@ -173,13 +173,8 @@ const handleSubmit = async data => {
   <!-- Main content -->
   <section class="space-y-8 w-full">
     <!-- Header Section -->
-    <div class="pb-2 border-b border-muted">
+    <div>
       <div>
-        <h2 class="text-lg font-bold">Patient Assessment</h2>
-        <p class="text-muted-foreground text-sm mb-4">
-          Enter your assessment details to generate an NCP.
-        </p>
-
         <!-- Active generation warning -->
         <div
           v-if="isNCPGenerationActive"
