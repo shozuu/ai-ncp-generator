@@ -12,45 +12,155 @@ A web-based application that uses AI to generate and explain Nursing Care Plans 
 
 ## Tech Stack
 
-- **Frontend**: Vue 3 + Vite
-- **Styling**: Tailwind CSS
+- **Frontend**: Vue 3 + Vite + Tailwind CSS
 - **UI Components**: ShadCN Vue
 - **Icons**: Lucide Icons
 - **Backend**: FastAPI (Python)
+- **Database**: Supabase
+- **AI Models**: Claude Sonnet 4.5, Google Gemini
 
-## Getting Started
-
-### Prerequisites
+## Prerequisites
 
 - Node.js (v16 or higher)
+- Python 3.8+
 - npm or pnpm
+- Supabase account
+- Claude API key (from Anthropic)
+- Gemini API key (from Google)
 
-### Installation
+## Installation & Setup
 
-1. Clone the repository:
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/yourusername/ai-ncp-generator.git
 cd ai-ncp-generator
 ```
 
-2. Install dependencies:
+### 2. Frontend Setup
 
 ```bash
+# Install dependencies
 npm install
-# or
-pnpm install
+
+# Create environment file
+cp .env.example .env
+
+# Edit .env and add your configuration:
+# VITE_API_BASE_URL=http://localhost:8000
+# VITE_SUPABASE_URL=your_supabase_url
+# VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-3. Start the development server:
+### 3. Backend Setup
 
 ```bash
-npm run dev
-# or
-pnpm dev
+# Navigate to backend directory
+cd backend
+
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Create environment file
+cp .env.example .env
+
+# Edit .env and add your API keys:
+# CLAUDE_API_KEY=your_claude_api_key
+# GEMINI_API_KEY=your_gemini_api_key
+# SUPABASE_URL=your_supabase_url
+# SUPABASE_KEY=your_supabase_service_role_key
 ```
 
-4. Open your browser and visit: `http://localhost:5173`
+### 4. Run the Application
+
+**Start the backend server:**
+
+```bash
+cd backend
+uvicorn main:app --reload --port 8000
+```
+
+**Start the frontend development server:**
+
+```bash
+# In a new terminal
+npm run dev
+```
+
+Open your browser and visit: `http://localhost:5173`
+
+## Production Deployment
+
+### Frontend Deployment
+
+1. **Build the application:**
+
+```bash
+npm run build
+```
+
+2. **Configure environment variables** in your hosting platform (Vercel, Netlify, etc.):
+
+   - `VITE_API_BASE_URL`: Your production backend URL
+   - `VITE_SUPABASE_URL`: Your Supabase project URL
+   - `VITE_SUPABASE_ANON_KEY`: Your Supabase anonymous key
+
+3. **Deploy** the `dist` folder to your hosting service
+
+### Backend Deployment
+
+1. **Update CORS origins** in `backend/main.py`:
+
+   ```python
+   origins = [
+       "https://your-production-domain.com",
+       # Add your frontend URLs
+   ]
+   ```
+
+2. **Set environment variables** on your hosting platform (Render, Railway, etc.):
+
+   - `CLAUDE_API_KEY`
+   - `GEMINI_API_KEY`
+   - `SUPABASE_URL`
+   - `SUPABASE_KEY`
+
+3. **Deploy** using your preferred Python hosting service
+
+4. **Recommended hosting options:**
+   - Railway
+   - Render
+   - Fly.io
+   - Google Cloud Run
+   - AWS Lambda
+
+### Environment Variables Reference
+
+#### Frontend (.env)
+
+| Variable                 | Description                   | Required |
+| ------------------------ | ----------------------------- | -------- |
+| `VITE_API_BASE_URL`      | Backend API URL               | Yes      |
+| `VITE_SUPABASE_URL`      | Supabase project URL          | Yes      |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anonymous/public key | Yes      |
+
+#### Backend (backend/.env)
+
+| Variable         | Description                          | Required |
+| ---------------- | ------------------------------------ | -------- |
+| `CLAUDE_API_KEY` | Anthropic Claude API key             | Yes      |
+| `GEMINI_API_KEY` | Google Gemini API key for embeddings | Yes      |
+| `SUPABASE_URL`   | Supabase project URL                 | Yes      |
+| `SUPABASE_KEY`   | Supabase service role key            | Yes      |
 
 ## Available Scripts
 

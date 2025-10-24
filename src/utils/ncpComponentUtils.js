@@ -178,8 +178,7 @@ export function useNCPExporter(ncp, format, formattedNCP) {
         title: 'Export Successful',
         description: `NCP exported as ${exportType.toUpperCase()} successfully.`,
       })
-    } catch (error) {
-      console.error('Export failed:', error)
+    } catch {
       toast({
         title: 'Export Failed',
         description: `Failed to export NCP as ${exportType.toUpperCase()}. Please try again.`,
@@ -297,8 +296,6 @@ export function useNCPErrorHandler() {
   const { toast } = useToast()
 
   const handleError = (error, context = 'Operation') => {
-    console.error(`${context} error:`, error)
-
     const errorMessage =
       error.response?.data?.message ||
       error.message ||

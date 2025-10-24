@@ -257,14 +257,12 @@ export const formatStructuredNCPForDisplay = ncp => {
   const safeFormat = (section, formatter, sectionName) => {
     try {
       return formatter(section)
-    } catch (error) {
-      console.warn(`Error formatting ${sectionName} section:`, error)
-      console.log(`${sectionName} data:`, section)
+    } catch {
       // Return a fallback format
       return [
         {
           type: 'text',
-          content: `Error displaying this section. Please try refreshing. Data: ${JSON.stringify(section)}`,
+          content: `Error displaying ${sectionName} section. Please try refreshing.`,
           className: 'text-destructive',
         },
       ]
@@ -344,21 +342,14 @@ export const formatStructuredNCPForDisplay = ncp => {
       }
 
       formatted.rationale = rationaleItems
-    } catch (error) {
-      console.error('Error formatting rationale section:', error)
-
-      // Fallback: show error message and raw data
+    } catch {
+      // Fallback: show error message
       formatted.rationale = [
         {
           type: 'text',
           content:
             'Error displaying rationale section. Please edit this section to fix the display.',
           className: 'text-destructive text-sm mb-2',
-        },
-        {
-          type: 'text',
-          content: JSON.stringify(ncp.rationale, null, 2),
-          className: 'font-mono text-xs bg-muted p-2 rounded',
         },
       ]
     }

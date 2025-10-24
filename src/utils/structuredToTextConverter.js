@@ -50,8 +50,7 @@ export function convertStructuredToText(structuredData, columnKey) {
 
     // If result is empty or just whitespace, return placeholder
     return result && result.trim() ? result : getEmptyPlaceholder(columnKey)
-  } catch (error) {
-    console.warn(`Error converting ${columnKey} to text:`, error)
+  } catch {
     return getEmptyPlaceholder(columnKey)
   }
 }
