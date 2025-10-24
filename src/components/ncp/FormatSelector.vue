@@ -7,24 +7,24 @@ const formats = [
   {
     value: '4',
     label: '4 Columns',
-    description: 'Assessment, Diagnosis, Outcomes, Interventions',
+    description: 'Assessment, Diagnosis, Objectives, Interventions',
   },
   {
     value: '5',
     label: '5 Columns',
-    description: 'Assessment, Diagnosis, Outcomes, Interventions, Rationale',
+    description: 'Assessment, Diagnosis, Objectives, Interventions, Rationale',
   },
   {
     value: '6',
     label: '6 Columns',
     description:
-      'Assessment, Diagnosis, Outcomes, Interventions, Rationale, Implementation',
+      'Assessment, Diagnosis, Objectives, Interventions, Rationale, Implementation',
   },
   {
     value: '7',
     label: '7 Columns',
     description:
-      'Assessment, Diagnosis, Outcomes, Interventions, Rationale, Implementation, Evaluation',
+      'Assessment, Diagnosis, Objectives, Interventions, Rationale, Implementation, Evaluation',
   },
 ]
 
@@ -58,7 +58,7 @@ const handleCardClick = value => {
         class="relative flex cursor-pointer rounded-lg border p-4 transition hover:border-primary"
         :class="{
           'bg-primary/10 border-primary': selectedFormat === format.value,
-          'border': selectedFormat !== format.value,
+          border: selectedFormat !== format.value,
         }"
         @click="handleCardClick(format.value)"
         :aria-selected="selectedFormat === format.value"

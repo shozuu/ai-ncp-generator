@@ -31,20 +31,20 @@ const getHelpContent = columnKey => {
     case 'outcomes':
       return {
         title: 'Format Help',
-        content: `🎯 Use clear sections for short-term and long-term outcomes:
+        content: `🎯 Use clear sections for short-term and long-term objectives:
 
-SHORT-TERM OUTCOMES:
+SHORT-TERM OBJECTIVES:
 
 Within 24 hours of nursing interventions:
   - The client will report pain level 3 or below consistently
   - The patient will demonstrate use of at least two techniques
 
-LONG-TERM OUTCOMES:
+LONG-TERM OBJECTIVES:
 
 Within 48 hours of nursing interventions:
   - The patient will participate in activities without pain interference
 
-✅ Use hyphens (-) for outcome lists
+✅ Use hyphens (-) for objective lists
 ✅ Indent with spaces for better readability`,
       }
     case 'interventions':
@@ -113,7 +113,7 @@ COLLABORATIVE ACTIONS:
     case 'evaluation':
       return {
         title: 'Format Help',
-        content: `📊 Evaluate outcomes with clear status indicators:
+        content: `📊 Evaluate objectives with clear status indicators:
 
 SHORT-TERM EVALUATION:
 

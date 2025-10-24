@@ -10,8 +10,8 @@ defineProps({
 const subheadingShortLabels = {
   'Subjective Data': 'Subjective',
   'Objective Data': 'Objective',
-  'Short-Term Outcomes': 'Short-term',
-  'Long-Term Outcomes': 'Long-term',
+  'Short-Term Objectives': 'Short-term',
+  'Long-Term Objectives': 'Long-term',
   'Short-Term Evaluation': 'Short-term',
   'Long-Term Evaluation': 'Long-term',
   'Independent Interventions': 'Independent',

@@ -22,7 +22,7 @@ export const sectionIcons = {
 export const sectionTitles = {
   assessment: 'Assessment',
   diagnosis: 'Nursing Diagnosis',
-  outcomes: 'Outcomes/Goals',
+  outcomes: 'Objectives/Goals',
   interventions: 'Interventions',
   rationale: 'Rationale',
   implementation: 'Implementation',
@@ -225,7 +225,7 @@ export const hasAnyValidExplanations = (explanation, availableSections) => {
 export const getAllNCPColumns = () => [
   { key: 'assessment', label: 'Assessment' },
   { key: 'diagnosis', label: 'Diagnosis' },
-  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'outcomes', label: 'Objectives' },
   { key: 'interventions', label: 'Interventions' },
   { key: 'rationale', label: 'Rationale' },
   { key: 'implementation', label: 'Implementation', isPlaceholder: true },
@@ -237,7 +237,7 @@ export const getAllNCPColumns = () => [
  */
 export const getEditableColumns = () => [
   { key: 'diagnosis', label: 'Diagnosis' },
-  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'outcomes', label: 'Objectives' },
   { key: 'interventions', label: 'Interventions' },
   { key: 'rationale', label: 'Rationale' },
   { key: 'implementation', label: 'Implementation' },

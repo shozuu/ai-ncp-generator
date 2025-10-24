@@ -66,15 +66,15 @@ function getEmptyPlaceholder(columnKey) {
     case 'diagnosis':
       return 'Enter the nursing diagnosis statement here...'
     case 'outcomes':
-      return `SHORT-TERM OUTCOMES:
+      return `SHORT-TERM OBJECTIVES:
 
 Within [timeframe]:
-  - Add short-term outcome here
+  - Add short-term objective here
 
-LONG-TERM OUTCOMES:
+LONG-TERM OBJECTIVES:
 
 Within [timeframe]:
-  - Add long-term outcome here`
+  - Add long-term objective here`
     case 'interventions':
       return `INDEPENDENT INTERVENTIONS:
 
@@ -182,13 +182,13 @@ function convertOutcomesToText(outcomes) {
   let text = ''
 
   if (outcomes.short_term) {
-    text += 'SHORT-TERM OUTCOMES:\n\n'
+    text += 'SHORT-TERM OBJECTIVES:\n\n'
     text += convertTimeframesToText(outcomes.short_term.timeframes)
     text += '\n'
   }
 
   if (outcomes.long_term) {
-    text += 'LONG-TERM OUTCOMES:\n\n'
+    text += 'LONG-TERM OBJECTIVES:\n\n'
     text += convertTimeframesToText(outcomes.long_term.timeframes)
   }
 
