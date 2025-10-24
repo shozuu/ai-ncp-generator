@@ -12,6 +12,10 @@ import {
   getEditableColumns,
   prepareExportData,
 } from '@/utils/structuredNCPUtils'
+import {
+  convertStructuredToText,
+  convertTextToStructured,
+} from '@/utils/structuredToTextConverter'
 import { computed, reactive, ref, toRef, watch } from 'vue'
 
 /**
@@ -22,6 +26,7 @@ export function useStructuredNCPEditor(ncp, format, emit) {
   const isEditing = ref(false)
   const isSaving = ref(false)
   const formData = reactive({})
+  const originalFormData = reactive({}) // Track original form text for comparison
 
   const allColumns = getAllNCPColumns()
   const editableColumns = getEditableColumns()
@@ -41,13 +46,25 @@ export function useStructuredNCPEditor(ncp, format, emit) {
 
   const initializeFormData = () => {
     editableColumnsInFormat.value.forEach(column => {
-      // For structured data, we need to serialize complex objects as JSON strings for editing
+      // For structured data, convert to user-friendly text format for editing
       const value = ncpRef.value[column.key]
-      if (typeof value === 'object' && value !== null) {
-        formData[column.key] = JSON.stringify(value, null, 2)
+
+      let textValue
+      // Handle different value types
+      if (value === null || value === undefined) {
+        // Use placeholder text for missing sections
+        textValue = convertStructuredToText(null, column.key)
+      } else if (typeof value === 'object') {
+        textValue = convertStructuredToText(value, column.key)
+      } else if (typeof value === 'string') {
+        textValue = value
       } else {
-        formData[column.key] = value || ''
+        // For any other type, convert to string or use placeholder
+        textValue = String(value) || convertStructuredToText(null, column.key)
       }
+
+      formData[column.key] = textValue
+      originalFormData[column.key] = textValue // Store original text for comparison
     })
   }
 
@@ -75,19 +92,101 @@ export function useStructuredNCPEditor(ncp, format, emit) {
   const saveChanges = async () => {
     isSaving.value = true
     try {
-      // Parse JSON strings back to objects before saving
-      const updateData = {}
+      // Store the original rationale to protect it
+      const originalRationale = ncpRef.value.rationale
+
+      // IMPORTANT: Only convert fields that were actually changed by the user
+      // This prevents corrupting data (like rationale) that wasn't edited
+      const updateData = { ...ncpRef.value } // Start with current NCP data - CRITICAL!
+      let userMadeTextChanges = false
+
+      // First, identify which fields the user actually changed
+      const changedFields = []
       Object.keys(formData).forEach(key => {
-        try {
-          // Try to parse as JSON first (for structured fields)
-          updateData[key] = JSON.parse(formData[key])
-        } catch {
-          // If not valid JSON, keep as string
-          updateData[key] = formData[key]
+        if (formData[key] !== originalFormData[key]) {
+          userMadeTextChanges = true
+          changedFields.push(key)
         }
       })
 
+      // Only save if user actually made text changes
+      if (!userMadeTextChanges) {
+        toast({
+          title: 'No Changes',
+          description: 'No modifications detected. Nothing to save.',
+        })
+        isEditing.value = false
+        return ncpRef.value
+      }
+
+      // Now, only convert the fields that were actually changed
+      changedFields.forEach(key => {
+        const textData = formData[key]
+        let convertedData
+
+        try {
+          // First try to parse as JSON (in case user edited JSON directly)
+          const parsed = JSON.parse(textData)
+          if (typeof parsed === 'object' && parsed !== null) {
+            convertedData = parsed
+          } else {
+            convertedData = convertTextToStructured(textData, key)
+          }
+        } catch {
+          // Not valid JSON, convert from text format
+          convertedData = convertTextToStructured(textData, key)
+        }
+
+        // SPECIAL HANDLING FOR RATIONALE: Be extra careful
+        if (key === 'rationale') {
+          // Validate that the converted rationale has meaningful content
+          const hasValidRationaleContent = data => {
+            if (!data || typeof data !== 'object') return false
+
+            if (data.interventions && typeof data.interventions === 'object') {
+              return Object.keys(data.interventions).length > 0
+            }
+
+            // Check for other valid rationale structures
+            if (data.independent || data.dependent || data.collaborative) {
+              return true
+            }
+
+            return false
+          }
+
+          if (!hasValidRationaleContent(convertedData)) {
+            console.warn(
+              'Converted rationale appears invalid, preserving original'
+            )
+            convertedData = originalRationale
+          }
+        }
+
+        updateData[key] = convertedData
+      })
+
+      // EMERGENCY: Force preserve rationale if it wasn't changed
+      if (!changedFields.includes('rationale')) {
+        updateData.rationale = originalRationale
+      } else {
+        // Double-check rationale preservation even if it was changed
+        if (
+          !updateData.rationale ||
+          Object.keys(updateData.rationale).length === 0
+        ) {
+          console.warn('Rationale in updateData is empty, restoring original')
+          updateData.rationale = originalRationale
+        }
+      }
+
       const updatedNCP = await ncpService.updateNCP(ncpRef.value.id, updateData)
+
+      // CRITICAL: Preserve rationale if it's missing from the response
+      if (!updatedNCP.rationale && originalRationale) {
+        console.warn('Rationale missing from response, restoring from backup')
+        updatedNCP.rationale = originalRationale
+      }
 
       // Update the original ncp object to trigger reactivity
       Object.assign(ncpRef.value, updatedNCP)
@@ -168,10 +267,10 @@ export function useStructuredNCPExporter(ncp, format, formattedNCP) {
           await exportUtils.toXLSX(finalExportData, columnLabels, false)
           break
         case 'word':
-          await exportUtils.toWord(finalExportData, columnLabels, false)
+          await exportUtils.toWordEnhanced(finalExportData, columnLabels, false)
           break
         case 'png':
-          await exportUtils.toPNG(finalExportData, columnLabels, false)
+          await exportUtils.toPNGEnhanced(finalExportData, columnLabels, false)
           break
         default:
           throw new Error('Unsupported export format')

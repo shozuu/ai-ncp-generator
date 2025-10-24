@@ -104,9 +104,112 @@ export const exportUtils = {
     const tableWidth = pageWidth - marginLeft - marginRight
     const columnWidth = tableWidth / columns.length
 
+    // Create two-tier header structure
+    const createTwoTierHeaders = columnLabels => {
+      // Map column labels to their keys
+      const labelToKey = {
+        Assessment: 'assessment',
+        Diagnosis: 'diagnosis',
+        Objectives: 'outcomes',
+        Interventions: 'interventions',
+        Rationale: 'rationale',
+        Implementation: 'implementation',
+        Evaluation: 'evaluation',
+      }
+
+      const columnKeys = columnLabels.map(
+        label => labelToKey[label] || label.toLowerCase()
+      )
+
+      // First row: Main section headers with colspan
+      const firstRow = []
+      let i = 0
+      while (i < columnKeys.length) {
+        const key = columnKeys[i]
+        if (key === 'assessment') {
+          firstRow.push({
+            content: 'Assessment',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else if (key === 'diagnosis') {
+          firstRow.push({
+            content: 'Diagnosis',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else if (
+          key === 'outcomes' ||
+          key === 'interventions' ||
+          key === 'rationale'
+        ) {
+          // Count planning columns
+          let planningCount = 0
+          let tempI = i
+          while (
+            tempI < columnKeys.length &&
+            ['outcomes', 'interventions', 'rationale'].includes(
+              columnKeys[tempI]
+            )
+          ) {
+            planningCount++
+            tempI++
+          }
+          firstRow.push({
+            content: 'Planning',
+            colSpan: planningCount,
+            styles: { halign: 'center' },
+          })
+          i = tempI
+        } else if (key === 'implementation') {
+          firstRow.push({
+            content: 'Implementation',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else if (key === 'evaluation') {
+          firstRow.push({
+            content: 'Evaluation',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else {
+          firstRow.push({
+            content: columnLabels[i],
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        }
+      }
+
+      // Second row: Individual column headers (only for Planning columns)
+      const secondRow = columnKeys
+        .map((key, idx) => {
+          if (['outcomes', 'interventions', 'rationale'].includes(key)) {
+            return { content: columnLabels[idx], styles: { halign: 'center' } }
+          }
+          return null // These cells are covered by rowSpan in first row
+        })
+        .filter(cell => cell !== null)
+
+      return [firstRow, secondRow]
+    }
+
+    const headers = createTwoTierHeaders(columns)
+
     // Create table with enhanced styling matching Word export
     autoTable(doc, {
-      head: [columns],
+      head: headers,
       body: tableData,
       startY: is_modified ? 1.3 : 1.2, // Adjust start position if modified
       theme: 'grid',
@@ -919,12 +1022,111 @@ export const exportUtils = {
       CreatedDate: new Date(),
     }
 
+    // Helper function to create two-tier headers for Excel
+    const createExcelTwoTierHeaders = columnLabels => {
+      const labelToKey = {
+        Assessment: 'assessment',
+        Diagnosis: 'diagnosis',
+        Objectives: 'outcomes',
+        Interventions: 'interventions',
+        Rationale: 'rationale',
+        Implementation: 'implementation',
+        Evaluation: 'evaluation',
+      }
+
+      const columnKeys = columnLabels.map(
+        label => labelToKey[label] || label.toLowerCase()
+      )
+
+      // First row: Main section headers
+      const firstRow = []
+      const merges = []
+      let colIndex = 0
+      let i = 0
+
+      while (i < columnKeys.length) {
+        const key = columnKeys[i]
+        if (key === 'assessment') {
+          firstRow.push('Assessment')
+          // Mark for merge (row 0-1, col colIndex)
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else if (key === 'diagnosis') {
+          firstRow.push('Diagnosis')
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else if (
+          key === 'outcomes' ||
+          key === 'interventions' ||
+          key === 'rationale'
+        ) {
+          let planningCount = 0
+          let tempI = i
+          while (
+            tempI < columnKeys.length &&
+            ['outcomes', 'interventions', 'rationale'].includes(
+              columnKeys[tempI]
+            )
+          ) {
+            planningCount++
+            tempI++
+          }
+          firstRow.push('Planning')
+          // Merge across planning columns
+          for (let j = 1; j < planningCount; j++) {
+            firstRow.push('')
+          }
+          if (planningCount > 1) {
+            merges.push({
+              s: { r: 0, c: colIndex },
+              e: { r: 0, c: colIndex + planningCount - 1 },
+            })
+          }
+          colIndex += planningCount
+          i = tempI
+        } else if (key === 'implementation') {
+          firstRow.push('Implementation')
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else if (key === 'evaluation') {
+          firstRow.push('Evaluation')
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else {
+          firstRow.push(columnLabels[i])
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        }
+      }
+
+      // Second row: Individual column headers (fill in for Planning columns, empty for merged cells)
+      const secondRow = columnKeys.map(key => {
+        if (['outcomes', 'interventions', 'rationale'].includes(key)) {
+          return columnLabels[columnKeys.indexOf(key)]
+        }
+        return '' // Empty for merged cells
+      })
+
+      return { firstRow, secondRow, merges }
+    }
+
+    const { firstRow, secondRow, merges } = createExcelTwoTierHeaders(columns)
+
     const ncpWorksheetData = [
-      columns,
+      firstRow,
+      secondRow,
       Object.values(ncpData).map(value => processTextForExcel(value)),
     ]
 
     const ncpWorksheet = XLSX.utils.aoa_to_sheet(ncpWorksheetData)
+
+    // Apply merges
+    ncpWorksheet['!merges'] = merges
 
     const columnWidths = columns.map(() => ({ wch: 40 }))
     ncpWorksheet['!cols'] = columnWidths
@@ -975,18 +1177,20 @@ export const exportUtils = {
 
     const headerRange = XLSX.utils.decode_range(ncpWorksheet['!ref'])
 
-    // Style header row (row 0)
-    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
-      if (!ncpWorksheet[cellAddress]) continue
+    // Style header rows (row 0 and row 1)
+    for (let row = 0; row <= 1; row++) {
+      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+        if (!ncpWorksheet[cellAddress]) continue
 
-      // Ensure cell is marked as string type
-      ncpWorksheet[cellAddress].t = 's'
-      ncpWorksheet[cellAddress].s = { ...headerStyle }
+        // Ensure cell is marked as string type
+        ncpWorksheet[cellAddress].t = 's'
+        ncpWorksheet[cellAddress].s = { ...headerStyle }
+      }
     }
 
-    // Style content rows (row 1 and below) with alternating colors
-    for (let row = 1; row <= headerRange.e.r; row++) {
+    // Style content rows (row 2 and below) with alternating colors
+    for (let row = 2; row <= headerRange.e.r; row++) {
       for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
         const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
         if (!ncpWorksheet[cellAddress]) continue
@@ -1009,9 +1213,9 @@ export const exportUtils = {
     // Calculate and set row heights more precisely
     const rowHeights = []
     for (let i = 0; i <= headerRange.e.r; i++) {
-      if (i === 0) {
-        // Header row height
-        rowHeights.push({ hpx: 50 })
+      if (i === 0 || i === 1) {
+        // Header row heights
+        rowHeights.push({ hpx: 40 })
       } else {
         // Calculate height based on content with better estimation
         const rowContent = Object.values(ncpData).map(value =>
@@ -1264,5 +1468,983 @@ export const exportUtils = {
         CreatedDate: new Date(),
       },
     })
+  },
+
+  /**
+   * Enhanced PNG export using html2canvas with improved styling and rendering
+   */
+  async toPNGEnhanced(ncp, columnLabels = null, isFormatted = false) {
+    try {
+      // Get user details for accountability
+      const userDetails = await userService.getUserProfile()
+
+      // Extract title for filename
+      const { title } = ncp
+      const ncpTitle = title || 'Nursing Care Plan'
+
+      // Create a temporary DOM element for rendering
+      const tempContainer = document.createElement('div')
+      tempContainer.style.position = 'absolute'
+      tempContainer.style.left = '0'
+      tempContainer.style.top = '0'
+      tempContainer.style.width = '1200px'
+      tempContainer.style.minHeight = '600px'
+      tempContainer.style.backgroundColor = '#ffffff'
+      tempContainer.style.color = '#000000'
+      tempContainer.style.padding = '20px'
+      tempContainer.style.fontFamily =
+        "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif"
+      tempContainer.style.fontSize = '14px'
+      tempContainer.style.lineHeight = '1.6'
+      tempContainer.style.visibility = 'hidden'
+      tempContainer.style.pointerEvents = 'none'
+      tempContainer.style.zIndex = '99999'
+
+      // Generate enhanced HTML content with simpler styling for better html2canvas compatibility
+      tempContainer.innerHTML = this.generateSimpleHTML(
+        ncp,
+        columnLabels,
+        isFormatted,
+        userDetails
+      )
+
+      document.body.appendChild(tempContainer)
+
+      // Wait for content to render and fonts to load
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      // Make visible for capture
+      tempContainer.style.visibility = 'visible'
+
+      // Take screenshot with html2canvas with simpler, more reliable options
+      const canvas = await html2canvas(tempContainer, {
+        backgroundColor: '#ffffff',
+        scale: 1, // Use scale 1 first to ensure it works
+        useCORS: true,
+        allowTaint: false,
+        foreignObjectRendering: false, // Disable for better compatibility
+        logging: true, // Enable logging to debug issues
+        width: 1240, // Container width + padding
+        height: tempContainer.scrollHeight + 40,
+        scrollX: 0,
+        scrollY: 0,
+        removeContainer: false,
+      })
+
+      // Clean up
+      document.body.removeChild(tempContainer)
+
+      // Debug: Check if canvas has content
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Canvas has zero dimensions')
+      }
+
+      // Convert canvas to blob and download
+      canvas.toBlob(
+        blob => {
+          if (!blob) {
+            throw new Error('Failed to create blob from canvas')
+          }
+
+          const url = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = url
+          link.download = `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.png`
+          document.body.appendChild(link)
+          link.click()
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        },
+        'image/png',
+        1.0
+      )
+    } catch (error) {
+      console.error('Enhanced PNG export failed:', error)
+
+      // Fallback to original PNG method
+      console.log('Falling back to original PNG method...')
+      return this.toPNG(ncp, columnLabels, isFormatted)
+    }
+  },
+
+  /**
+   * Enhanced Word export using proper DOCX generation
+   */
+  async toWordEnhanced(ncp, columnLabels = null, isFormatted = false) {
+    try {
+      const {
+        Document,
+        Packer,
+        Paragraph,
+        Table,
+        TableCell,
+        TableRow,
+        TextRun,
+        WidthType,
+        AlignmentType,
+        HeadingLevel,
+        VerticalAlign,
+        VerticalMerge,
+      } = await import('docx')
+
+      // Get user details for accountability
+      const userDetails = await userService.getUserProfile()
+
+      // Extract title and modification status
+      const { title, is_modified, ...ncpData } = ncp
+      const ncpTitle = title || 'Nursing Care Plan'
+
+      const columns =
+        columnLabels ||
+        Object.keys(ncpData).map(
+          key => key.charAt(0).toUpperCase() + key.slice(1)
+        )
+
+      // Process text for better formatting in Word
+      const processTextForWord = data => {
+        if (isFormatted && Array.isArray(data)) {
+          return data
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .join('\n')
+        } else {
+          if (!data) return ''
+          return data
+            .split('\n')
+            .map(line => line.trim())
+            .filter(line => line.length > 0)
+            .join('\n')
+        }
+      }
+
+      // Create document header
+      const headerParagraphs = [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: ncpTitle,
+              bold: true,
+              size: 32,
+              color: '2d3748',
+            }),
+          ],
+          alignment: AlignmentType.CENTER,
+          heading: HeadingLevel.HEADING_1,
+        }),
+      ]
+
+      if (is_modified) {
+        headerParagraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: '(Modified by User)',
+                italics: true,
+                size: 20,
+                color: 'd97706',
+              }),
+            ],
+            alignment: AlignmentType.CENTER,
+          })
+        )
+      }
+
+      // Helper function to create two-tier header for Word
+      const createWordTwoTierHeaders = columnLabels => {
+        // Map column labels to their keys
+        const labelToKey = {
+          Assessment: 'assessment',
+          Diagnosis: 'diagnosis',
+          Objectives: 'outcomes',
+          Interventions: 'interventions',
+          Rationale: 'rationale',
+          Implementation: 'implementation',
+          Evaluation: 'evaluation',
+        }
+
+        const columnKeys = columnLabels.map(
+          label => labelToKey[label] || label.toLowerCase()
+        )
+
+        // Build first row
+        const firstRowCells = []
+        let colIdx = 0
+
+        while (colIdx < columnKeys.length) {
+          const key = columnKeys[colIdx]
+
+          if (
+            key === 'assessment' ||
+            key === 'diagnosis' ||
+            key === 'implementation' ||
+            key === 'evaluation'
+          ) {
+            // Single column headers that span both rows
+            const label =
+              key === 'assessment'
+                ? 'Assessment'
+                : key === 'diagnosis'
+                  ? 'Diagnosis'
+                  : key === 'implementation'
+                    ? 'Implementation'
+                    : 'Evaluation'
+
+            firstRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: label,
+                        bold: true,
+                        color: 'ffffff',
+                        size: 24,
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+                verticalMerge: VerticalMerge.RESTART,
+              })
+            )
+            colIdx++
+          } else if (
+            key === 'outcomes' ||
+            key === 'interventions' ||
+            key === 'rationale'
+          ) {
+            // Planning section - count how many planning columns
+            let planningCount = 0
+            let tempIdx = colIdx
+            while (
+              tempIdx < columnKeys.length &&
+              ['outcomes', 'interventions', 'rationale'].includes(
+                columnKeys[tempIdx]
+              )
+            ) {
+              planningCount++
+              tempIdx++
+            }
+
+            // Add Planning header with horizontal merge
+            firstRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Planning',
+                        bold: true,
+                        color: 'ffffff',
+                        size: 24,
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+                columnSpan: planningCount,
+              })
+            )
+            colIdx = tempIdx
+          } else {
+            colIdx++
+          }
+        }
+
+        // Build second row
+        const secondRowCells = []
+        for (let i = 0; i < columnKeys.length; i++) {
+          const key = columnKeys[i]
+
+          if (
+            key === 'assessment' ||
+            key === 'diagnosis' ||
+            key === 'implementation' ||
+            key === 'evaluation'
+          ) {
+            // These are merged from row 1, add continuation cell
+            secondRowCells.push(
+              new TableCell({
+                children: [new Paragraph('')],
+                shading: { fill: '1e293b' },
+                verticalMerge: VerticalMerge.CONTINUE,
+              })
+            )
+          } else if (
+            key === 'outcomes' ||
+            key === 'interventions' ||
+            key === 'rationale'
+          ) {
+            // Planning sub-columns
+            secondRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: columnLabels[i],
+                        bold: true,
+                        color: 'ffffff',
+                        size: 22,
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+              })
+            )
+          }
+        }
+
+        return [
+          new TableRow({ children: firstRowCells }),
+          new TableRow({ children: secondRowCells }),
+        ]
+      }
+
+      // Create table rows
+      const headerRows = createWordTwoTierHeaders(columns)
+      const tableRows = [
+        ...headerRows,
+        // Data row
+        new TableRow({
+          children: Object.values(ncpData).map(
+            value =>
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: processTextForWord(value),
+                      }),
+                    ],
+                  }),
+                ],
+              })
+          ),
+        }),
+      ]
+
+      // Create the table
+      const table = new Table({
+        rows: tableRows,
+        width: {
+          size: 100,
+          type: WidthType.PERCENTAGE,
+        },
+      })
+
+      // Create footer
+      const footerParagraphs = [
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: `Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}`,
+              size: 18,
+              color: '64748b',
+            }),
+          ],
+        }),
+      ]
+
+      if (userDetails?.email) {
+        footerParagraphs.push(
+          new Paragraph({
+            children: [
+              new TextRun({
+                text: `Generated by: ${userDetails.email}`,
+                size: 18,
+                color: '64748b',
+              }),
+            ],
+          })
+        )
+      }
+
+      footerParagraphs.push(
+        new Paragraph({
+          children: [
+            new TextRun({
+              text: 'SmartCare NCP Generator - Professional Nursing Care Plan System',
+              bold: true,
+              size: 18,
+              color: '4a5568',
+            }),
+          ],
+        })
+      )
+
+      // Create document
+      const doc = new Document({
+        sections: [
+          {
+            children: [
+              ...headerParagraphs,
+              new Paragraph({ text: '' }), // spacing
+              table,
+              new Paragraph({ text: '' }), // spacing
+              ...footerParagraphs,
+            ],
+          },
+        ],
+      })
+
+      // Generate and download
+      const buffer = await Packer.toBuffer(doc)
+      const blob = new Blob([buffer], {
+        type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `${ncpTitle.toLowerCase().replace(/\s+/g, '-')}.docx`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Enhanced Word export failed:', error)
+
+      // Fallback to original Word method
+      console.log('Falling back to original Word method...')
+      return this.toWord(ncp, columnLabels, isFormatted)
+    }
+  },
+
+  /**
+   * Generate enhanced HTML for better rendering
+   */
+  generateEnhancedHTML(ncp, columnLabels, isFormatted, userDetails) {
+    const { title, is_modified, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
+    const columns =
+      columnLabels ||
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
+
+    // Process text for better formatting
+    const processText = data => {
+      if (isFormatted && Array.isArray(data)) {
+        return data
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => {
+            // Handle numbered lists
+            if (line.match(/^\d+\./)) {
+              return `<div style="margin-bottom: 6px; padding-left: 8px; line-height: 1.5;">${line}</div>`
+            }
+            // Handle bullet points
+            if (line.startsWith('-')) {
+              return `<div style="margin-bottom: 6px; padding-left: 12px; line-height: 1.5;">${line}</div>`
+            }
+            // Regular text
+            return `<div style="margin-bottom: 8px; line-height: 1.5;">${line}</div>`
+          })
+          .join('')
+      } else {
+        if (!data) return ''
+        return data
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(
+            line =>
+              `<div style="margin-bottom: 8px; line-height: 1.5;">${line}</div>`
+          )
+          .join('')
+      }
+    }
+
+    // Generate table rows
+    const tableData = Object.values(ncpData).map(value => processText(value))
+
+    return `
+      <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: white; color: #1e293b; line-height: 1.6; max-width: 100%; margin: 0 auto;">
+        <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4299e1; padding-bottom: 20px;">
+          <h1 style="font-size: 24px; font-weight: bold; color: #2d3748; margin-bottom: 8px; margin-top: 0;">${ncpTitle}</h1>
+          ${is_modified ? '<div style="font-size: 12px; color: #d97706; font-style: italic; margin-bottom: 10px;">(Modified by User)</div>' : ''}
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden;">
+          <thead>
+            <tr>
+              ${columns.map(col => `<th style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); color: #f8fafc; padding: 16px 12px; text-align: left; font-weight: 600; font-size: 14px; border: none;">${col}</th>`).join('')}
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              ${tableData.map((data, index) => `<td style="padding: 16px 12px; border: 1px solid #e2e8f0; vertical-align: top; background: ${index % 2 === 0 ? 'white' : '#f8fafc'};">${data}</td>`).join('')}
+            </tr>
+          </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b;">
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+            <div>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</div>
+            ${userDetails?.email ? `<div>Generated by: ${userDetails.email}</div>` : ''}
+          </div>
+          <div style="margin-top: 10px; font-weight: 600;">
+            SmartCare NCP Generator - Professional Nursing Care Plan System
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  /**
+   * Generate simple HTML for PNG exports (html2canvas compatible)
+   */
+  generateSimpleHTML(ncp, columnLabels, isFormatted, userDetails) {
+    const { title, is_modified, ...ncpData } = ncp
+    const ncpTitle = title || 'Nursing Care Plan'
+
+    const columns =
+      columnLabels ||
+      Object.keys(ncpData).map(
+        key => key.charAt(0).toUpperCase() + key.slice(1)
+      )
+
+    // Process text for better formatting
+    const processText = data => {
+      if (isFormatted && Array.isArray(data)) {
+        return data
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(line => {
+            // Handle numbered lists
+            if (line.match(/^\d+\./)) {
+              return `<div style="margin-bottom: 6px; padding-left: 8px; line-height: 1.5; color: #1e293b;">${line}</div>`
+            }
+            // Handle bullet points
+            if (line.startsWith('-')) {
+              return `<div style="margin-bottom: 6px; padding-left: 12px; line-height: 1.5; color: #1e293b;">${line}</div>`
+            }
+            // Regular text
+            return `<div style="margin-bottom: 8px; line-height: 1.5; color: #1e293b;">${line}</div>`
+          })
+          .join('')
+      } else {
+        if (!data) return ''
+        return data
+          .split('\n')
+          .map(line => line.trim())
+          .filter(line => line.length > 0)
+          .map(
+            line =>
+              `<div style="margin-bottom: 8px; line-height: 1.5; color: #1e293b;">${line}</div>`
+          )
+          .join('')
+      }
+    }
+
+    // Helper function to create two-tier headers for HTML
+    const createHTMLTwoTierHeaders = columnLabels => {
+      const labelToKey = {
+        Assessment: 'assessment',
+        Diagnosis: 'diagnosis',
+        Objectives: 'outcomes',
+        Interventions: 'interventions',
+        Rationale: 'rationale',
+        Implementation: 'implementation',
+        Evaluation: 'evaluation',
+      }
+
+      const columnKeys = columnLabels.map(
+        label => labelToKey[label] || label.toLowerCase()
+      )
+
+      // First row: Main section headers
+      let firstRow = ''
+      let i = 0
+      while (i < columnKeys.length) {
+        const key = columnKeys[i]
+        if (key === 'assessment') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Assessment</th>`
+          i++
+        } else if (key === 'diagnosis') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Diagnosis</th>`
+          i++
+        } else if (
+          key === 'outcomes' ||
+          key === 'interventions' ||
+          key === 'rationale'
+        ) {
+          let planningCount = 0
+          let tempI = i
+          while (
+            tempI < columnKeys.length &&
+            ['outcomes', 'interventions', 'rationale'].includes(
+              columnKeys[tempI]
+            )
+          ) {
+            planningCount++
+            tempI++
+          }
+          firstRow += `<th colspan="${planningCount}" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif;">Planning</th>`
+          i = tempI
+        } else if (key === 'implementation') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Implementation</th>`
+          i++
+        } else if (key === 'evaluation') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Evaluation</th>`
+          i++
+        } else {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">${columnLabels[i]}</th>`
+          i++
+        }
+      }
+
+      // Second row: Individual column headers (only for Planning columns)
+      let secondRow = ''
+      columnKeys.forEach((key, idx) => {
+        if (['outcomes', 'interventions', 'rationale'].includes(key)) {
+          secondRow += `<th style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif;">${columnLabels[idx]}</th>`
+        }
+      })
+
+      return `<tr>${firstRow}</tr><tr>${secondRow}</tr>`
+    }
+
+    // Generate table rows
+    const tableData = Object.values(ncpData).map(value => processText(value))
+
+    return `
+      <div style="font-family: Arial, sans-serif; background-color: #ffffff; color: #1e293b; line-height: 1.6; padding: 20px; width: 1160px;">
+        <div style="text-align: center; margin-bottom: 30px; border-bottom: 3px solid #4299e1; padding-bottom: 20px;">
+          <h1 style="font-size: 24px; font-weight: bold; color: #2d3748; margin: 0 0 8px 0; font-family: Arial, sans-serif;">${ncpTitle}</h1>
+          ${is_modified ? '<div style="font-size: 12px; color: #d97706; font-style: italic; margin-bottom: 10px; font-family: Arial, sans-serif;">(Modified by User)</div>' : ''}
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; border: 2px solid #1e293b;">
+          <thead>
+            ${createHTMLTwoTierHeaders(columns)}
+          </thead>
+          <tbody>
+            <tr>
+              ${tableData.map((data, index) => `<td style="padding: 16px 12px; border: 1px solid #e2e8f0; vertical-align: top; background-color: ${index % 2 === 0 ? '#ffffff' : '#f8fafc'}; font-family: Arial, sans-serif; color: #1e293b;">${data}</td>`).join('')}
+            </tr>
+          </tbody>
+        </table>
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #64748b; font-family: Arial, sans-serif;">
+          <div style="margin-bottom: 10px;">
+            <span>Generated on ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}</span>
+            ${userDetails?.email ? `<span style="margin-left: 20px;">Generated by: ${userDetails.email}</span>` : ''}
+          </div>
+          <div style="font-weight: bold; color: #4a5568;">
+            SmartCare NCP Generator - Professional Nursing Care Plan System
+          </div>
+        </div>
+      </div>
+    `
+  },
+
+  /**
+   * Exports nursing assessment form data as a formatted PDF
+   * @param {Object} formValues - The form values from the assessment form
+   * @returns {Promise<void>}
+   */
+  async exportAssessmentToPDF(formValues) {
+    // Get user details for accountability
+    const userDetails = await userService.getUserProfile()
+
+    // Create PDF document (portrait orientation for reading)
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'letter',
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 40
+    const contentWidth = pageWidth - 2 * margin
+    let yPosition = margin
+
+    // Helper function to check if we need a new page
+    const checkPageBreak = heightNeeded => {
+      if (yPosition + heightNeeded > pageHeight - margin) {
+        doc.addPage()
+        yPosition = margin
+        return true
+      }
+      return false
+    }
+
+    // Header
+    doc.setFillColor(41, 98, 255) // Blue background
+    doc.rect(0, 0, pageWidth, 100, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.text('NURSING ASSESSMENT FORM', pageWidth / 2, 35, { align: 'center' })
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Personal Reference Copy', pageWidth / 2, 55, { align: 'center' })
+
+    // Export date and user info
+    doc.setFontSize(9)
+    doc.text(`Exported: ${new Date().toLocaleString()}`, pageWidth / 2, 72, {
+      align: 'center',
+    })
+
+    // User details
+    if (userDetails) {
+      doc.setFontSize(8)
+      doc.text(
+        `Prepared by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}`,
+        pageWidth / 2,
+        87,
+        { align: 'center' }
+      )
+    }
+
+    yPosition = 120
+    doc.setTextColor(0, 0, 0)
+
+    // Helper function to add a section header
+    const addSectionHeader = title => {
+      checkPageBreak(40)
+      yPosition += 10
+      doc.setFillColor(240, 245, 255)
+      doc.rect(margin, yPosition - 15, contentWidth, 25, 'F')
+      doc.setTextColor(30, 64, 175)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text(title, margin + 10, yPosition)
+      yPosition += 20
+      doc.setTextColor(0, 0, 0)
+    }
+
+    // Helper function to add a field
+    const addField = (label, value, isArray = false, isObject = false) => {
+      checkPageBreak(25)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`${label}:`, margin + 10, yPosition)
+      yPosition += 15
+
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(60, 60, 60)
+
+      if (isArray && Array.isArray(value)) {
+        if (
+          value.length === 0 ||
+          (value.length === 1 && value[0] === 'None specified')
+        ) {
+          doc.text('• None specified', margin + 20, yPosition)
+          yPosition += 15
+        } else {
+          value.forEach(item => {
+            const lines = doc.splitTextToSize(`• ${item}`, contentWidth - 30)
+            checkPageBreak(lines.length * 15)
+            lines.forEach(line => {
+              doc.text(line, margin + 20, yPosition)
+              yPosition += 15
+            })
+          })
+        }
+      } else if (isObject && typeof value === 'object') {
+        let hasContent = false
+        for (const [key, val] of Object.entries(value)) {
+          if (val && val !== 'Not specified') {
+            hasContent = true
+            const formattedKey = key
+              .replace(/([A-Z])/g, ' $1')
+              .replace(/^./, str => str.toUpperCase())
+            const text = `  ${formattedKey}: ${val}`
+            const lines = doc.splitTextToSize(text, contentWidth - 30)
+            checkPageBreak(lines.length * 15)
+            lines.forEach(line => {
+              doc.text(line, margin + 20, yPosition)
+              yPosition += 15
+            })
+          }
+        }
+        if (!hasContent) {
+          doc.text('  No findings recorded', margin + 20, yPosition)
+          yPosition += 15
+        }
+      } else {
+        const displayValue = value || 'Not specified'
+        const lines = doc.splitTextToSize(displayValue, contentWidth - 30)
+        checkPageBreak(lines.length * 15)
+        lines.forEach(line => {
+          doc.text(line, margin + 20, yPosition)
+          yPosition += 15
+        })
+      }
+
+      doc.setTextColor(0, 0, 0)
+      yPosition += 5
+    }
+
+    // PATIENT DEMOGRAPHICS
+    addSectionHeader('PATIENT DEMOGRAPHICS')
+    addField('Age', formValues.age || 'Not specified')
+    addField('Sex', formValues.sex || 'Not specified')
+    addField('Occupation', formValues.occupation || 'Not specified')
+    addField('Religion', formValues.religion || 'Not specified')
+    addField(
+      'Cultural Background',
+      formValues.cultural_background || 'Not specified'
+    )
+    addField('Language', formValues.language || 'Not specified')
+
+    // CHIEF COMPLAINT
+    addSectionHeader('CHIEF COMPLAINT')
+    addField(
+      'General Condition',
+      formValues.general_condition || 'Not specified'
+    )
+
+    // HISTORY OF PRESENT ILLNESS
+    addSectionHeader('HISTORY OF PRESENT ILLNESS')
+    addField('Onset and Duration', formValues.onset_duration || 'Not specified')
+    addField(
+      'Severity and Progression',
+      formValues.severity_progression || 'Not specified'
+    )
+    addField(
+      'Medical Impression',
+      formValues.medical_impression || 'Not specified'
+    )
+    addField(
+      'Associated Symptoms',
+      formValues.associated_symptoms?.length > 0
+        ? formValues.associated_symptoms
+        : ['None specified'],
+      true
+    )
+    addField('Other Symptoms', formValues.other_symptoms || 'None')
+
+    // RISK FACTORS
+    addSectionHeader('RISK FACTORS')
+    addField(
+      'Risk Factors',
+      formValues.risk_factors?.length > 0
+        ? formValues.risk_factors
+        : ['None specified'],
+      true
+    )
+    addField('Other Risk Factors', formValues.other_risk_factors || 'None')
+
+    // PAST MEDICAL HISTORY
+    addSectionHeader('PAST MEDICAL HISTORY')
+    addField(
+      'Medical History',
+      formValues.medical_history?.length > 0
+        ? formValues.medical_history
+        : ['None specified'],
+      true
+    )
+    addField(
+      'Other Medical History',
+      formValues.other_medical_history || 'None'
+    )
+
+    // FAMILY HISTORY
+    addSectionHeader('FAMILY HISTORY')
+    addField(
+      'Family History',
+      formValues.family_history?.length > 0
+        ? formValues.family_history
+        : ['None specified'],
+      true
+    )
+    addField('Other Family History', formValues.other_family_history || 'None')
+
+    // VITAL SIGNS
+    addSectionHeader('VITAL SIGNS')
+    addField('Heart Rate (bpm)', formValues.heart_rate_bpm || 'Not recorded')
+    addField(
+      'Blood Pressure (mmHg)',
+      formValues.blood_pressure_mmhg || 'Not recorded'
+    )
+    addField(
+      'Respiratory Rate (per min)',
+      formValues.respiratory_rate_min || 'Not recorded'
+    )
+    addField(
+      'Oxygen Saturation (%)',
+      formValues.oxygen_saturation_percent || 'Not recorded'
+    )
+    addField(
+      'Temperature (°C)',
+      formValues.temperature_celsius || 'Not recorded'
+    )
+
+    // PHYSICAL EXAMINATION
+    addSectionHeader('PHYSICAL EXAMINATION')
+    addField('Height', formValues.height || 'Not recorded')
+    addField('Weight', formValues.weight || 'Not recorded')
+    addField(
+      'Cephalocaudal Assessment',
+      formValues.cephalocaudal_assessment || {},
+      false,
+      true
+    )
+
+    // LABORATORY FINDINGS
+    addSectionHeader('LABORATORY FINDINGS')
+    addField(
+      'Laboratory Results',
+      formValues.laboratory_results || 'Not specified'
+    )
+
+    // SUBJECTIVE DATA
+    addSectionHeader('SUBJECTIVE DATA')
+    addField('Subjective Information', formValues.subjective || 'Not specified')
+
+    // OBJECTIVE DATA
+    addSectionHeader('OBJECTIVE DATA')
+    addField('Objective Information', formValues.objective || 'Not specified')
+
+    // Footer on last page
+    yPosition = pageHeight - 60
+    doc.setFontSize(8)
+    doc.setTextColor(100, 100, 100)
+
+    // User details in footer
+    if (userDetails) {
+      doc.text(
+        `Prepared by: ${userDetails.full_name}`,
+        pageWidth / 2,
+        yPosition,
+        { align: 'center' }
+      )
+      doc.text(
+        `${userDetails.role} - ${userDetails.organization}`,
+        pageWidth / 2,
+        yPosition + 12,
+        { align: 'center' }
+      )
+      yPosition += 24
+    }
+
+    doc.text(
+      'This is a personal reference copy for educational purposes only.',
+      pageWidth / 2,
+      yPosition,
+      { align: 'center' }
+    )
+    doc.text('SmartCare NCP Generator', pageWidth / 2, yPosition + 12, {
+      align: 'center',
+    })
+
+    // Generate filename with timestamp
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, -5)
+    const filename = `nursing-assessment-${timestamp}.pdf`
+
+    // Save the PDF
+    doc.save(filename)
   },
 }

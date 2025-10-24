@@ -1,7 +1,10 @@
 <script setup>
+import EditingHelp from '@/components/ncp/EditingHelp.vue'
+import EditingPreview from '@/components/ncp/EditingPreview.vue'
+import StructuredNCPRenderer from '@/components/ncp/StructuredNCPRenderer.vue'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
-import { useNCPComponent } from '@/utils/ncpComponentUtils'
+import { useStructuredNCPComponent } from '@/utils/structuredNCPComponentUtils'
 import { Edit, Save, X } from 'lucide-vue-next'
 import { toRef, watch } from 'vue'
 
@@ -30,7 +33,7 @@ const {
   startEditing,
   cancelEditing,
   saveChanges,
-} = useNCPComponent(ncp, format, emit)
+} = useStructuredNCPComponent(ncp, format, emit)
 
 watch(
   () => props.ncp,
@@ -116,54 +119,26 @@ watch(
             <td
               v-for="column in columns"
               :key="column.key"
-              class="border-primary/10 group hover:bg-primary/5 p-4 text-sm align-top border min-w-[200px]"
+              class="border-primary/10 group p-4 text-xs align-top border min-w-[200px]"
+              :class="{
+                'hover:bg-primary/5': !isEditing,
+                'bg-muted/20':
+                  isEditing &&
+                  editableColumnsInFormat.some(col => col.key === column.key),
+              }"
             >
               <!-- Assessment Column (Read-only) -->
               <div v-if="column.key === 'assessment'" class="space-y-3">
-                <div
-                  v-for="(item, itemIndex) in formattedNCP[column.key]"
-                  :key="itemIndex"
-                  class="leading-relaxed text-muted-foreground"
-                  :class="{
-                    'mb-3': itemIndex < formattedNCP[column.key].length - 1,
-                    'font-semibold text-sm': item.type === 'header',
-                    'mb-1': item.type === 'bullet',
-                  }"
-                >
-                  <span v-if="item.type === 'bullet'" class="text-primary mr-1"
-                    >*</span
-                  >
-                  {{ item.content }}
-                </div>
+                <StructuredNCPRenderer
+                  :items="formattedNCP[column.key] || []"
+                />
               </div>
 
               <!-- Editable Columns - View Mode -->
               <div v-else-if="!isEditing" class="space-y-3">
-                <div
-                  v-for="(item, itemIndex) in formattedNCP[column.key]"
-                  :key="itemIndex"
-                  class="leading-relaxed"
-                  :class="{
-                    'mb-4':
-                      item.type === 'header' &&
-                      itemIndex < formattedNCP[column.key].length - 1,
-                    'mb-3':
-                      item.type === 'subheader' &&
-                      itemIndex < formattedNCP[column.key].length - 1,
-                    'mb-2':
-                      item.type === 'text' &&
-                      itemIndex < formattedNCP[column.key].length - 1,
-                    'mb-1': item.type === 'bullet',
-                    'font-semibold text-sm text-muted-foreground':
-                      item.type === 'header',
-                    'font-medium text-sm': item.type === 'subheader',
-                  }"
-                >
-                  <span v-if="item.type === 'bullet'" class="text-primary mr-1"
-                    >*</span
-                  >
-                  {{ item.content }}
-                </div>
+                <StructuredNCPRenderer
+                  :items="formattedNCP[column.key] || []"
+                />
               </div>
 
               <!-- Edit Mode -->
@@ -171,13 +146,32 @@ watch(
                 v-else-if="
                   editableColumnsInFormat.some(col => col.key === column.key)
                 "
+                class="space-y-2"
               >
+                <EditingHelp :column-key="column.key" />
                 <Textarea
                   v-model="formData[column.key]"
                   :placeholder="`Enter ${column.label.toLowerCase()}...`"
-                  class="min-h-[200px] resize-none"
+                  class="min-h-[200px] resize-none font-mono text-xs"
                   :disabled="isSaving"
                 />
+                <div class="flex items-center justify-between">
+                  <div
+                    class="text-xs text-muted-foreground flex items-center gap-1"
+                  >
+                    <span>💡</span>
+                    <span
+                      >Use the structured format above or paste JSON directly -
+                      both work perfectly!</span
+                    >
+                  </div>
+                  <EditingPreview
+                    :text-data="formData[column.key]"
+                    :column-key="column.key"
+                    :column-label="column.label"
+                    :full-ncp="ncp"
+                  />
+                </div>
               </div>
             </td>
           </tr>

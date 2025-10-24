@@ -1,22 +1,23 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from typing import Dict
 import os
 import logging
 import json
 import re
+import asyncio
 from pathlib import Path
 from dotenv import load_dotenv
 from utils import (
     format_structured_data, 
     parse_ncp_response, 
     validate_assessment_data, 
-    parse_explanation_text,
     format_assessment_for_ncp,
     safe_format_list,
     validate_ncp_structure
 )
 import google.generativeai as genai
+from anthropic import Anthropic
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
 from ncp_request_tracker import start_ncp_request, track_api_call, track_error, complete_ncp_request 
@@ -54,31 +55,114 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Configure Gemini API
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
+# Configure Claude API
+claude_api_key = os.getenv("CLAUDE_API_KEY")
+if not claude_api_key:
+    logger.error("Claude API key not found in environment variables")
+    raise RuntimeError("Claude API key not configured")
+
+# Initialize Claude client with timeout settings
+claude_client = Anthropic(
+    api_key=claude_api_key,
+    timeout=300.0  # 5 minutes timeout
+)
+
+# Claude model configuration
+CLAUDE_MODEL = "claude-sonnet-4-5-20250929"
+CLAUDE_MAX_TOKENS = 10000
+CLAUDE_TEMPERATURE = 0.3
+
+# Configure Gemini API (for embeddings only)
+gemini_api_key = os.getenv("GEMINI_API_KEY")
+if not gemini_api_key:
     logger.error("Gemini API key not found in environment variables")
     raise RuntimeError("Gemini API key not configured")
 
 genai.configure(
-    api_key=api_key,
+    api_key=gemini_api_key,
     client_options={"api_endpoint": "generativelanguage.googleapis.com"}
 )
 
-# Model configuration
-generation_config = {
-    "temperature": 0.7,
-    "top_p": 1,
-    "top_k": 1,
-    "max_output_tokens": 10096,
-}
-model = genai.GenerativeModel(
-    model_name="gemini-2.5-pro",
-    generation_config=generation_config
-)
+async def call_claude_with_cancellation(request: Request, client, **kwargs):
+    """
+    Call Claude API with cancellation support when client disconnects.
+    """
+    # Create a task for the Claude API call
+    claude_task = asyncio.create_task(
+        asyncio.to_thread(client.messages.create, **kwargs)
+    )
+    
+    # Create a task to check for client disconnection
+    async def check_client_disconnection():
+        while not claude_task.done():
+            if await request.is_disconnected():
+                logger.info("Client disconnected, cancelling Claude API call")
+                claude_task.cancel()
+                raise asyncio.CancelledError("Client disconnected")
+            await asyncio.sleep(0.1)  # Check every 100ms
+    
+    disconnection_task = asyncio.create_task(check_client_disconnection())
+    
+    try:
+        # Wait for either the Claude call to complete or client disconnection
+        response = await claude_task
+        disconnection_task.cancel()
+        return response
+    except asyncio.CancelledError:
+        # Clean up both tasks
+        claude_task.cancel()
+        disconnection_task.cancel()
+        logger.info("Claude API call cancelled due to client disconnection")
+        raise HTTPException(
+            status_code=499,  # Client Closed Request
+            detail={
+                "message": "Request was cancelled",
+                "error_type": "cancelled",
+                "suggestion": "The request was cancelled by the client."
+            }
+        )
+
+async def call_gemini_with_cancellation(request: Request, model, prompt):
+    """
+    Call Gemini API with cancellation support when client disconnects.
+    """
+    # Create a task for the Gemini API call
+    gemini_task = asyncio.create_task(
+        asyncio.to_thread(model.generate_content, prompt)
+    )
+    
+    # Create a task to check for client disconnection
+    async def check_client_disconnection():
+        while not gemini_task.done():
+            if await request.is_disconnected():
+                logger.info("Client disconnected, cancelling Gemini API call")
+                gemini_task.cancel()
+                raise asyncio.CancelledError("Client disconnected")
+            await asyncio.sleep(0.1)  # Check every 100ms
+    
+    disconnection_task = asyncio.create_task(check_client_disconnection())
+    
+    try:
+        # Wait for either the Gemini call to complete or client disconnection
+        response = await gemini_task
+        disconnection_task.cancel()
+        return response
+    except asyncio.CancelledError:
+        # Clean up both tasks
+        gemini_task.cancel()
+        disconnection_task.cancel()
+        logger.info("Gemini API call cancelled due to client disconnection")
+        raise HTTPException(
+            status_code=499,  # Client Closed Request
+            detail={
+                "message": "Request was cancelled",
+                "error_type": "cancelled",
+                "suggestion": "The request was cancelled by the client."
+            }
+        )
 
 @app.post("/api/generate-ncp")
-async def generate_ncp(assessment_data: Dict) -> Dict:
+async def generate_ncp(request: Request, assessment_data: Dict) -> Dict:
     """
     Generate a Nursing Care Plan (NCP) based on assessment data.
     """
@@ -132,19 +216,8 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
             ---
 
-            PATIENT ASSESSMENT DATA
-
+            **PATIENT ASSESSMENT DATA**
             {formatted_assessment}
-
-            ---
-
-            Generate a complete Nursing Care Plan using the exact structure below:
-
-            1. Use **only** the specified section headings and format below.  
-            2. Include all sections: **Assessment**, **Diagnosis**, **Outcomes**, **Interventions**, **Rationale**, **Implementation**, and **Evaluation**.  
-            3. Use bullet points (*) for lists and sub-bullets (-) for nested items.  
-            4. Ensure that Outcomes and Interventions clearly reference the Nursing Diagnosis.  
-            5. Maintain a professional, concise, and clinical tone throughout.  
 
             ---
 
@@ -244,10 +317,22 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
 
         """
         
-        logger.info("Calling API for NCP generation...")
+        logger.info("Calling Claude API for NCP generation...")
         
         try:
-            response = model.generate_content(prompt)
+            response = await call_claude_with_cancellation(
+                request,
+                claude_client,
+                model=CLAUDE_MODEL,
+                max_tokens=CLAUDE_MAX_TOKENS,
+                temperature=CLAUDE_TEMPERATURE,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            )
             
             # Track token usage
             track_api_call(
@@ -270,12 +355,12 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
             )
 
         # Check for errors in the response
-        if hasattr(response, '_error') and response._error:
-            raise ValueError(f"AI model error: {response._error}")
+        if not response or not response.content:
+            raise ValueError(f"AI model returned empty response")
 
         # Parse and validate the response
         try:
-            ncp_text = response.text
+            ncp_text = response.content[0].text
             sections = parse_ncp_response(ncp_text)
 
             if not all(sections.values()):
@@ -310,7 +395,7 @@ async def generate_ncp(assessment_data: Dict) -> Dict:
         )
 
 @app.post("/api/generate-explanation")
-async def generate_explanation(request_data: Dict) -> Dict:
+async def generate_explanation(request: Request, request_data: Dict) -> Dict:
     """
     Generate explanations for each component of an NCP using AI.
     """
@@ -321,7 +406,7 @@ async def generate_explanation(request_data: Dict) -> Dict:
 
         logger.info(f"Generating explanation for NCP: {ncp.get('title', 'Unknown')}")
 
-        all_sections = ['assessment', 'diagnosis', 'outcomes', 'interventions', 'rationale', 'implementation', 'evaluation']
+        all_sections = ['diagnosis', 'outcomes', 'interventions', 'rationale', 'implementation', 'evaluation']
         
         # Filter out sections that don't have content (empty or None)
         available_sections = []
@@ -338,64 +423,236 @@ async def generate_explanation(request_data: Dict) -> Dict:
 
         logger.info(f"Generating explanations for sections: {available_sections}")
 
-        # Create the enhanced explanation prompt for plain text response
+        # Extract additional context for explanation generation
+        assessment_context = ""
+        diagnosis_reasoning = ""
+        
+        # Include assessment data context if available
+        if ncp.get('assessment'):
+            assessment_context = f"""
+            **ORIGINAL PATIENT ASSESSMENT DATA THAT GUIDED THIS NCP:**
+            {ncp.get('assessment')}
+            """
+        
+        # Include diagnosis reasoning if available  
+        if ncp.get('reasoning'):
+            diagnosis_reasoning = f"""
+            **DIAGNOSIS SELECTION REASONING:**
+            {ncp.get('reasoning')}
+            """
+
+        # Create the enhanced explanation prompt that mirrors the actual NCP generation process
         explanation_prompt = f"""
             You are a nursing educator with expertise in NANDA-I, NIC, and NOC standards.
-            Your primary goal is to teach nursing students how to think critically and apply 
-            evidence-based reasoning when creating Nursing Care Plans (NCPs).
+            Your primary goal is to teach nursing students the EXACT systematic process used to 
+            create this NCP, walking them through the same clinical reasoning frameworks and 
+            decision-making steps that professional nurses use in practice.
 
-            Ground all explanations in widely accepted nursing frameworks and references:
-            - NANDA-I taxonomy (2021–2023 updates)
+            **THE NCP GENERATION PROCESS YOU WILL EXPLAIN:**
+            This NCP was created using a systematic 4-step process that mirrors professional nursing practice:
+
+            **STEP 1: Assessment Data Analysis & Keyword Extraction**
+            - Raw patient data was analyzed to extract clinical keywords aligned with NANDA-I terminology
+            - Subjective and objective findings were normalized into standard clinical terms
+            - Keywords were selected to match NANDA-I diagnostic criteria (defining characteristics, related factors, risk factors)
+
+            **STEP 2: Diagnosis Selection Using Clinical Prioritization**
+            Multiple candidate diagnoses were evaluated using strict prioritization frameworks:
+            1. **ABC – Life-Threatening Conditions (Airway, Breathing, Circulation)**
+               - Life-threatening conditions take absolute priority
+               - Only selected if assessment shows clear evidence of compromise
+            2. **Maslow's Hierarchy of Needs**
+               - Physiological → Safety → Psychosocial
+               - Physiological needs: pain, nutrition, elimination, mobility, oxygenation
+               - Safety needs: infection prevention, fall risk, injury prevention
+               - Psychosocial needs: anxiety, coping, knowledge deficits
+            3. **Actual Problems Over Risk Problems**
+               - Current active problems prioritized over potential risks
+               - Exception: ABC-related risks may override lower-level actual problems
+            4. **Acute Over Chronic**
+               - New, severe, or unstable conditions prioritized over stable chronic conditions
+
+            **STEP 3: NOC Outcomes & NIC Interventions Selection**
+            - Outcomes based on evidence-based NOC classifications
+            - Interventions selected from NIC classifications and adapted to patient specifics
+            - All choices directly target the selected priority diagnosis
+            - SMART criteria applied to all outcome statements
+
+            **STEP 4: Implementation & Evaluation in Clinical Context**
+            - Implementation described in past tense with realistic patient responses
+            - Evaluation tied directly back to outcome achievement
+            - Timeframes set based on nursing student clinical realities
+
+            **EDUCATIONAL FOUNDATION:**
+            Base all explanations on the same evidence-based standards used in the generation:
+            - NANDA-I taxonomy (2021–2023)
             - NIC and NOC 7th editions
-            - Ackley et al. (2022), Nursing Diagnosis Handbook
-            - Doenges et al. (2021), Nurse’s Pocket Guide
+            - Ackley et al. (2022), Nursing Diagnosis Handbook, 12th Edition
+            - Doenges et al. (2021), Nurse's Pocket Guide, 15th Edition
+            - Moorhead et al. (2022) - NOC outcomes
+            - Butcher et al. (2022) - NIC interventions
 
-            Important rules for evidence use:
-            - Attribute concepts in a general way (e.g., “According to Ackley (2022)...” or 
-            “NANDA-I defines impaired gas exchange as...”).
-            - Do NOT invent page numbers, direct quotations, or hollow citations.
-            - If unsure of exact source details, explain the principle clearly and attribute 
-            it broadly to NANDA-I, NIC, NOC, or standard nursing references.
-            - Explanations must remain factual, professional, and educational.
+            **CRITICAL TEACHING OBJECTIVES:**
+            For each NCP section, help students understand:
+            1. **The Systematic Decision-Making Process**: Walk through the exact steps used
+            2. **Prioritization Framework Application**: Show how frameworks determined choices
+            3. **Evidence-Based Rationale**: Connect decisions to nursing standards and research
+            4. **Alternative Analysis**: Explain what other options existed and why they weren't chosen
+            5. **Patient Customization**: Show how textbook knowledge was adapted to this specific case
+            6. **Professional Integration**: Demonstrate how this mirrors real-world nursing practice
 
-            I will provide you with an NCP. For each section, generate explanations at three levels 
-            (Clinical Reasoning, Evidence-Based Support, and Student Guidance), each with a 
-            Summary and a Detailed version.
+            **EXPLANATION FRAMEWORK:**
+            Teach students to think like the AI system that generated this NCP by explaining the 
+            systematic process, not just the content. Show them the clinical reasoning pathway 
+            that led to each decision.
 
-            For each NCP section, use this EXACT format:
+            **CONTENT REQUIREMENTS FOR EACH NCP SECTION:**
 
-            **SECTION_NAME:**
+            For each section present in the NCP, provide explanations that help students understand:
 
-            Clinical Reasoning Summary:
-            [2–3 sentences: concise explanation of why this decision was made]
+            **Clinical Reasoning Component:**
+            - Summary (2-3 sentences): Explain the systematic decision-making process used for this section, 
+              specifically referencing how prioritization frameworks, NANDA-I criteria, or NIC/NOC 
+              standards guided the selection. Connect to the actual generation process used.
+            - Detailed (4-8 sentences): Provide step-by-step breakdown of the clinical reasoning process: 
+              How assessment data was analyzed, what prioritization framework was applied and why, 
+              how this choice ranked against alternatives using systematic criteria, what specific 
+              NANDA-I/NIC/NOC criteria were met, and how the final decision integrated patient-specific 
+              factors with evidence-based standards.
 
-            Clinical Reasoning Detailed:
-            [4–8 sentences: step-by-step reasoning process, including assessment priorities, 
-            differential considerations, and why certain options were chosen or excluded]
+            **Evidence-Based Support Component:**
+            - Summary (2-3 sentences): Connect the choices directly to evidence-based sources used in 
+              generation (NANDA-I taxonomy, NIC/NOC classifications, Ackley 2022, Doenges 2021) 
+              and explain how these standards guided the systematic selection process.
+            - Detailed (4-8 sentences): Explain the theoretical foundation: Which specific NANDA-I, NIC, 
+              or NOC classifications were referenced, how current nursing standards informed the decision, 
+              what evidence-based principles were applied, how this reflects current professional practice 
+              standards, and why these choices align with contemporary nursing education expectations.
 
-            Evidence-Based Support Summary:
-            [2–3 sentences: key evidence points with clinical guidelines or standards]
+            **Student Guidance Component:**
+            - Summary (2-3 sentences): Highlight the key systematic thinking skills students should develop 
+              to replicate this decision-making process in their own clinical practice.
+            - Detailed (4-8 sentences): Provide practical learning guidance: How students can apply the 
+              same prioritization frameworks in similar cases, what critical thinking questions to ask 
+              during each step, how to access and use NANDA-I/NIC/NOC resources effectively, common 
+              mistakes to avoid when applying these frameworks, practice exercises to master this 
+              systematic approach, and how to adapt this process for different patient populations.
 
-            Evidence-Based Support Detailed:
-            [4–8 sentences: explain the rationale and connect it to NANDA-I, NIC, NOC, 
-            and standard nursing references such as Ackley (2022) or Doenges (2021). 
-            Do not fabricate citations; attribute concepts broadly.]
+            **IMPORTANT PRINCIPLES:**
+            - Focus on teaching the SYSTEMATIC PROCESS that generated this NCP, not just content knowledge
+            - Explain the actual decision-making algorithms and frameworks used in generation
+            - Show students how to replicate the same clinical reasoning process
+            - Connect each section to the overall systematic methodology
+            - Emphasize the evidence-based selection criteria that were applied
+            - Help students understand the PROCESS behind each choice, not just the final result
+            - Demonstrate how this mirrors the systematic approach used in professional nursing practice
+            - Reference the specific generation steps (assessment analysis → diagnosis prioritization → NOC/NIC selection → implementation/evaluation)
 
-            Student Guidance Summary:
-            [2–3 sentences: main learning takeaways for students]
+            **CRITICAL OUTPUT FORMAT REQUIREMENTS:**
+            You MUST return your response as a valid JSON object with the exact structure below.
+            Do NOT include any text before or after the JSON.
+            Return ONLY the JSON object.
 
-            Student Guidance Detailed:
-            [4–8 sentences: practical learning pathway including reflection questions, 
-            case application examples, common mistakes to avoid, and skill-building exercises]
+            **REQUIRED JSON STRUCTURE:**
+            {{
+                "diagnosis": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining the systematic thinking process used",
+                        "detailed": "4-8 sentences walking through step-by-step clinical reasoning"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting choices to evidence-based sources",
+                        "detailed": "4-8 sentences explaining theoretical foundation and standards"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting key systematic thinking skills",
+                        "detailed": "4-8 sentences providing practical learning guidance"
+                    }}
+                }},
+                "outcomes": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining outcome selection process",
+                        "detailed": "4-8 sentences walking through NOC outcome selection reasoning"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to NOC standards",
+                        "detailed": "4-8 sentences explaining NOC classification alignment"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting outcome development skills",
+                        "detailed": "4-8 sentences providing SMART goal development guidance"
+                    }}
+                }},
+                "interventions": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining intervention selection process",
+                        "detailed": "4-8 sentences walking through NIC intervention selection reasoning"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to NIC standards",
+                        "detailed": "4-8 sentences explaining NIC classification alignment"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting intervention planning skills",
+                        "detailed": "4-8 sentences providing evidence-based intervention guidance"
+                    }}
+                }},
+                "rationale": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining rationale development process",
+                        "detailed": "4-8 sentences walking through evidence-based rationale creation"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to nursing literature",
+                        "detailed": "4-8 sentences explaining research and evidence base"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting critical thinking for rationales",
+                        "detailed": "4-8 sentences providing rationale development guidance"
+                    }}
+                }},
+                "implementation": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining implementation approach",
+                        "detailed": "4-8 sentences walking through systematic implementation process"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to practice standards",
+                        "detailed": "4-8 sentences explaining professional practice alignment"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting implementation skills",
+                        "detailed": "4-8 sentences providing practical implementation guidance"
+                    }}
+                }},
+                "evaluation": {{
+                    "clinical_reasoning": {{
+                        "summary": "2-3 sentences explaining evaluation methodology",
+                        "detailed": "4-8 sentences walking through systematic evaluation process"
+                    }},
+                    "evidence_based_support": {{
+                        "summary": "2-3 sentences connecting to outcome measurement standards",
+                        "detailed": "4-8 sentences explaining evidence-based evaluation methods"
+                    }},
+                    "student_guidance": {{
+                        "summary": "2-3 sentences highlighting evaluation skills",
+                        "detailed": "4-8 sentences providing outcome evaluation guidance"
+                    }}
+                }}
+            }}
 
-            IMPORTANT RULES:
-            - Use the exact headers above
-            - Each explanation must be clear, professional, and educational
-            - Avoid special characters like quotes/apostrophes that may cause parsing issues
-            - If multiple valid options exist, explain why the chosen option is appropriate 
-            and what alternatives could be considered
+            **JSON FORMATTING RULES:**
+            - Use only the sections that exist in the provided NCP
+            - Each section must have all three components: clinical_reasoning, evidence_based_support, student_guidance
+            - Each component must have both summary and detailed explanations
+            
+            **ASSESSMENT CONTEXT:**
+            {assessment_context}
+            
+            **DIAGNOSIS REASONING:**
+            {diagnosis_reasoning}
 
-            Here is the NCP data:
+            Here is the NCP data to explain (generated using the systematic process described above):
         """
 
         for section in available_sections:
@@ -407,22 +664,96 @@ async def generate_explanation(request_data: Dict) -> Dict:
             """
 
         explanation_prompt += """
-            Now provide explanations for each section in the exact format specified above.
+            Now provide explanations for each section in the exact format specified above, 
+            teaching students the systematic clinical reasoning process and evidence-based 
+            frameworks that were actually used to generate this NCP. Focus on the METHODOLOGY 
+            and DECISION-MAKING ALGORITHMS rather than just content knowledge. Help students 
+            understand how to replicate this systematic approach in their own clinical practice.
         """
 
-        # Generate explanation using Gemini
+        # Generate explanation using Gemini 2.5 Pro
         logger.info("Calling Gemini API for enhanced explanation generation")
-        response = model.generate_content(explanation_prompt)
+        
+        # Configure Gemini model
+        generation_config = {
+            "temperature": 0.3,
+            "top_p": 1,
+            "top_k": 1,
+            "max_output_tokens": 10000,
+        }
+
+        model = genai.GenerativeModel(
+            model_name="gemini-2.5-pro",
+            generation_config=generation_config
+        )
+
+        response = await call_gemini_with_cancellation(request, model, explanation_prompt)
                 
         if not response or not response.text:
             raise Exception("No response from AI model")
 
-        # Parse the AI response
+        # Parse the AI response as JSON
         ai_explanation = response.text.strip()
         logger.info(f"Received AI explanation length: {len(ai_explanation)} characters")
         
-        # Parse the plain text response into our JSON structure
-        explanations = parse_explanation_text(ai_explanation, available_sections)
+        # Clean the response - remove markdown code blocks if present
+        cleaned_response = ai_explanation
+        if cleaned_response.startswith('```json'):
+            cleaned_response = cleaned_response[7:]  # Remove ```json
+        elif cleaned_response.startswith('```'):
+            cleaned_response = cleaned_response[3:]   # Remove ```
+        
+        if cleaned_response.endswith('```'):
+            cleaned_response = cleaned_response[:-3]  # Remove closing ```
+        
+        cleaned_response = cleaned_response.strip()
+        logger.info(f"Cleaned response preview: {cleaned_response[:200]}...")
+        
+        # Parse the JSON response directly
+        try:
+            explanations = json.loads(cleaned_response)
+            logger.info(f"Successfully parsed JSON explanations for sections: {list(explanations.keys())}")
+            
+            # Validate that we have the expected structure
+            for section in available_sections:
+                if section not in explanations:
+                    logger.warning(f"Missing section {section} in AI response, adding fallback")
+                    explanations[section] = {
+                        'clinical_reasoning': {
+                            'summary': f'Clinical reasoning for this {section.replace("_", " ")} component involves systematic analysis of patient data.',
+                            'detailed': f'The {section.replace("_", " ")} component requires comprehensive clinical thinking and evidence-based decision making.'
+                        },
+                        'evidence_based_support': {
+                            'summary': f'Evidence-based nursing practice supports comprehensive {section.replace("_", " ")} documentation.',
+                            'detailed': f'Current nursing literature emphasizes the importance of thorough {section.replace("_", " ")} documentation for quality outcomes.'
+                        },
+                        'student_guidance': {
+                            'summary': f'Students should understand the purpose and components of effective {section.replace("_", " ")}.',
+                            'detailed': f'Learning objectives include theoretical foundation and practical application in {section.replace("_", " ")}.'
+                        }
+                    }
+            
+        except json.JSONDecodeError as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            logger.error(f"Cleaned response text: {cleaned_response}")
+            # Fallback to empty structure if JSON parsing fails
+            explanations = {
+                section: {
+                    'clinical_reasoning': {
+                        'summary': f'Clinical reasoning for this {section.replace("_", " ")} component involves systematic analysis of patient data.',
+                        'detailed': f'The {section.replace("_", " ")} component requires comprehensive clinical thinking and evidence-based decision making.'
+                    },
+                    'evidence_based_support': {
+                        'summary': f'Evidence-based nursing practice supports comprehensive {section.replace("_", " ")} documentation.',
+                        'detailed': f'Current nursing literature emphasizes the importance of thorough {section.replace("_", " ")} documentation for quality outcomes.'
+                    },
+                    'student_guidance': {
+                        'summary': f'Students should understand the purpose and components of effective {section.replace("_", " ")}.',
+                        'detailed': f'Learning objectives include theoretical foundation and practical application in {section.replace("_", " ")}.'
+                    }
+                }
+                for section in available_sections
+            }
         
         logger.info(f"Successfully parsed explanations for sections: {list(explanations.keys())}")
         logger.info(f"Explanations: {explanations}")
@@ -433,24 +764,28 @@ async def generate_explanation(request_data: Dict) -> Dict:
         raise Exception(f"Failed to generate explanation: {str(e)}")
 
 @app.post("/api/parse-manual-assessment")
-async def parse_manual_assessment(request_data: Dict) -> Dict:
+async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
     """
-    Generate detailed, database-aligned keywords from manual assessment data.
+    Generate detailed, database-aligned keywords from comprehensive manual assessment data.
     """
     # Start NCP request tracking
     request_id = start_ncp_request(request_data, "manual_assessment")
     
     try:
-        subjective_data = request_data.get('subjective', [])
-        objective_data = request_data.get('objective', [])
+        # Validate the comprehensive form data
+        if not validate_assessment_data(request_data):
+            raise HTTPException(
+                status_code=400,
+                detail="Invalid assessment data format. Please ensure all required fields are provided."
+            )
         
-        subjective_text = '\n'.join(f"- {item}" for item in subjective_data)
-        objective_text = '\n'.join(f"- {item}" for item in objective_data)
+        logger.info("Processing comprehensive form format for manual assessment parsing")
+        formatted_assessment = format_structured_data(request_data)
         
         prompt = f"""
         You are a clinical expert specializing in NANDA-I nursing diagnosis matching with deep knowledge of nursing diagnosis terminology, defining characteristics, related factors, risk factors, associated conditions, and at risk populations.
 
-        Your task is to analyze assessment data and extract detailed clinical keywords that will match entries in a NANDA-I nursing diagnosis database. The database contains diagnoses with these key fields:
+        Your task is to analyze comprehensive assessment data and extract detailed clinical keywords that will match entries in a NANDA-I nursing diagnosis database. The database contains diagnoses with these key fields:
         - Diagnosis names
         - Defining characteristics (signs/symptoms)
         - Related factors (etiologies/causes)
@@ -458,17 +793,17 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         - Associated conditions (medical comorbidities/pathophysiology)
         - At risk populations (demographics/clinical states)
 
-        ASSESSMENT DATA TO ANALYZE:
-        SUBJECTIVE: {subjective_text}
-        OBJECTIVE: {objective_text}
+        COMPREHENSIVE ASSESSMENT DATA TO ANALYZE:
+        {formatted_assessment}
 
         INSTRUCTIONS:
         1. Extract ONLY keywords directly supported by the assessment data (no assumptions).
         2. Normalize raw findings into standard clinical terminology aligned with NANDA-I 
         (e.g., "shortness of breath" → dyspnea, "RR 28" → tachypnea, "SpO₂ 89%" → hypoxemia).
         3. Include both actual problems (current symptoms/conditions) and potential risks (predisposing factors).
-        4. Capture physiological, psychological, and safety-related findings.
+        4. Capture physiological, psychological, and safety-related findings from all sections.
         5. Prefer precise medical/nursing terms. Include both lay and NANDA terms if needed for matching.
+        6. Consider demographics, vital signs, physical examination, history, and all clinical data provided.
 
         QUALITY CHECKS:
         - Do NOT add findings not present in the data.
@@ -482,31 +817,38 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         Each keyword should be lowercase unless it is a proper medical acronym.
         """
 
-        response = model.generate_content(prompt)
+        response = await call_claude_with_cancellation(
+            request,
+            claude_client,
+            model=CLAUDE_MODEL,
+            max_tokens=CLAUDE_MAX_TOKENS,
+            temperature=CLAUDE_TEMPERATURE,
+            messages=[
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        )
         
-        # Track this API call
+        # Track this API call for comprehensive form
         track_api_call(
             response,
             step="parse_assessment",
-            operation="Manual Assessment Parsing",
-            has_subjective=bool(subjective_data),
-            has_objective=bool(objective_data),
-            subjective_count=len(subjective_data),
-            objective_count=len(objective_data)
+            operation="Manual Assessment Parsing (Comprehensive)",
+            has_comprehensive_data=True,
+            data_fields_count=len([k for k, v in request_data.items() if v and v != ''])
         )
         
-        keywords = response.text.strip()
+        keywords = response.content[0].text.strip()
         
         result = {
-            "original_assessment": {
-                "subjective": subjective_data,
-                "objective": objective_data
-            },
+            "original_assessment": request_data,
             "embedding_keywords": keywords,
             "request_id": request_id
         }
         
-        logger.info(f"Generated detailed keywords: {keywords}")
+        logger.info(f"Generated detailed keywords from comprehensive assessment: {keywords}")
         return result
         
     except Exception as e:
@@ -527,7 +869,7 @@ async def parse_manual_assessment(request_data: Dict) -> Dict:
         )
 
 @app.post("/api/suggest-diagnoses")
-async def suggest_diagnoses(assessment_data: Dict) -> Dict:
+async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
     """Use original assessment + keywords for diagnosis matching."""
     try:
         # Extract the keywords and original data
@@ -569,7 +911,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
         selected_diagnosis = await matcher.select_best_diagnosis(original_assessment, candidates)
         
         # Generate NCP using ORIGINAL assessment data
-        ncp_data = await generate_structured_ncp(original_assessment, selected_diagnosis)
+        ncp_data = await generate_structured_ncp(request, original_assessment, selected_diagnosis)
         
         # Complete the NCP request with success
         final_result = {**selected_diagnosis, "ncp": ncp_data}
@@ -593,7 +935,7 @@ async def suggest_diagnoses(assessment_data: Dict) -> Dict:
             }
         )
 
-async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dict, max_retries: int = 3) -> Dict:
+async def generate_structured_ncp(request: Request, assessment_data: Dict, selected_diagnosis: Dict, max_retries: int = 3) -> Dict:
     """
     Generate a structured NCP in JSON format with validation and retry logic.
     """
@@ -629,19 +971,22 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
         - Ensure that interventions and outcomes logically flow from the chief complaint and diagnosis, not from unrelated concerns.
 
         **REQUIREMENTS:**
-        1. Use the selected diagnosis as the primary nursing diagnosis
-        2. Base all outcomes and interventions on NOC and NIC standards
-        3. Use the suggested outcomes/interventions as starting points, but adapt them to the specific patient
-        4. If suggested outcomes/interventions are not provided, generate appropriate NOC/NIC based options
-        5. Always customize interventions and outcomes to the specific assessment findings provided. Avoid generic textbook-only wording.
-        6. Ensure logical connections between all components
-        7. Flexible intervention categories: Use only applicable categories (independent/dependent/collaborative)
-        8. SMART outcomes: Follow SMART criteria for all outcome statements
-        9. Return ONLY valid JSON with no additional text
-
+        1. Use the selected diagnosis as the primary nursing diagnosis.
+        2. Base all outcomes and interventions on official NOC and NIC standards.
+        3. Use the suggested outcomes/interventions as starting points, but adapt them to the specific patient.
+        4. If suggested outcomes/interventions are not provided, generate appropriate NOC/NIC-based options.
+        5. Customize all outcomes and interventions to the specific assessment findings provided. Avoid generic textbook wording.
+        6. Ensure logical cause-and-effect connections between all components.
+        7. Use only applicable intervention categories (independent, dependent, collaborative).
+        8. SMART outcomes: Each outcome must be **Specific, Measurable, Achievable, Relevant, and Time-bound**.
+        9. **Explicit Outcome–Intervention Alignment Rule:**
+        - For every individual outcome statement, there must be corresponding intervention(s) that directly support achieving that specific outcome.
+        - Group and label each intervention under the outcome it is intended to achieve.
+        - The rationale for each intervention must explain how it facilitates or contributes to meeting its linked outcome.
+        10. Return ONLY valid JSON with no additional text.
 
         **RATIONALE GUIDELINES:**
-        When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook 13th Ed, Doenges, M. E., et al. (2021). Nurse's Pocket Guide, 15th Edition, NIC/NOC textbooks, official NIC/NOC classifications, CDC/WHO guidelines, etc.). Do not cite page numbers or overly specific details — keep citations broad but verifiable.
+        When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook 13th Ed, Doenges et al., 2021; NIC/NOC textbooks; CDC/WHO guidelines). Avoid citing page numbers or overly specific details—keep citations broad but verifiable.
 
         **OUTPUT FORMAT (JSON ONLY):**
         {{
@@ -735,22 +1080,21 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
             "evaluation": {{
                 "short_term": {{
                     "Met": {{
-                        "after 24 hours of nursing interventions, the patient": [
-                            "Demonstrated correct inhaler technique independently with 100% accuracy",
-                            "Verbalized 3 energy conservation techniques accurately"
+                        "after 24 hours": [
+                            "Patient demonstrated correct inhaler use with 100% accuracy.",
+                            "Patient maintained SpO2 ≥ 95% during activity."
                         ]
                     }},
                     "Partially Met": {{
-                        "after 48 hours of nursing interventions, the patient": [
-                            "Maintained SpO2 ≥ 95% at rest but dropped to 92% during ambulation"
+                        "after 48 hours": [
+                            "Patient maintained SpO2 ≥ 95% at rest but dropped during exertion."
                         ]
                     }}
                 }},
                 "long_term": {{
                     "Met": {{
-                        "after 5 days of nursing interventions, the patient": [
-                            "Ambulated 100 feet without dyspnea or oxygen desaturation",
-                            "Performed all ADLs independently without fatigue"
+                        "after 5 days": [
+                            "Patient ambulated 100 feet without dyspnea or desaturation."
                         ]
                     }}
                 }}
@@ -791,22 +1135,37 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
 
         **Outcomes Grouping Rules:**
         - Group outcomes by identical timeframes
-        - Use clinically appropriate and realistic timeframes for nursing students (within 2 hours, within 8 hours, within 24 hours, within 5 days, before end of shift, etc.)
+        - Use clinically appropriate and realistic timeframes for nursing students' duty shifts 
         - Ensure each timeframe group has related, achievable outcomes
+        - Each outcome must have at least one matching intervention that logically supports it.
+        - Rationales should always justify *how* and *why* the intervention leads to achieving the outcome.
+        - Avoid listing interventions without a clear linked objective.
+        - Group all interventions under their related outcome for transparency and instructional clarity.
         
         **Evaluation Grouping Rules:**
-        - Group by status (Met / Partially Met)
-        - Within each status, group by timeframe
-        - List specific evidence under each timeframe-status combination
-        - Use past tense and measurable evidence
+        - Group by status (Met / Partially Met).
+        - Use measurable indicators and past tense verbs.
+        - Clearly reflect if linked outcomes were achieved based on related interventions.
     """
-    
+
     # Retry logic
     for attempt in range(max_retries):
         try:
             logger.info(f"Generating structured NCP - Attempt {attempt + 1}")
             
-            response = model.generate_content(ncp_prompt)
+            response = await call_claude_with_cancellation(
+                request,
+                claude_client,
+                model=CLAUDE_MODEL,
+                max_tokens=CLAUDE_MAX_TOKENS,
+                temperature=CLAUDE_TEMPERATURE,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": ncp_prompt
+                    }
+                ]
+            )
             
             # Track this API call
             track_api_call(
@@ -819,11 +1178,11 @@ async def generate_structured_ncp(assessment_data: Dict, selected_diagnosis: Dic
                 assessment_type=assessment_data.get('type', 'unknown')
             )
             
-            if not response or not response.text:
+            if not response or not response.content:
                 raise Exception("No response from AI model")
             
             # Parse JSON response
-            raw_response = response.text.strip()
+            raw_response = response.content[0].text.strip()
             logger.info(f"Raw response from AI: {raw_response}")
             
             # Clean and extract JSON            

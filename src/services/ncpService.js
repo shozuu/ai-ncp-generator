@@ -6,19 +6,26 @@ const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
 export const ncpService = {
-  async generateComprehensiveNCP(assessmentData) {
+  async generateComprehensiveNCP(assessmentData, abortSignal = null) {
     try {
       console.log(
         'Generating comprehensive NCP with structured data:',
         assessmentData
       )
 
+      const config = {
+        headers: { 'Content-Type': 'application/json' },
+      }
+
+      // Add abort signal if provided
+      if (abortSignal) {
+        config.signal = abortSignal
+      }
+
       const response = await axios.post(
         `${API_BASE_URL}/api/suggest-diagnoses`,
         assessmentData,
-        {
-          headers: { 'Content-Type': 'application/json' },
-        }
+        config
       )
 
       const result = response.data
@@ -187,16 +194,23 @@ export const ncpService = {
     if (error) throw error
   },
 
-  async parseManualAssessment(manualData) {
+  async parseManualAssessment(manualData, abortSignal = null) {
     try {
       console.log('Parsing manual assessment data:', manualData)
+
+      const config = {
+        headers: { 'Content-Type': 'application/json' },
+      }
+
+      // Add abort signal if provided
+      if (abortSignal) {
+        config.signal = abortSignal
+      }
 
       const response = await axios.post(
         `${API_BASE_URL}/api/parse-manual-assessment`,
         manualData,
-        {
-          headers: { 'Content-Type': 'application/json' },
-        }
+        config
       )
 
       return response.data

@@ -1,4 +1,6 @@
 <script setup>
+import EditingHelp from '@/components/ncp/EditingHelp.vue'
+import EditingPreview from '@/components/ncp/EditingPreview.vue'
 import RenameNCPDialog from '@/components/ncp/RenameNCPDialog.vue'
 import StructuredNCPRenderer from '@/components/ncp/StructuredNCPRenderer.vue'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -325,7 +327,7 @@ onMounted(() => {
           target="_blank"
           rel="noopener noreferrer"
           variant="link"
-          class="inline-flex items-center px-1"
+          class="inline-flex items-center px-1 text-wrap"
         >
           Ackley and Ladwig’s Nursing Diagnosis Handbook (13th Edition).
         </Button>
@@ -337,7 +339,6 @@ onMounted(() => {
         Users are encouraged to review and modify the plan as needed to ensure
         it aligns with the latest patient assessment and clinical standards.
         <template v-if="hasPlaceholderColumns">
-          <br />
           Additionally, the <strong>Implementation</strong> and/or
           <strong>Evaluation</strong> columns contain placeholder data that
           should be verified and updated based on the latest patient assessment.
@@ -373,19 +374,75 @@ onMounted(() => {
           />
         </colgroup>
         <thead class="bg-muted sticky top-0 z-10 min-w-[200px]">
+          <!-- First row: Main section headers -->
           <tr class="border-b">
+            <!-- Assessment column (single column) -->
             <th
-              v-for="column in columns"
-              :key="column.key"
-              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-left border min-w-[200px] h-auto"
+              v-if="columns.some(col => col.key === 'assessment')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
             >
-              {{ column.label }}
-              <span
-                v-if="column.key === 'assessment'"
-                class="text-xs text-muted-foreground ml-1"
-              >
+              Assessment
+              <span class="text-xs text-muted-foreground ml-1 block mt-1">
                 (Read-only)
               </span>
+            </th>
+
+            <!-- Diagnosis column (single column) -->
+            <th
+              v-if="columns.some(col => col.key === 'diagnosis')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
+            >
+              Diagnosis
+            </th>
+
+            <!-- Planning section (spans 3 columns: Objectives, Interventions, Rationale) -->
+            <th
+              v-if="
+                columns.some(col =>
+                  ['outcomes', 'interventions', 'rationale'].includes(col.key)
+                )
+              "
+              :colspan="
+                columns.filter(col =>
+                  ['outcomes', 'interventions', 'rationale'].includes(col.key)
+                ).length
+              "
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto"
+            >
+              Planning
+            </th>
+
+            <!-- Implementation column (single column) -->
+            <th
+              v-if="columns.some(col => col.key === 'implementation')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
+            >
+              Implementation
+            </th>
+
+            <!-- Evaluation column (single column) -->
+            <th
+              v-if="columns.some(col => col.key === 'evaluation')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
+            >
+              Evaluation
+            </th>
+          </tr>
+
+          <!-- Second row: Individual column headers (only for Planning columns) -->
+          <tr class="border-b">
+            <th
+              v-for="column in columns.filter(col =>
+                ['outcomes', 'interventions', 'rationale'].includes(col.key)
+              )"
+              :key="column.key"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto"
+            >
+              {{ column.label }}
             </th>
           </tr>
         </thead>
@@ -415,13 +472,23 @@ onMounted(() => {
                 v-else-if="
                   editableColumnsInFormat.some(col => col.key === column.key)
                 "
+                class="space-y-2"
               >
+                <EditingHelp :column-key="column.key" />
                 <Textarea
                   v-model="formData[column.key]"
                   :placeholder="`Enter ${column.label.toLowerCase()}...`"
-                  class="min-h-[50vh] resize-none focus:ring-2 focus:ring-primary"
+                  class="min-h-[50vh] resize-none focus:ring-2 focus:ring-primary font-mono text-xs"
                   :disabled="isSaving"
                 />
+                <div class="">
+                  <EditingPreview
+                    :text-data="formData[column.key]"
+                    :column-key="column.key"
+                    :column-label="column.label"
+                    :full-ncp="ncp"
+                  />
+                </div>
               </div>
             </td>
           </tr>

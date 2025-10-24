@@ -65,10 +65,36 @@ class NCPRequestTracker:
             "type": "unknown"
         }
         
-        # Check if this is manual assessment format
-        if 'subjective' in assessment_data and 'objective' in assessment_data:
+        # Check if this is the new comprehensive manual form format
+        if any(key in assessment_data for key in ['age', 'sex', 'general_condition', 'onset_duration', 'heart_rate_bpm']):
+            # Count non-empty fields
+            filled_fields = len([k for k, v in assessment_data.items() if v and str(v).strip()])
+            
+            # Identify key sections that have data
+            sections_with_data = []
+            if assessment_data.get('age') or assessment_data.get('sex'): sections_with_data.append('demographics')
+            if assessment_data.get('general_condition'): sections_with_data.append('chief_complaint')
+            if assessment_data.get('onset_duration') or assessment_data.get('severity_progression'): sections_with_data.append('history')
+            if assessment_data.get('risk_factors'): sections_with_data.append('risk_factors')
+            if assessment_data.get('medical_history'): sections_with_data.append('medical_history')
+            if assessment_data.get('family_history'): sections_with_data.append('family_history')
+            if assessment_data.get('heart_rate_bpm') or assessment_data.get('blood_pressure_mmhg'): sections_with_data.append('vital_signs')
+            if assessment_data.get('height') or assessment_data.get('weight') or assessment_data.get('cephalocaudal_assessment'): sections_with_data.append('physical_exam')
+            if assessment_data.get('laboratory_results'): sections_with_data.append('lab_results')
+            if assessment_data.get('subjective'): sections_with_data.append('subjective_data')
+            if assessment_data.get('objective'): sections_with_data.append('objective_data')
+            
             summary.update({
-                "type": "manual",
+                "type": "comprehensive_manual",
+                "filled_fields_count": filled_fields,
+                "total_possible_fields": len(assessment_data),
+                "sections_with_data": sections_with_data,
+                "sections_count": len(sections_with_data)
+            })
+        # Check if this is legacy manual assessment format
+        elif 'subjective' in assessment_data and 'objective' in assessment_data and len(assessment_data) <= 3:
+            summary.update({
+                "type": "legacy_manual",
                 "subjective_count": len(assessment_data.get('subjective', [])),
                 "objective_count": len(assessment_data.get('objective', [])),
                 "has_subjective": bool(assessment_data.get('subjective')),
@@ -81,7 +107,7 @@ class NCPRequestTracker:
                 "has_original_assessment": bool(assessment_data.get('original_assessment'))
             })
         else:
-            # This might be structured assessment data
+            # This might be other structured assessment data
             summary["type"] = "structured"
             summary["fields_present"] = list(assessment_data.keys())
         
@@ -139,10 +165,14 @@ class NCPRequestTracker:
         # Extract token usage
         usage_data = self._extract_usage_metadata(response)
         
+        # Detect AI provider based on response object
+        ai_provider = self._detect_ai_provider(response)
+        
         api_call_data = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "step": step,
             "operation": operation,
+            "ai_provider": ai_provider,
             "usage": usage_data,
             "context": additional_context or {},
             "success": True
@@ -221,15 +251,54 @@ class NCPRequestTracker:
         return request_id
     
     def _extract_usage_metadata(self, response: Any) -> Optional[Dict]:
-        """Extract usage metadata from the response object."""
-        if hasattr(response, 'usage_metadata'):
+        """Extract usage metadata from the response object (supports both Gemini and Claude)."""
+        # Handle Claude response format
+        if hasattr(response, 'usage') and hasattr(response.usage, 'input_tokens'):
+            usage = response.usage
+            return {
+                'input_tokens': getattr(usage, 'input_tokens', 0),
+                'output_tokens': getattr(usage, 'output_tokens', 0),
+                'total_tokens': getattr(usage, 'input_tokens', 0) + getattr(usage, 'output_tokens', 0)
+            }
+        
+        # Handle Gemini response format (legacy support)
+        elif hasattr(response, 'usage_metadata'):
             metadata = response.usage_metadata
             return {
                 'input_tokens': getattr(metadata, 'prompt_token_count', 0),
                 'output_tokens': getattr(metadata, 'candidates_token_count', 0),
                 'total_tokens': getattr(metadata, 'total_token_count', 0)
             }
+        
+        # Return empty dict if no usage data found
         return {}
+    
+    def _detect_ai_provider(self, response: Any) -> str:
+        """Detect which AI provider was used based on response object."""
+        # Claude response has 'usage' attribute with 'input_tokens' and 'output_tokens'
+        if hasattr(response, 'usage') and hasattr(response.usage, 'input_tokens'):
+            return "Claude"
+        
+        # Gemini response has 'usage_metadata' attribute
+        elif hasattr(response, 'usage_metadata'):
+            return "Gemini"
+        
+        # Check for other Claude-specific attributes
+        elif hasattr(response, 'content') and hasattr(response, 'model'):
+            return "Claude"
+        
+        # Check for Gemini-specific attributes
+        elif hasattr(response, 'text') and hasattr(response, 'candidates'):
+            return "Gemini"
+        
+        # Fallback - check object type names
+        response_type = type(response).__name__
+        if 'claude' in response_type.lower() or 'anthropic' in response_type.lower():
+            return "Claude"
+        elif 'gemini' in response_type.lower() or 'generative' in response_type.lower():
+            return "Gemini"
+        
+        return "Unknown"
     
     def _save_request_data(self):
         """Save the current request data to a JSON file."""
@@ -265,12 +334,20 @@ class NCPRequestTracker:
         output_tokens = tokens["output_tokens"]
         total_billable = tokens["total_billable"]
         
+        # AI provider breakdown
+        provider_counts = {}
+        for call in req["api_calls"]:
+            provider = call.get("ai_provider", "Unknown")
+            provider_counts[provider] = provider_counts.get(provider, 0) + 1
+        
+        provider_summary = ", ".join([f"{provider}: {count}" for provider, count in provider_counts.items()])
+        
         summary = (
             f"NCP REQUEST COMPLETED - "
             f"ID: {req['request_id'][:8]}... | "
             f"Status: {req['status']} | "
             f"Duration: {req['duration_seconds']}s | "
-            f"API Calls: {total_calls} | "
+            f"API Calls: {total_calls} ({provider_summary}) | "
             f"Tokens: {total_billable:,} (Input: {input_tokens:,}, Output: {output_tokens:,}) | "
             f"Steps: {', '.join(req['steps_completed'])}"
         )

@@ -1,4 +1,5 @@
 <script setup>
+import BackgroundOperationsNotifier from '@/components/ui/BackgroundOperationsNotifier.vue'
 import { Toaster, ToastProvider } from '@/components/ui/toast'
 </script>
 
@@ -7,6 +8,7 @@ import { Toaster, ToastProvider } from '@/components/ui/toast'
     <ToastProvider>
       <router-view />
       <Toaster />
+      <BackgroundOperationsNotifier />
     </ToastProvider>
   </div>
 </template>

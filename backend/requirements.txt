@@ -2,6 +2,7 @@ fastapi
 uvicorn
 openai
 google-generativeai
+anthropic
 python-dotenv
 supabase
 python-multipart

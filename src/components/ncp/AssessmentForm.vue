@@ -1,39 +1,26 @@
 <script setup>
-import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
-import Switch from '@/components/ui/switch/Switch.vue'
+import { useBackgroundOperations } from '@/composables/useBackgroundOperations'
 import { useGenerationErrorHandler } from '@/composables/useGenerationErrorHandler'
 import { ncpService } from '@/services/ncpService'
 import { computed, ref } from 'vue'
-import AssistantModeForm from './AssistantModeForm.vue'
 import ManualModeForm from './ManualModeForm.vue'
-
-const isAssistantMode = ref(false)
 const isSubmitting = ref(false)
-const currentStep = ref('idle')
+const abortController = ref(null)
 
-const loadingMessages = computed(() => {
-  switch (currentStep.value) {
-    case 'parsing':
-      return ['Parsing manual assessment data...']
-    case 'generating':
-      return [
-        'Matching best diagnosis...',
-        'Building NCP structure...',
-        'Generating comprehensive care plan...',
-      ]
-    case 'saving':
-      return ['Saving to database...']
-    default:
-      return ['Processing...']
-  }
-})
-
+const {
+  startOperation,
+  completeOperation,
+  failOperation,
+  updateOperation,
+  hasActiveOperationType,
+} = useBackgroundOperations()
 const { handleError, handleSuccess } = useGenerationErrorHandler()
 
 const emit = defineEmits(['submit'])
 
-const currentMode = computed(() =>
-  isAssistantMode.value ? 'Assistant Mode' : 'Manual Mode'
+// Check if NCP generation is currently running
+const isNCPGenerationActive = computed(() =>
+  hasActiveOperationType('ncp-generation')
 )
 
 const props = defineProps({
@@ -43,72 +30,123 @@ const props = defineProps({
   },
 })
 
+// This function is no longer needed as cancellation is handled by the background operations system
+
 const handleSubmit = async data => {
+  // Prevent multiple concurrent NCP generations
+  if (isNCPGenerationActive.value) {
+    handleError({
+      message:
+        'An NCP generation is already in progress. Please wait for it to complete or cancel it first.',
+    })
+    return
+  }
+
   isSubmitting.value = true
+
+  // Create a new AbortController for this generation
+  abortController.value = new AbortController()
+
+  // Generate unique operation ID
+  const operationId = `ncp-generation-${Date.now()}`
+
   try {
+    // Start background operation
+    startOperation(operationId, 'ncp-generation', {
+      title: 'NCP Generation',
+      description: 'Parsing assessment data...',
+      abortController: abortController.value,
+      onComplete: result => {
+        if (result.ncp) {
+          const dataWithNCP = {
+            generatedNCP: result.ncp,
+            diagnosis: result.diagnosis,
+            savedNCPId: result.savedNCPId,
+          }
+          handleSuccess('complete', result.diagnosis?.diagnosis)
+          emit('submit', dataWithNCP)
+        } else {
+          const dataWithDiagnoses = {
+            ...result.structuredData,
+            diagnosis: result.diagnosis,
+          }
+          handleSuccess('partial', result.diagnosis?.diagnosis)
+          emit('submit', dataWithDiagnoses)
+        }
+      },
+      onError: error => {
+        handleError(error)
+      },
+    })
+
     let structuredData
 
-    if (isAssistantMode.value) {
-      structuredData = {
-        ...data,
-        format: props.selectedFormat,
-      }
-    } else {
-      currentStep.value = 'parsing'
-      handleSuccess('processing')
-      try {
-        const parsedData = await ncpService.parseManualAssessment(data)
-        // Use the parsed data directly - it contains original_assessment + embedding_keywords
-        structuredData = {
-          ...parsedData,
-          format: props.selectedFormat,
-        }
-        handleSuccess('processed')
-      } catch (parseError) {
-        let suggestion = ''
-        let errorMessage = parseError.message || ''
-        if (errorMessage.includes('suggestion')) {
-          const parts = errorMessage.split('suggestion:')
-          if (parts.length > 1) {
-            errorMessage = parts[0].replace('error:', '').trim()
-            suggestion = parts[1].trim()
-          }
-        }
-        handleError({ message: errorMessage }, { suggestion })
-        isSubmitting.value = false
-        return
-      }
-    }
+    // Step 1: Parse manual assessment
+    updateOperation(operationId, {
+      description: 'Parsing manual assessment data...',
+      progress: 20,
+    })
 
     try {
-      currentStep.value = 'generating'
-      handleSuccess('generating')
-
-      let result
-      result = await ncpService.generateComprehensiveNCP(structuredData)
-
-      currentStep.value = 'saving'
-      if (result.ncp) {
-        const dataWithNCP = {
-          generatedNCP: result.ncp,
-          diagnosis: result.diagnosis,
-          savedNCPId: result.savedNCPId,
-        }
-        handleSuccess('complete', result.diagnosis?.diagnosis)
-        emit('submit', dataWithNCP)
-      } else {
-        const dataWithDiagnoses = {
-          ...structuredData,
-          diagnosis: result.diagnosis,
-        }
-        handleSuccess('partial', result.diagnosis?.diagnosis)
-        emit('submit', dataWithDiagnoses)
+      const parsedData = await ncpService.parseManualAssessment(
+        data,
+        abortController.value.signal
+      )
+      structuredData = {
+        ...parsedData,
+        format: props.selectedFormat,
       }
+    } catch (parseError) {
+      // Check if it was cancelled
+      if (
+        parseError.name === 'AbortError' ||
+        parseError.name === 'CanceledError'
+      ) {
+        return // Exit silently for cancellation
+      }
+      throw parseError
+    }
+
+    // Step 2: Generate NCP
+    updateOperation(operationId, {
+      description: 'Generating comprehensive care plan...',
+      progress: 60,
+    })
+
+    try {
+      const result = await ncpService.generateComprehensiveNCP(
+        structuredData,
+        abortController.value.signal
+      )
+
+      // Step 3: Complete
+      updateOperation(operationId, {
+        description: 'Finalizing NCP...',
+        progress: 90,
+      })
+
+      // Complete the operation with the result
+      completeOperation(operationId, {
+        ...result,
+        structuredData,
+      })
     } catch (comprehensiveError) {
-      handleError(comprehensiveError)
-      emit('submit', structuredData)
+      // Check if it was cancelled
+      if (
+        comprehensiveError.name === 'AbortError' ||
+        comprehensiveError.name === 'CanceledError'
+      ) {
+        return // Exit silently for cancellation
+      }
+      throw comprehensiveError
     }
   } catch (error) {
+    // Check if it was cancelled
+    if (error.name === 'AbortError' || error.name === 'CanceledError') {
+      return // Exit silently for cancellation
+    }
+
+    // Handle other errors
     let suggestion = ''
     let errorMessage = error.message || ''
     if (errorMessage.includes('suggestion')) {
@@ -118,55 +156,45 @@ const handleSubmit = async data => {
         suggestion = parts[1].trim()
       }
     }
-    handleError({ message: errorMessage }, { suggestion })
+
+    failOperation(operationId, { message: errorMessage, suggestion })
   } finally {
     isSubmitting.value = false
-    currentStep.value = 'idle'
+    abortController.value = null
   }
 }
+
+// No need to expose cancellation - it's handled by background operations
 </script>
 
 <template>
-  <!-- loading overlay -->
-  <div
-    v-if="isSubmitting"
-    class="fixed inset-0 bg-background flex items-center justify-center z-50"
-  >
-    <LoadingIndicator :messages="loadingMessages" />
-  </div>
+  <!-- No more blocking overlay - operations run in background -->
 
   <!-- Main content -->
   <section class="space-y-8 w-full">
-    <!-- Assistant Toggle Section -->
-    <div
-      class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-muted"
-    >
+    <!-- Header Section -->
+    <div class="pb-2 border-b border-muted">
       <div>
-        <h2 class="text-lg font-bold">Patient Assessment</h2>
-        <p class="text-muted-foreground text-sm mb-4">
-          Enter your assessment details to generate an NCP.
-        </p>
-      </div>
 
-      <div class="flex items-center gap-2">
-        <Switch id="assistant-mode" v-model="isAssistantMode" />
-        <span
-          class="px-3 py-1 text-sm font-medium rounded-full whitespace-nowrap"
-          :class="
-            isAssistantMode
-              ? 'bg-primary text-primary-foreground'
-              : 'bg-secondary text-secondary-foreground'
-          "
+        <!-- Active generation warning -->
+        <div
+          v-if="isNCPGenerationActive"
+          class="mb-4 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
         >
-          {{ currentMode }}
-        </span>
+          <p class="text-amber-800 dark:text-amber-200 text-sm font-medium">
+            🔄 NCP generation is running in the background. You can navigate
+            freely, but please wait before starting a new generation.
+          </p>
+        </div>
       </div>
     </div>
 
     <!-- Form Section -->
     <div>
-      <AssistantModeForm v-if="isAssistantMode" @submit="handleSubmit" />
-      <ManualModeForm v-else @submit="handleSubmit" />
+      <ManualModeForm
+        @submit="handleSubmit"
+        :disabled="isNCPGenerationActive"
+      />
     </div>
   </section>
 </template>

@@ -22,7 +22,7 @@ export const sectionIcons = {
 export const sectionTitles = {
   assessment: 'Assessment',
   diagnosis: 'Nursing Diagnosis',
-  outcomes: 'Outcomes/Goals',
+  outcomes: 'Objectives/Goals',
   interventions: 'Interventions',
   rationale: 'Rationale',
   implementation: 'Implementation',
@@ -198,7 +198,6 @@ export const getAvailableSections = ncp => {
 
   const format = parseInt(ncp.format_type || '7')
   const allSections = [
-    'assessment',
     'diagnosis',
     'outcomes',
     'interventions',
@@ -206,7 +205,8 @@ export const getAvailableSections = ncp => {
     'implementation',
     'evaluation',
   ]
-  return allSections.slice(0, format)
+  // Adjust format to account for removed assessment section
+  return allSections.slice(0, format - 1)
 }
 
 /**
@@ -225,11 +225,11 @@ export const hasAnyValidExplanations = (explanation, availableSections) => {
 export const getAllNCPColumns = () => [
   { key: 'assessment', label: 'Assessment' },
   { key: 'diagnosis', label: 'Diagnosis' },
-  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'outcomes', label: 'Objectives' },
   { key: 'interventions', label: 'Interventions' },
   { key: 'rationale', label: 'Rationale' },
-  { key: 'implementation', label: 'Implementation' },
-  { key: 'evaluation', label: 'Evaluation' },
+  { key: 'implementation', label: 'Implementation', isPlaceholder: true },
+  { key: 'evaluation', label: 'Evaluation', isPlaceholder: true },
 ]
 
 /**
@@ -237,7 +237,7 @@ export const getAllNCPColumns = () => [
  */
 export const getEditableColumns = () => [
   { key: 'diagnosis', label: 'Diagnosis' },
-  { key: 'outcomes', label: 'Outcomes' },
+  { key: 'outcomes', label: 'Objectives' },
   { key: 'interventions', label: 'Interventions' },
   { key: 'rationale', label: 'Rationale' },
   { key: 'implementation', label: 'Implementation' },
@@ -253,42 +253,133 @@ export const formatStructuredNCPForDisplay = ncp => {
 
   const formatted = {}
 
+  // Helper function to safely format sections
+  const safeFormat = (section, formatter, sectionName) => {
+    try {
+      return formatter(section)
+    } catch (error) {
+      console.warn(`Error formatting ${sectionName} section:`, error)
+      console.log(`${sectionName} data:`, section)
+      // Return a fallback format
+      return [
+        {
+          type: 'text',
+          content: `Error displaying this section. Please try refreshing. Data: ${JSON.stringify(section)}`,
+          className: 'text-destructive',
+        },
+      ]
+    }
+  }
+
   // Format Assessment
   if (ncp.assessment) {
-    formatted.assessment = formatAssessmentSection(ncp.assessment)
+    formatted.assessment = safeFormat(
+      ncp.assessment,
+      formatAssessmentSection,
+      'assessment'
+    )
   }
 
   // Format Diagnosis
   if (ncp.diagnosis) {
-    formatted.diagnosis = formatDiagnosisSection(ncp.diagnosis)
+    formatted.diagnosis = safeFormat(
+      ncp.diagnosis,
+      formatDiagnosisSection,
+      'diagnosis'
+    )
   }
 
   // Format Outcomes
   if (ncp.outcomes) {
-    formatted.outcomes = formatOutcomesSection(ncp.outcomes)
+    formatted.outcomes = safeFormat(
+      ncp.outcomes,
+      formatOutcomesSection,
+      'outcomes'
+    )
   }
 
   // Format Interventions
   if (ncp.interventions) {
-    formatted.interventions = formatInterventionsSection(ncp.interventions)
+    formatted.interventions = safeFormat(
+      ncp.interventions,
+      formatInterventionsSection,
+      'interventions'
+    )
   }
 
-  // Format Rationale
+  // Format Rationale - with error recovery
   if (ncp.rationale) {
-    formatted.rationale = formatRationaleSection(
-      ncp.rationale,
-      ncp.interventions
-    )
+    try {
+      const rationaleItems = formatRationaleSection(
+        ncp.rationale,
+        ncp.interventions
+      )
+
+      // Extra check: if no items were formatted but rationale exists,
+      // try to display it as raw content
+      if (rationaleItems.length === 0 && ncp.rationale) {
+        // Try to extract any meaningful content from the rationale object
+        if (typeof ncp.rationale === 'string' && ncp.rationale.trim()) {
+          rationaleItems.push({
+            type: 'text',
+            content: ncp.rationale.trim(),
+          })
+        } else if (
+          typeof ncp.rationale === 'object' &&
+          ncp.rationale !== null
+        ) {
+          // Show the raw JSON as a fallback if nothing else works
+          rationaleItems.push({
+            type: 'text',
+            content:
+              'Rationale data could not be formatted properly. Please edit this section to fix the display.',
+            className: 'text-muted-foreground text-xs mb-2',
+          })
+          rationaleItems.push({
+            type: 'text',
+            content: JSON.stringify(ncp.rationale, null, 2),
+            className: 'font-mono text-xs bg-muted p-2 rounded',
+          })
+        }
+      }
+
+      formatted.rationale = rationaleItems
+    } catch (error) {
+      console.error('Error formatting rationale section:', error)
+
+      // Fallback: show error message and raw data
+      formatted.rationale = [
+        {
+          type: 'text',
+          content:
+            'Error displaying rationale section. Please edit this section to fix the display.',
+          className: 'text-destructive text-sm mb-2',
+        },
+        {
+          type: 'text',
+          content: JSON.stringify(ncp.rationale, null, 2),
+          className: 'font-mono text-xs bg-muted p-2 rounded',
+        },
+      ]
+    }
   }
 
   // Format Implementation
   if (ncp.implementation) {
-    formatted.implementation = formatImplementationSection(ncp.implementation)
+    formatted.implementation = safeFormat(
+      ncp.implementation,
+      formatImplementationSection,
+      'implementation'
+    )
   }
 
   // Format Evaluation
   if (ncp.evaluation) {
-    formatted.evaluation = formatEvaluationSection(ncp.evaluation)
+    formatted.evaluation = safeFormat(
+      ncp.evaluation,
+      formatEvaluationSection,
+      'evaluation'
+    )
   }
 
   return formatted
@@ -350,6 +441,145 @@ const formatDiagnosisSection = diagnosis => {
 const formatOutcomesSection = outcomes => {
   const items = []
 
+  // Check if outcomes is a string (plain text format) and handle it
+  if (typeof outcomes === 'string') {
+    // Parse plain text outcomes
+    const lines = outcomes
+      .split('\n')
+      .map(line => line.trim())
+      .filter(line => line.length > 0)
+    let currentSection = null
+
+    lines.forEach(line => {
+      const lowerLine = line.toLowerCase()
+
+      if (lowerLine.includes('short') && lowerLine.includes('term')) {
+        currentSection = 'short'
+        items.push({
+          type: 'subheading',
+          content: 'Short-term',
+          className: 'font-semibold text-xs mb-2',
+        })
+      } else if (lowerLine.includes('long') && lowerLine.includes('term')) {
+        currentSection = 'long'
+        items.push({
+          type: 'subheading',
+          content: 'Long-term',
+          className: 'font-semibold text-xs mb-2 mt-4',
+        })
+      } else if (line.startsWith('-') || line.startsWith('*')) {
+        items.push({
+          type: 'bullet',
+          content: line.replace(/^[-*]\s*/, ''),
+        })
+      } else if (line && currentSection) {
+        items.push({
+          type: 'text',
+          content: line,
+        })
+      }
+    })
+
+    return items
+  }
+
+  // Helper function to process timeframes (handles multiple data structures)
+  const processTimeframes = timeframesData => {
+    if (!timeframesData) return []
+
+    const items = []
+
+    // Structure 1: timeframes is an array of objects with timeframe and outcomes properties
+    // Example: [{ timeframe: "Within 1 hour", outcomes: [...] }, ...]
+    if (Array.isArray(timeframesData)) {
+      timeframesData.forEach((timeframeObj, index) => {
+        if (timeframeObj && typeof timeframeObj === 'object') {
+          const timeframeLabel =
+            timeframeObj.timeframe || `Timeframe ${index + 1}`
+          const outcomes = timeframeObj.outcomes || []
+
+          items.push({
+            type: 'timeframe',
+            content: timeframeLabel,
+            className:
+              'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
+          })
+
+          if (Array.isArray(outcomes)) {
+            outcomes.forEach(outcome => {
+              if (outcome && typeof outcome === 'string') {
+                items.push({
+                  type: 'bullet',
+                  content: outcome,
+                })
+              }
+            })
+          }
+        }
+      })
+    }
+    // Structure 2: timeframes is an object with numeric string keys
+    // Example: { "0": { timeframe: "Within 1 hour", outcomes: [...] }, "1": {...} }
+    else if (typeof timeframesData === 'object') {
+      const keys = Object.keys(timeframesData)
+
+      // Check if keys are numeric (Structure 2)
+      const areNumericKeys = keys.every(key => !isNaN(key))
+
+      if (areNumericKeys) {
+        Object.values(timeframesData).forEach((timeframeObj, index) => {
+          if (timeframeObj && typeof timeframeObj === 'object') {
+            const timeframeLabel =
+              timeframeObj.timeframe || `Timeframe ${index + 1}`
+            const outcomes = timeframeObj.outcomes || []
+
+            items.push({
+              type: 'timeframe',
+              content: timeframeLabel,
+              className:
+                'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
+            })
+
+            if (Array.isArray(outcomes)) {
+              outcomes.forEach(outcome => {
+                if (outcome && typeof outcome === 'string') {
+                  items.push({
+                    type: 'bullet',
+                    content: outcome,
+                  })
+                }
+              })
+            }
+          }
+        })
+      } else {
+        // Structure 3: timeframes is an object with timeframe names as keys
+        // Example: { "Within 1 hour": [...], "Within 4 hours": [...] }
+        Object.entries(timeframesData).forEach(([timeframeLabel, outcomes]) => {
+          items.push({
+            type: 'timeframe',
+            content: timeframeLabel,
+            className:
+              'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
+          })
+
+          if (Array.isArray(outcomes)) {
+            outcomes.forEach(outcome => {
+              if (outcome && typeof outcome === 'string') {
+                items.push({
+                  type: 'bullet',
+                  content: outcome,
+                })
+              }
+            })
+          }
+        })
+      }
+    }
+    return items
+  }
+
+  // Handle structured format
   if (outcomes.short_term && outcomes.short_term.timeframes) {
     items.push({
       type: 'subheading',
@@ -357,22 +587,11 @@ const formatOutcomesSection = outcomes => {
       className: 'font-semibold text-xs mb-2',
     })
 
-    Object.entries(outcomes.short_term.timeframes).forEach(
-      ([timeframe, outcomeList]) => {
-        items.push({
-          type: 'timeframe',
-          content: timeframe,
-          className:
-            'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
-        })
-        outcomeList.forEach(outcome => {
-          items.push({
-            type: 'bullet',
-            content: outcome,
-          })
-        })
-      }
+    const shortTermItems = processTimeframes(
+      outcomes.short_term.timeframes,
+      'short-term'
     )
+    items.push(...shortTermItems)
   }
 
   if (outcomes.long_term && outcomes.long_term.timeframes) {
@@ -382,22 +601,48 @@ const formatOutcomesSection = outcomes => {
       className: 'font-semibold text-xs mb-2 mt-4',
     })
 
-    Object.entries(outcomes.long_term.timeframes).forEach(
-      ([timeframe, outcomeList]) => {
-        items.push({
-          type: 'timeframe',
-          content: timeframe,
-          className:
-            'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
-        })
-        outcomeList.forEach(outcome => {
-          items.push({
-            type: 'bullet',
-            content: outcome,
-          })
-        })
-      }
+    const longTermItems = processTimeframes(
+      outcomes.long_term.timeframes,
+      'long-term'
     )
+    items.push(...longTermItems)
+  }
+
+  // Fallback: if no items were added but outcomes exist, try to process as a generic object
+  if (items.length === 0 && outcomes && typeof outcomes === 'object') {
+    // Try to find outcome arrays in the structure
+    const findOutcomesRecursively = (obj, prefix = '') => {
+      const foundItems = []
+
+      Object.entries(obj).forEach(([key, value]) => {
+        if (Array.isArray(value) && value.length > 0) {
+          // Check if this looks like an outcomes array
+          const isOutcomeArray = value.every(item => typeof item === 'string')
+          if (isOutcomeArray) {
+            foundItems.push({
+              type: 'subheading',
+              content: prefix ? `${prefix} - ${key}` : key,
+              className: 'font-semibold text-xs mb-2 mt-2',
+            })
+
+            value.forEach(outcome => {
+              foundItems.push({
+                type: 'bullet',
+                content: outcome,
+              })
+            })
+          }
+        } else if (typeof value === 'object' && value !== null) {
+          const nestedItems = findOutcomesRecursively(value, key)
+          foundItems.push(...nestedItems)
+        }
+      })
+
+      return foundItems
+    }
+
+    const fallbackItems = findOutcomesRecursively(outcomes)
+    items.push(...fallbackItems)
   }
 
   return items
@@ -408,6 +653,32 @@ const formatOutcomesSection = outcomes => {
  */
 const formatInterventionsSection = interventions => {
   const items = []
+
+  // Helper function to safely process intervention lists
+  const processInterventionList = interventionList => {
+    if (!interventionList) return []
+
+    if (Array.isArray(interventionList)) {
+      return interventionList
+    } else if (typeof interventionList === 'string') {
+      // Split by newlines and create intervention objects
+      return interventionList
+        .split('\n')
+        .map((item, index) => ({
+          intervention: item.trim(),
+          id: `manual_${index}`,
+        }))
+        .filter(item => item.intervention.length > 0)
+    } else if (typeof interventionList === 'object') {
+      // Try to convert object to array format
+      return Object.entries(interventionList).map(([key, value], index) => ({
+        intervention: typeof value === 'string' ? value : `${key}: ${value}`,
+        id: `obj_${index}`,
+      }))
+    }
+
+    return []
+  }
 
   const categories = [
     {
@@ -425,18 +696,17 @@ const formatInterventionsSection = interventions => {
   ]
 
   categories.forEach(({ key, label, color }) => {
-    if (
-      interventions[key] &&
-      Array.isArray(interventions[key]) &&
-      interventions[key].length > 0
-    ) {
+    const interventionList = interventions[key]
+    const processedInterventions = processInterventionList(interventionList)
+
+    if (processedInterventions.length > 0) {
       items.push({
         type: 'subheading',
         content: label,
         className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
       })
 
-      interventions[key].forEach(intervention => {
+      processedInterventions.forEach(intervention => {
         items.push({
           type: 'numbered',
           content: intervention.intervention,
@@ -455,7 +725,12 @@ const formatInterventionsSection = interventions => {
 const formatRationaleSection = (rationale, interventions) => {
   const items = []
 
-  if (rationale.interventions) {
+  if (!rationale) {
+    return items
+  }
+
+  // Handle rationale.interventions structure
+  if (rationale.interventions && typeof rationale.interventions === 'object') {
     // Group rationales by intervention type
     const categories = [
       {
@@ -472,38 +747,183 @@ const formatRationaleSection = (rationale, interventions) => {
       },
     ]
 
+    let hasAnyRationales = false
+
     categories.forEach(({ key, label, color }) => {
+      let categoryHasRationales = false
+      const categoryItems = []
+
       if (
         interventions &&
         interventions[key] &&
         Array.isArray(interventions[key])
       ) {
-        const hasRationales = interventions[key].some(
-          intervention => rationale.interventions[intervention.id]
-        )
+        // Try to match rationales with interventions by ID
+        interventions[key].forEach(intervention => {
+          const rationaleData = rationale.interventions[intervention.id]
+          if (rationaleData) {
+            categoryItems.push({
+              type: 'rationale',
+              intervention: intervention.intervention,
+              rationale: rationaleData.rationale,
+              evidence: rationaleData.evidence,
+              id: intervention.id,
+            })
+            categoryHasRationales = true
+          }
+        })
+      }
 
-        if (hasRationales) {
-          items.push({
-            type: 'subheading',
-            content: label,
-            className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
-          })
-
-          interventions[key].forEach(intervention => {
-            const rationaleData = rationale.interventions[intervention.id]
-            if (rationaleData) {
-              items.push({
+      // If no matches found but rationales exist for this category, show them anyway
+      if (!categoryHasRationales) {
+        Object.entries(rationale.interventions).forEach(
+          ([id, rationaleData]) => {
+            // Check if this rationale ID might belong to this category
+            if (
+              id.toLowerCase().includes(key) ||
+              (key === 'independent' &&
+                !id.toLowerCase().includes('dependent') &&
+                !id.toLowerCase().includes('collaborative')) ||
+              rationaleData?.category === key
+            ) {
+              categoryItems.push({
                 type: 'rationale',
-                intervention: intervention.intervention,
+                intervention:
+                  rationaleData.intervention || `Intervention ${id}`,
                 rationale: rationaleData.rationale,
                 evidence: rationaleData.evidence,
-                id: intervention.id,
+                id: id,
               })
+              categoryHasRationales = true
             }
-          })
-        }
+          }
+        )
+      }
+
+      if (categoryHasRationales) {
+        items.push({
+          type: 'subheading',
+          content: label,
+          className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+        })
+        items.push(...categoryItems)
+        hasAnyRationales = true
       }
     })
+
+    // If we still haven't found any rationales, show all rationales without categorization
+    if (!hasAnyRationales && Object.keys(rationale.interventions).length > 0) {
+      items.push({
+        type: 'subheading',
+        content: 'Intervention Rationales',
+        className: 'font-semibold text-xs mb-2',
+      })
+
+      Object.entries(rationale.interventions).forEach(([id, rationaleData]) => {
+        if (
+          rationaleData &&
+          (rationaleData.rationale || rationaleData.evidence)
+        ) {
+          items.push({
+            type: 'rationale',
+            intervention: rationaleData.intervention || `Intervention ${id}`,
+            rationale: rationaleData.rationale,
+            evidence: rationaleData.evidence,
+            id: id,
+          })
+        }
+      })
+    }
+  }
+  // Handle alternative rationale structures
+  else if (
+    rationale.independent ||
+    rationale.dependent ||
+    rationale.collaborative
+  ) {
+    const categories = [
+      { key: 'independent', label: 'Independent Interventions' },
+      { key: 'dependent', label: 'Dependent Interventions' },
+      { key: 'collaborative', label: 'Collaborative Interventions' },
+    ]
+
+    categories.forEach(({ key, label }) => {
+      if (rationale[key] && Object.keys(rationale[key]).length > 0) {
+        items.push({
+          type: 'subheading',
+          content: label,
+          className: `font-semibold text-xs mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
+        })
+
+        Object.entries(rationale[key]).forEach(([index, data]) => {
+          const rationaleText = typeof data === 'string' ? data : data.rationale
+          const evidence = typeof data === 'object' ? data.evidence : ''
+
+          if (rationaleText) {
+            items.push({
+              type: 'rationale',
+              intervention: `Intervention ${parseInt(index) + 1}`,
+              rationale: rationaleText,
+              evidence: evidence,
+              id: `${key}_${index}`,
+            })
+          }
+        })
+      }
+    })
+  }
+  // Handle simple text rationale or any other structure
+  else if (typeof rationale === 'string' && rationale.trim()) {
+    items.push({
+      type: 'text',
+      content: rationale.trim(),
+    })
+  }
+  // Handle unknown object structures - try to extract meaningful content
+  else if (typeof rationale === 'object' && rationale !== null) {
+    // Look for any rationale-like content in the object
+    const rationaleEntries = []
+
+    const extractRationales = (obj, prefix = '') => {
+      Object.entries(obj).forEach(([key, value]) => {
+        if (typeof value === 'string' && value.trim()) {
+          rationaleEntries.push({
+            key: prefix ? `${prefix}.${key}` : key,
+            content: value.trim(),
+          })
+        } else if (typeof value === 'object' && value !== null) {
+          if (value.rationale && typeof value.rationale === 'string') {
+            rationaleEntries.push({
+              key: prefix ? `${prefix}.${key}` : key,
+              content: value.rationale,
+              evidence: value.evidence,
+            })
+          } else {
+            extractRationales(value, prefix ? `${prefix}.${key}` : key)
+          }
+        }
+      })
+    }
+
+    extractRationales(rationale)
+
+    if (rationaleEntries.length > 0) {
+      items.push({
+        type: 'subheading',
+        content: 'Rationales',
+        className: 'font-semibold text-xs mb-2',
+      })
+
+      rationaleEntries.forEach((entry, index) => {
+        items.push({
+          type: 'rationale',
+          intervention: entry.key,
+          rationale: entry.content,
+          evidence: entry.evidence || '',
+          id: `extracted_${index}`,
+        })
+      })
+    }
   }
 
   return items
@@ -514,6 +934,32 @@ const formatRationaleSection = (rationale, interventions) => {
  */
 const formatImplementationSection = implementation => {
   const items = []
+
+  // Helper function to safely process implementation lists
+  const processImplementationList = implementationList => {
+    if (!implementationList) return []
+
+    if (Array.isArray(implementationList)) {
+      return implementationList
+    } else if (typeof implementationList === 'string') {
+      // Split by newlines and create action objects
+      return implementationList
+        .split('\n')
+        .map((item, index) => ({
+          action_taken: item.trim(),
+          id: `manual_${index}`,
+        }))
+        .filter(item => item.action_taken.length > 0)
+    } else if (typeof implementationList === 'object') {
+      // Try to convert object to array format
+      return Object.entries(implementationList).map(([key, value], index) => ({
+        action_taken: typeof value === 'string' ? value : `${key}: ${value}`,
+        id: `obj_${index}`,
+      }))
+    }
+
+    return []
+  }
 
   const categories = [
     {
@@ -531,18 +977,18 @@ const formatImplementationSection = implementation => {
   ]
 
   categories.forEach(({ key, label, color }) => {
-    if (
-      implementation[key] &&
-      Array.isArray(implementation[key]) &&
-      implementation[key].length > 0
-    ) {
+    const implementationList = implementation[key]
+    const processedImplementations =
+      processImplementationList(implementationList)
+
+    if (processedImplementations.length > 0) {
       items.push({
         type: 'subheading',
         content: label,
         className: `font-semibold text-xs ${color} mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
       })
 
-      implementation[key].forEach(action => {
+      processedImplementations.forEach(action => {
         items.push({
           type: 'numbered',
           content: action.action_taken,
@@ -560,6 +1006,28 @@ const formatImplementationSection = implementation => {
  */
 const formatEvaluationSection = evaluation => {
   const items = []
+
+  // Helper function to safely process evaluation lists
+  const processEvaluationList = evaluationList => {
+    if (!evaluationList) return []
+
+    if (Array.isArray(evaluationList)) {
+      return evaluationList
+    } else if (typeof evaluationList === 'string') {
+      // Split by newlines
+      return evaluationList
+        .split('\n')
+        .map(item => item.trim())
+        .filter(item => item.length > 0)
+    } else if (typeof evaluationList === 'object') {
+      // Try to extract values from object
+      return Object.values(evaluationList).filter(
+        item => item && typeof item === 'string'
+      )
+    }
+
+    return []
+  }
 
   const timePeriods = ['short_term', 'long_term']
   const timePeriodLabels = {
@@ -606,7 +1074,8 @@ const formatEvaluationSection = evaluation => {
                     'font-medium text-sm text-muted-foreground tracking-wide mt-2 mb-1',
                 })
 
-                evaluations.forEach(evaluation => {
+                const processedEvaluations = processEvaluationList(evaluations)
+                processedEvaluations.forEach(evaluation => {
                   items.push({
                     type: 'bullet',
                     content: evaluation,
@@ -632,13 +1101,22 @@ export const hasPlaceholderColumns = columns => {
 
 /**
  * Generate format options for display
+ * Starts at 4 columns since that's the minimum for NCP generation
  */
 export const generateFormatOptions = allColumns => {
-  return allColumns.map((_, index) => ({
-    value: (index + 1).toString(),
-    label: `${index + 1} Column${index !== 0 ? 's' : ''}`,
-    description: `Display ${index + 1} column${index !== 0 ? 's' : ''} of the NCP`,
-  }))
+  // Start from 4 columns minimum, but don't exceed the total available columns
+  const minColumns = 4
+  const maxColumns = allColumns.length
+  const startIndex = Math.min(minColumns - 1, maxColumns - 1)
+
+  return allColumns.slice(startIndex).map((_, index) => {
+    const columnCount = startIndex + index + 1
+    return {
+      value: columnCount.toString(),
+      label: `${columnCount} Column${columnCount !== 1 ? 's' : ''}`,
+      description: `Display ${columnCount} column${columnCount !== 1 ? 's' : ''} of the NCP`,
+    }
+  })
 }
 
 /**
@@ -740,19 +1218,30 @@ export const prepareExportData = (ncp, columns, formattedNCP) => {
 const convertFormattedToRawText = formattedItems => {
   if (!Array.isArray(formattedItems)) return ''
 
+  // Track numbering for numbered and rationale items
+  let numberCounter = 0
+
   return formattedItems
     .map(item => {
       switch (item.type) {
         case 'subheading':
         case 'status':
         case 'timeframe':
+          // Reset counter after subheadings
+          numberCounter = 0
           return `\n${item.content}\n`
         case 'bullet':
           return `• ${item.content}`
         case 'numbered':
-          return `${formattedItems.filter(i => i.type === 'numbered').indexOf(item) + 1}. ${item.content}`
+          numberCounter++
+          return `${numberCounter}. ${item.content}`
         case 'rationale':
-          return `${item.intervention}\nRationale: ${item.rationale}\nEvidence: ${item.evidence}`
+          // Number rationale items and only export rationale and evidence, not the intervention
+          numberCounter++
+          if (item.evidence) {
+            return `${numberCounter}. ${item.rationale}\n${item.evidence}`
+          }
+          return `${numberCounter}. ${item.rationale}`
         case 'text':
         default:
           return item.content

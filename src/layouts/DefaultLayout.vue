@@ -1,6 +1,6 @@
 <script setup>
 import ThemeToggle from '@/components/ThemeToggle.vue'
-import { Stethoscope, Github  } from 'lucide-vue-next'
+import { Github, Stethoscope } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
 </script>
 
@@ -10,7 +10,7 @@ import { RouterLink } from 'vue-router'
     <header
       class="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60"
     >
-      <div class="container">
+      <div class="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
         <div class="h-14 flex items-center justify-between py-2">
           <!-- Logo -->
           <RouterLink to="/" class="flex items-center space-x-2">
@@ -27,15 +27,13 @@ import { RouterLink } from 'vue-router'
     </header>
 
     <!-- Main Content -->
-    <main class="flex-1 flex items-center justify-center py-8">
-      <div class="container max-w-lg">
-        <slot />
-      </div>
+    <main class="flex-1 w-full">
+      <slot />
     </main>
 
     <!-- Simplified Footer -->
     <footer class="border-t">
-      <div class="container py-4">
+      <div class="w-full px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto py-4">
         <p class="text-muted-foreground text-sm text-center">
           <a
             href="https://github.com/shozuu/ai-ncp-generator"
@@ -43,7 +41,7 @@ import { RouterLink } from 'vue-router'
             rel="noopener"
             class="inline-flex items-center gap-1 underline hover:text-primary transition-colors"
           >
-            <Github  class="w-4 h-4" />
+            <Github class="w-4 h-4" />
             <span>shozuu/ai-ncp-generator</span>
           </a>
         </p>

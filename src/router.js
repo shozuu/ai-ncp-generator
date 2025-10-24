@@ -6,6 +6,7 @@ import LoginPage from '@/pages/LoginPage.vue'
 import NCPDisplayPage from '@/pages/NCPDisplayPage.vue'
 import NCPExplanationPage from '@/pages/NCPExplanationPage.vue'
 import NCPHistoryPage from '@/pages/NCPHistoryPage.vue'
+import ResetPasswordPage from '@/pages/ResetPasswordPage.vue'
 import SignupPage from '@/pages/SignupPage.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
@@ -34,6 +35,15 @@ const routes = [
     meta: {
       authRequired: false,
       redirectIfAuth: true,
+    },
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: ResetPasswordPage,
+    meta: {
+      authRequired: false,
+      redirectIfAuth: false,
     },
   },
   {
