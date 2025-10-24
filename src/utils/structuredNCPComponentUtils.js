@@ -156,9 +156,6 @@ export function useStructuredNCPEditor(ncp, format, emit) {
           }
 
           if (!hasValidRationaleContent(convertedData)) {
-            console.warn(
-              'Converted rationale appears invalid, preserving original'
-            )
             convertedData = originalRationale
           }
         }
@@ -175,7 +172,6 @@ export function useStructuredNCPEditor(ncp, format, emit) {
           !updateData.rationale ||
           Object.keys(updateData.rationale).length === 0
         ) {
-          console.warn('Rationale in updateData is empty, restoring original')
           updateData.rationale = originalRationale
         }
       }
@@ -184,7 +180,6 @@ export function useStructuredNCPEditor(ncp, format, emit) {
 
       // CRITICAL: Preserve rationale if it's missing from the response
       if (!updatedNCP.rationale && originalRationale) {
-        console.warn('Rationale missing from response, restoring from backup')
         updatedNCP.rationale = originalRationale
       }
 
@@ -280,8 +275,7 @@ export function useStructuredNCPExporter(ncp, format, formattedNCP) {
         title: 'Export Successful',
         description: `NCP exported as ${exportType.toUpperCase()} successfully.`,
       })
-    } catch (error) {
-      console.error('Export failed:', error)
+    } catch {
       toast({
         title: 'Export Failed',
         description: `Failed to export NCP as ${exportType.toUpperCase()}. Please try again.`,
@@ -364,7 +358,6 @@ export function useStructuredNCPLoader() {
       ncp.value = result
       format.value = result.format_type || '7'
 
-      console.log('Fetched Structured NCP from database:', result)
       return result
     } catch (error) {
       toast({
@@ -401,8 +394,6 @@ export function useStructuredNCPErrorHandler() {
   const { toast } = useToast()
 
   const handleError = (error, context = 'Operation') => {
-    console.error(`${context} error:`, error)
-
     const errorMessage =
       error.response?.data?.message ||
       error.message ||

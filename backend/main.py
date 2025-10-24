@@ -20,7 +20,6 @@ import google.generativeai as genai
 from anthropic import Anthropic
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
-from ncp_request_tracker import start_ncp_request, track_api_call, track_error, complete_ncp_request 
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -36,17 +35,22 @@ logger.info(f"Loading environment variables from: {ENV_PATH}")
 app = FastAPI(title="NCP Generator API")
 
 # Configure CORS
-origins = [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://localhost:5176",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "http://127.0.0.1:5175",
-    "http://127.0.0.1:5176",
-    "https://your-production-domain.com",  # Add your production domain here
-]
+# For production: Replace with your actual frontend domain(s)
+origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
+# Add common development ports for local development
+if os.getenv("ENVIRONMENT", "development") == "development":
+    origins.extend([
+        "http://localhost:5173",
+        "http://localhost:5174",
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175",
+        "http://127.0.0.1:5176",
+    ])
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -332,15 +336,6 @@ async def generate_ncp(request: Request, assessment_data: Dict) -> Dict:
                         "content": prompt
                     }
                 ]
-            )
-            
-            # Track token usage
-            track_api_call(
-                response, 
-                step="generate_ncp",
-                operation="NCP Generation",
-                assessment_type=assessment_data.get('type', 'unknown'),
-                has_diagnosis=bool(assessment_data.get('diagnosis'))
             )
             
         except Exception as api_error:
@@ -768,9 +763,6 @@ async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
     """
     Generate detailed, database-aligned keywords from comprehensive manual assessment data.
     """
-    # Start NCP request tracking
-    request_id = start_ncp_request(request_data, "manual_assessment")
-    
     try:
         # Validate the comprehensive form data
         if not validate_assessment_data(request_data):
@@ -831,33 +823,17 @@ async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
             ]
         )
         
-        # Track this API call for comprehensive form
-        track_api_call(
-            response,
-            step="parse_assessment",
-            operation="Manual Assessment Parsing (Comprehensive)",
-            has_comprehensive_data=True,
-            data_fields_count=len([k for k, v in request_data.items() if v and v != ''])
-        )
-        
         keywords = response.content[0].text.strip()
         
         result = {
             "original_assessment": request_data,
-            "embedding_keywords": keywords,
-            "request_id": request_id
+            "embedding_keywords": keywords
         }
         
         logger.info(f"Generated detailed keywords from comprehensive assessment: {keywords}")
         return result
         
     except Exception as e:
-        # Track the error
-        track_error("parse_assessment", str(e), error_type="parsing_error")
-        
-        # Complete request with failed status
-        complete_ncp_request({}, "failed")
-        
         logger.error(f"Error parsing manual assessment: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -877,8 +853,6 @@ async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
         original_assessment = assessment_data.get('original_assessment')
         
         if not embedding_keywords:
-            track_error("suggest_diagnoses", "Missing embedding keywords")
-            complete_ncp_request({}, "failed")
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -889,8 +863,6 @@ async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
             )
         
         if not original_assessment:
-            track_error("suggest_diagnoses", "Missing original assessment")
-            complete_ncp_request({}, "failed")
             raise HTTPException(
                 status_code=400,
                 detail={
@@ -907,24 +879,20 @@ async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
         matcher = await create_vector_diagnosis_matcher()
         candidates = await matcher.find_candidate_diagnoses(embedding_keywords)
         
-        # AI diagnosis selection - this will be tracked inside the matcher
+        # AI diagnosis selection
         selected_diagnosis = await matcher.select_best_diagnosis(original_assessment, candidates)
         
         # Generate NCP using ORIGINAL assessment data
         ncp_data = await generate_structured_ncp(request, original_assessment, selected_diagnosis)
         
-        # Complete the NCP request with success
+        # Return the result
         final_result = {**selected_diagnosis, "ncp": ncp_data}
-        complete_ncp_request(final_result, "completed")
         
         return final_result
         
     except HTTPException:
-        complete_ncp_request({}, "failed")
         raise
     except Exception as e:
-        track_error("suggest_diagnoses", str(e))
-        complete_ncp_request({}, "failed")
         logger.error(f"Error suggesting diagnoses: {str(e)}")
         raise HTTPException(
             status_code=500,
@@ -1167,17 +1135,6 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
                 ]
             )
             
-            # Track this API call
-            track_api_call(
-                response,
-                step="generate_ncp",
-                operation="Structured NCP Generation",
-                attempt=attempt + 1,
-                max_retries=max_retries,
-                diagnosis=selected_diagnosis.get('diagnosis', 'unknown'),
-                assessment_type=assessment_data.get('type', 'unknown')
-            )
-            
             if not response or not response.content:
                 raise Exception("No response from AI model")
             
@@ -1217,12 +1174,10 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
         except json.JSONDecodeError as e:
             logger.warning(f"Attempt {attempt + 1}: JSON parsing failed - {str(e)}")
             if attempt == max_retries - 1:
-                track_error("generate_ncp", f"JSON parsing failed: {str(e)}")
                 raise Exception(f"JSON parsing failed after all retries: {str(e)}")
         except Exception as e:
             logger.warning(f"Attempt {attempt + 1}: Generation failed - {str(e)}")
             if attempt == max_retries - 1:
-                track_error("generate_ncp", f"NCP generation failed: {str(e)}")
                 raise Exception(f"NCP generation failed after all retries: {str(e)}")
     
     raise Exception("Failed to generate valid NCP after all retries")
