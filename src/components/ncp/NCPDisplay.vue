@@ -387,7 +387,7 @@ onMounted(() => {
                 (Read-only)
               </span>
             </th>
-            
+
             <!-- Diagnosis column (single column) -->
             <th
               v-if="columns.some(col => col.key === 'diagnosis')"
@@ -396,16 +396,24 @@ onMounted(() => {
             >
               Diagnosis
             </th>
-            
+
             <!-- Planning section (spans 3 columns: Objectives, Interventions, Rationale) -->
             <th
-              v-if="columns.some(col => ['outcomes', 'interventions', 'rationale'].includes(col.key))"
-              :colspan="columns.filter(col => ['outcomes', 'interventions', 'rationale'].includes(col.key)).length"
+              v-if="
+                columns.some(col =>
+                  ['outcomes', 'interventions', 'rationale'].includes(col.key)
+                )
+              "
+              :colspan="
+                columns.filter(col =>
+                  ['outcomes', 'interventions', 'rationale'].includes(col.key)
+                ).length
+              "
               class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto"
             >
               Planning
             </th>
-            
+
             <!-- Implementation column (single column) -->
             <th
               v-if="columns.some(col => col.key === 'implementation')"
@@ -414,7 +422,7 @@ onMounted(() => {
             >
               Implementation
             </th>
-            
+
             <!-- Evaluation column (single column) -->
             <th
               v-if="columns.some(col => col.key === 'evaluation')"
@@ -424,11 +432,13 @@ onMounted(() => {
               Evaluation
             </th>
           </tr>
-          
+
           <!-- Second row: Individual column headers (only for Planning columns) -->
           <tr class="border-b">
             <th
-              v-for="column in columns.filter(col => ['outcomes', 'interventions', 'rationale'].includes(col.key))"
+              v-for="column in columns.filter(col =>
+                ['outcomes', 'interventions', 'rationale'].includes(col.key)
+              )"
               :key="column.key"
               class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto"
             >
