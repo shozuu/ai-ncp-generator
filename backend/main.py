@@ -971,19 +971,22 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
         - Ensure that interventions and outcomes logically flow from the chief complaint and diagnosis, not from unrelated concerns.
 
         **REQUIREMENTS:**
-        1. Use the selected diagnosis as the primary nursing diagnosis
-        2. Base all outcomes and interventions on NOC and NIC standards
-        3. Use the suggested outcomes/interventions as starting points, but adapt them to the specific patient
-        4. If suggested outcomes/interventions are not provided, generate appropriate NOC/NIC based options
-        5. Always customize interventions and outcomes to the specific assessment findings provided. Avoid generic textbook-only wording.
-        6. Ensure logical connections between all components
-        7. Flexible intervention categories: Use only applicable categories (independent/dependent/collaborative)
-        8. SMART outcomes: Follow SMART criteria for all outcome statements
-        9. Return ONLY valid JSON with no additional text
-
+        1. Use the selected diagnosis as the primary nursing diagnosis.
+        2. Base all outcomes and interventions on official NOC and NIC standards.
+        3. Use the suggested outcomes/interventions as starting points, but adapt them to the specific patient.
+        4. If suggested outcomes/interventions are not provided, generate appropriate NOC/NIC-based options.
+        5. Customize all outcomes and interventions to the specific assessment findings provided. Avoid generic textbook wording.
+        6. Ensure logical cause-and-effect connections between all components.
+        7. Use only applicable intervention categories (independent, dependent, collaborative).
+        8. SMART outcomes: Each outcome must be **Specific, Measurable, Achievable, Relevant, and Time-bound**.
+        9. **Explicit Outcome–Intervention Alignment Rule:**
+        - For every individual outcome statement, there must be corresponding intervention(s) that directly support achieving that specific outcome.
+        - Group and label each intervention under the outcome it is intended to achieve.
+        - The rationale for each intervention must explain how it facilitates or contributes to meeting its linked outcome.
+        10. Return ONLY valid JSON with no additional text.
 
         **RATIONALE GUIDELINES:**
-        When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook 13th Ed, Doenges, M. E., et al. (2021). Nurse's Pocket Guide, 15th Edition, NIC/NOC textbooks, official NIC/NOC classifications, CDC/WHO guidelines, etc.). Do not cite page numbers or overly specific details — keep citations broad but verifiable.
+        When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook 13th Ed, Doenges et al., 2021; NIC/NOC textbooks; CDC/WHO guidelines). Avoid citing page numbers or overly specific details—keep citations broad but verifiable.
 
         **OUTPUT FORMAT (JSON ONLY):**
         {{
@@ -1077,22 +1080,21 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
             "evaluation": {{
                 "short_term": {{
                     "Met": {{
-                        "after 24 hours of nursing interventions, the patient": [
-                            "Demonstrated correct inhaler technique independently with 100% accuracy",
-                            "Verbalized 3 energy conservation techniques accurately"
+                        "after 24 hours": [
+                            "Patient demonstrated correct inhaler use with 100% accuracy.",
+                            "Patient maintained SpO2 ≥ 95% during activity."
                         ]
                     }},
                     "Partially Met": {{
-                        "after 48 hours of nursing interventions, the patient": [
-                            "Maintained SpO2 ≥ 95% at rest but dropped to 92% during ambulation"
+                        "after 48 hours": [
+                            "Patient maintained SpO2 ≥ 95% at rest but dropped during exertion."
                         ]
                     }}
                 }},
                 "long_term": {{
                     "Met": {{
-                        "after 5 days of nursing interventions, the patient": [
-                            "Ambulated 100 feet without dyspnea or oxygen desaturation",
-                            "Performed all ADLs independently without fatigue"
+                        "after 5 days": [
+                            "Patient ambulated 100 feet without dyspnea or desaturation."
                         ]
                     }}
                 }}
@@ -1133,16 +1135,19 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
 
         **Outcomes Grouping Rules:**
         - Group outcomes by identical timeframes
-        - Use clinically appropriate and realistic timeframes for nursing students (within 2 hours, within 8 hours, within 24 hours, within 5 days, before end of shift, etc.)
+        - Use clinically appropriate and realistic timeframes for nursing students' duty shifts 
         - Ensure each timeframe group has related, achievable outcomes
+        - Each outcome must have at least one matching intervention that logically supports it.
+        - Rationales should always justify *how* and *why* the intervention leads to achieving the outcome.
+        - Avoid listing interventions without a clear linked objective.
+        - Group all interventions under their related outcome for transparency and instructional clarity.
         
         **Evaluation Grouping Rules:**
-        - Group by status (Met / Partially Met)
-        - Within each status, group by timeframe
-        - List specific evidence under each timeframe-status combination
-        - Use past tense and measurable evidence
+        - Group by status (Met / Partially Met).
+        - Use measurable indicators and past tense verbs.
+        - Clearly reflect if linked outcomes were achieved based on related interventions.
     """
-    
+
     # Retry logic
     for attempt in range(max_retries):
         try:
