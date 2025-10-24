@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { manualModeSchema } from '@/schemas/assessmentSchemas'
+import { exportUtils } from '@/utils/exportUtils'
 import { vAutoAnimate } from '@formkit/auto-animate/vue'
 import { toTypedSchema } from '@vee-validate/zod'
 import {
@@ -229,6 +230,10 @@ const onSubmit = form.handleSubmit(values => {
   console.log('Formatted data being emitted:', formattedData) // Debug log
   emit('submit', formattedData)
 })
+
+const exportAssessment = async () => {
+  await exportUtils.exportAssessmentToPDF(form.values)
+}
 </script>
 
 <template>
@@ -260,6 +265,9 @@ const onSubmit = form.handleSubmit(values => {
               Complete the relevant sections below to create a thorough patient
               assessment. Use the collapsible sections to focus on specific
               areas and maintain a clean workspace.
+              <span class="font-semibold">💾 Tip:</span> Use the "Export
+              Assessment" button at the bottom to save a copy of your filled
+              form for personal reference before submission.
             </p>
             <div
               class="flex flex-col sm:flex-row flex-wrap gap-2 items-center sm:items-start"
@@ -1376,6 +1384,15 @@ const onSubmit = form.handleSubmit(values => {
           >
             <span class="sm:hidden">Expand</span>
             <span class="hidden sm:inline">Expand All</span>
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            @click="exportAssessment"
+            class="px-4 sm:px-6 w-full sm:w-auto text-sm flex items-center justify-center space-x-2 border-green-600 text-green-600 hover:bg-green-50 dark:border-green-500 dark:text-green-400 dark:hover:bg-green-950"
+          >
+            <span class="sm:hidden">Export</span>
+            <span class="hidden sm:inline">Export Assessment</span>
           </Button>
           <Button
             type="submit"

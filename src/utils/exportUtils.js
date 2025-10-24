@@ -1736,4 +1736,308 @@ export const exportUtils = {
       </div>
     `
   },
+
+  /**
+   * Exports nursing assessment form data as a formatted PDF
+   * @param {Object} formValues - The form values from the assessment form
+   * @returns {Promise<void>}
+   */
+  async exportAssessmentToPDF(formValues) {
+    // Get user details for accountability
+    const userDetails = await userService.getUserProfile()
+
+    // Create PDF document (portrait orientation for reading)
+    const doc = new jsPDF({
+      orientation: 'portrait',
+      unit: 'pt',
+      format: 'letter',
+    })
+
+    const pageWidth = doc.internal.pageSize.getWidth()
+    const pageHeight = doc.internal.pageSize.getHeight()
+    const margin = 40
+    const contentWidth = pageWidth - 2 * margin
+    let yPosition = margin
+
+    // Helper function to check if we need a new page
+    const checkPageBreak = heightNeeded => {
+      if (yPosition + heightNeeded > pageHeight - margin) {
+        doc.addPage()
+        yPosition = margin
+        return true
+      }
+      return false
+    }
+
+    // Header
+    doc.setFillColor(41, 98, 255) // Blue background
+    doc.rect(0, 0, pageWidth, 100, 'F')
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(24)
+    doc.setFont('helvetica', 'bold')
+    doc.text('NURSING ASSESSMENT FORM', pageWidth / 2, 35, { align: 'center' })
+    doc.setFontSize(12)
+    doc.setFont('helvetica', 'normal')
+    doc.text('Personal Reference Copy', pageWidth / 2, 55, { align: 'center' })
+
+    // Export date and user info
+    doc.setFontSize(9)
+    doc.text(`Exported: ${new Date().toLocaleString()}`, pageWidth / 2, 72, {
+      align: 'center',
+    })
+
+    // User details
+    if (userDetails) {
+      doc.setFontSize(8)
+      doc.text(
+        `Prepared by: ${userDetails.full_name} | ${userDetails.role} | ${userDetails.organization}`,
+        pageWidth / 2,
+        87,
+        { align: 'center' }
+      )
+    }
+
+    yPosition = 120
+    doc.setTextColor(0, 0, 0)
+
+    // Helper function to add a section header
+    const addSectionHeader = title => {
+      checkPageBreak(40)
+      yPosition += 10
+      doc.setFillColor(240, 245, 255)
+      doc.rect(margin, yPosition - 15, contentWidth, 25, 'F')
+      doc.setTextColor(30, 64, 175)
+      doc.setFontSize(14)
+      doc.setFont('helvetica', 'bold')
+      doc.text(title, margin + 10, yPosition)
+      yPosition += 20
+      doc.setTextColor(0, 0, 0)
+    }
+
+    // Helper function to add a field
+    const addField = (label, value, isArray = false, isObject = false) => {
+      checkPageBreak(25)
+      doc.setFontSize(10)
+      doc.setFont('helvetica', 'bold')
+      doc.text(`${label}:`, margin + 10, yPosition)
+      yPosition += 15
+
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(60, 60, 60)
+
+      if (isArray && Array.isArray(value)) {
+        if (
+          value.length === 0 ||
+          (value.length === 1 && value[0] === 'None specified')
+        ) {
+          doc.text('• None specified', margin + 20, yPosition)
+          yPosition += 15
+        } else {
+          value.forEach(item => {
+            const lines = doc.splitTextToSize(`• ${item}`, contentWidth - 30)
+            checkPageBreak(lines.length * 15)
+            lines.forEach(line => {
+              doc.text(line, margin + 20, yPosition)
+              yPosition += 15
+            })
+          })
+        }
+      } else if (isObject && typeof value === 'object') {
+        let hasContent = false
+        for (const [key, val] of Object.entries(value)) {
+          if (val && val !== 'Not specified') {
+            hasContent = true
+            const formattedKey = key
+              .replace(/([A-Z])/g, ' $1')
+              .replace(/^./, str => str.toUpperCase())
+            const text = `  ${formattedKey}: ${val}`
+            const lines = doc.splitTextToSize(text, contentWidth - 30)
+            checkPageBreak(lines.length * 15)
+            lines.forEach(line => {
+              doc.text(line, margin + 20, yPosition)
+              yPosition += 15
+            })
+          }
+        }
+        if (!hasContent) {
+          doc.text('  No findings recorded', margin + 20, yPosition)
+          yPosition += 15
+        }
+      } else {
+        const displayValue = value || 'Not specified'
+        const lines = doc.splitTextToSize(displayValue, contentWidth - 30)
+        checkPageBreak(lines.length * 15)
+        lines.forEach(line => {
+          doc.text(line, margin + 20, yPosition)
+          yPosition += 15
+        })
+      }
+
+      doc.setTextColor(0, 0, 0)
+      yPosition += 5
+    }
+
+    // PATIENT DEMOGRAPHICS
+    addSectionHeader('PATIENT DEMOGRAPHICS')
+    addField('Age', formValues.age || 'Not specified')
+    addField('Sex', formValues.sex || 'Not specified')
+    addField('Occupation', formValues.occupation || 'Not specified')
+    addField('Religion', formValues.religion || 'Not specified')
+    addField(
+      'Cultural Background',
+      formValues.cultural_background || 'Not specified'
+    )
+    addField('Language', formValues.language || 'Not specified')
+
+    // CHIEF COMPLAINT
+    addSectionHeader('CHIEF COMPLAINT')
+    addField(
+      'General Condition',
+      formValues.general_condition || 'Not specified'
+    )
+
+    // HISTORY OF PRESENT ILLNESS
+    addSectionHeader('HISTORY OF PRESENT ILLNESS')
+    addField('Onset and Duration', formValues.onset_duration || 'Not specified')
+    addField(
+      'Severity and Progression',
+      formValues.severity_progression || 'Not specified'
+    )
+    addField(
+      'Medical Impression',
+      formValues.medical_impression || 'Not specified'
+    )
+    addField(
+      'Associated Symptoms',
+      formValues.associated_symptoms?.length > 0
+        ? formValues.associated_symptoms
+        : ['None specified'],
+      true
+    )
+    addField('Other Symptoms', formValues.other_symptoms || 'None')
+
+    // RISK FACTORS
+    addSectionHeader('RISK FACTORS')
+    addField(
+      'Risk Factors',
+      formValues.risk_factors?.length > 0
+        ? formValues.risk_factors
+        : ['None specified'],
+      true
+    )
+    addField('Other Risk Factors', formValues.other_risk_factors || 'None')
+
+    // PAST MEDICAL HISTORY
+    addSectionHeader('PAST MEDICAL HISTORY')
+    addField(
+      'Medical History',
+      formValues.medical_history?.length > 0
+        ? formValues.medical_history
+        : ['None specified'],
+      true
+    )
+    addField(
+      'Other Medical History',
+      formValues.other_medical_history || 'None'
+    )
+
+    // FAMILY HISTORY
+    addSectionHeader('FAMILY HISTORY')
+    addField(
+      'Family History',
+      formValues.family_history?.length > 0
+        ? formValues.family_history
+        : ['None specified'],
+      true
+    )
+    addField('Other Family History', formValues.other_family_history || 'None')
+
+    // VITAL SIGNS
+    addSectionHeader('VITAL SIGNS')
+    addField('Heart Rate (bpm)', formValues.heart_rate_bpm || 'Not recorded')
+    addField(
+      'Blood Pressure (mmHg)',
+      formValues.blood_pressure_mmhg || 'Not recorded'
+    )
+    addField(
+      'Respiratory Rate (per min)',
+      formValues.respiratory_rate_min || 'Not recorded'
+    )
+    addField(
+      'Oxygen Saturation (%)',
+      formValues.oxygen_saturation_percent || 'Not recorded'
+    )
+    addField(
+      'Temperature (°C)',
+      formValues.temperature_celsius || 'Not recorded'
+    )
+
+    // PHYSICAL EXAMINATION
+    addSectionHeader('PHYSICAL EXAMINATION')
+    addField('Height', formValues.height || 'Not recorded')
+    addField('Weight', formValues.weight || 'Not recorded')
+    addField(
+      'Cephalocaudal Assessment',
+      formValues.cephalocaudal_assessment || {},
+      false,
+      true
+    )
+
+    // LABORATORY FINDINGS
+    addSectionHeader('LABORATORY FINDINGS')
+    addField(
+      'Laboratory Results',
+      formValues.laboratory_results || 'Not specified'
+    )
+
+    // SUBJECTIVE DATA
+    addSectionHeader('SUBJECTIVE DATA')
+    addField('Subjective Information', formValues.subjective || 'Not specified')
+
+    // OBJECTIVE DATA
+    addSectionHeader('OBJECTIVE DATA')
+    addField('Objective Information', formValues.objective || 'Not specified')
+
+    // Footer on last page
+    yPosition = pageHeight - 60
+    doc.setFontSize(8)
+    doc.setTextColor(100, 100, 100)
+
+    // User details in footer
+    if (userDetails) {
+      doc.text(
+        `Prepared by: ${userDetails.full_name}`,
+        pageWidth / 2,
+        yPosition,
+        { align: 'center' }
+      )
+      doc.text(
+        `${userDetails.role} - ${userDetails.organization}`,
+        pageWidth / 2,
+        yPosition + 12,
+        { align: 'center' }
+      )
+      yPosition += 24
+    }
+
+    doc.text(
+      'This is a personal reference copy for educational purposes only.',
+      pageWidth / 2,
+      yPosition,
+      { align: 'center' }
+    )
+    doc.text('SmartCare NCP Generator', pageWidth / 2, yPosition + 12, {
+      align: 'center',
+    })
+
+    // Generate filename with timestamp
+    const timestamp = new Date()
+      .toISOString()
+      .replace(/[:.]/g, '-')
+      .slice(0, -5)
+    const filename = `nursing-assessment-${timestamp}.pdf`
+
+    // Save the PDF
+    doc.save(filename)
+  },
 }
