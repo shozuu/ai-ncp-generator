@@ -339,7 +339,6 @@ onMounted(() => {
         Users are encouraged to review and modify the plan as needed to ensure
         it aligns with the latest patient assessment and clinical standards.
         <template v-if="hasPlaceholderColumns">
-          <br />
           Additionally, the <strong>Implementation</strong> and/or
           <strong>Evaluation</strong> columns contain placeholder data that
           should be verified and updated based on the latest patient assessment.

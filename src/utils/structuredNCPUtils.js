@@ -228,8 +228,8 @@ export const getAllNCPColumns = () => [
   { key: 'outcomes', label: 'Outcomes' },
   { key: 'interventions', label: 'Interventions' },
   { key: 'rationale', label: 'Rationale' },
-  { key: 'implementation', label: 'Implementation' },
-  { key: 'evaluation', label: 'Evaluation' },
+  { key: 'implementation', label: 'Implementation', isPlaceholder: true },
+  { key: 'evaluation', label: 'Evaluation', isPlaceholder: true },
 ]
 
 /**
