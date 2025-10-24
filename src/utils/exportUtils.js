@@ -104,9 +104,112 @@ export const exportUtils = {
     const tableWidth = pageWidth - marginLeft - marginRight
     const columnWidth = tableWidth / columns.length
 
+    // Create two-tier header structure
+    const createTwoTierHeaders = columnLabels => {
+      // Map column labels to their keys
+      const labelToKey = {
+        Assessment: 'assessment',
+        Diagnosis: 'diagnosis',
+        Objectives: 'outcomes',
+        Interventions: 'interventions',
+        Rationale: 'rationale',
+        Implementation: 'implementation',
+        Evaluation: 'evaluation',
+      }
+
+      const columnKeys = columnLabels.map(
+        label => labelToKey[label] || label.toLowerCase()
+      )
+
+      // First row: Main section headers with colspan
+      const firstRow = []
+      let i = 0
+      while (i < columnKeys.length) {
+        const key = columnKeys[i]
+        if (key === 'assessment') {
+          firstRow.push({
+            content: 'Assessment',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else if (key === 'diagnosis') {
+          firstRow.push({
+            content: 'Diagnosis',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else if (
+          key === 'outcomes' ||
+          key === 'interventions' ||
+          key === 'rationale'
+        ) {
+          // Count planning columns
+          let planningCount = 0
+          let tempI = i
+          while (
+            tempI < columnKeys.length &&
+            ['outcomes', 'interventions', 'rationale'].includes(
+              columnKeys[tempI]
+            )
+          ) {
+            planningCount++
+            tempI++
+          }
+          firstRow.push({
+            content: 'Planning',
+            colSpan: planningCount,
+            styles: { halign: 'center' },
+          })
+          i = tempI
+        } else if (key === 'implementation') {
+          firstRow.push({
+            content: 'Implementation',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else if (key === 'evaluation') {
+          firstRow.push({
+            content: 'Evaluation',
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        } else {
+          firstRow.push({
+            content: columnLabels[i],
+            colSpan: 1,
+            rowSpan: 2,
+            styles: { halign: 'center', valign: 'middle' },
+          })
+          i++
+        }
+      }
+
+      // Second row: Individual column headers (only for Planning columns)
+      const secondRow = columnKeys
+        .map((key, idx) => {
+          if (['outcomes', 'interventions', 'rationale'].includes(key)) {
+            return { content: columnLabels[idx], styles: { halign: 'center' } }
+          }
+          return null // These cells are covered by rowSpan in first row
+        })
+        .filter(cell => cell !== null)
+
+      return [firstRow, secondRow]
+    }
+
+    const headers = createTwoTierHeaders(columns)
+
     // Create table with enhanced styling matching Word export
     autoTable(doc, {
-      head: [columns],
+      head: headers,
       body: tableData,
       startY: is_modified ? 1.3 : 1.2, // Adjust start position if modified
       theme: 'grid',
@@ -919,12 +1022,111 @@ export const exportUtils = {
       CreatedDate: new Date(),
     }
 
+    // Helper function to create two-tier headers for Excel
+    const createExcelTwoTierHeaders = columnLabels => {
+      const labelToKey = {
+        Assessment: 'assessment',
+        Diagnosis: 'diagnosis',
+        Objectives: 'outcomes',
+        Interventions: 'interventions',
+        Rationale: 'rationale',
+        Implementation: 'implementation',
+        Evaluation: 'evaluation',
+      }
+
+      const columnKeys = columnLabels.map(
+        label => labelToKey[label] || label.toLowerCase()
+      )
+
+      // First row: Main section headers
+      const firstRow = []
+      const merges = []
+      let colIndex = 0
+      let i = 0
+
+      while (i < columnKeys.length) {
+        const key = columnKeys[i]
+        if (key === 'assessment') {
+          firstRow.push('Assessment')
+          // Mark for merge (row 0-1, col colIndex)
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else if (key === 'diagnosis') {
+          firstRow.push('Diagnosis')
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else if (
+          key === 'outcomes' ||
+          key === 'interventions' ||
+          key === 'rationale'
+        ) {
+          let planningCount = 0
+          let tempI = i
+          while (
+            tempI < columnKeys.length &&
+            ['outcomes', 'interventions', 'rationale'].includes(
+              columnKeys[tempI]
+            )
+          ) {
+            planningCount++
+            tempI++
+          }
+          firstRow.push('Planning')
+          // Merge across planning columns
+          for (let j = 1; j < planningCount; j++) {
+            firstRow.push('')
+          }
+          if (planningCount > 1) {
+            merges.push({
+              s: { r: 0, c: colIndex },
+              e: { r: 0, c: colIndex + planningCount - 1 },
+            })
+          }
+          colIndex += planningCount
+          i = tempI
+        } else if (key === 'implementation') {
+          firstRow.push('Implementation')
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else if (key === 'evaluation') {
+          firstRow.push('Evaluation')
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        } else {
+          firstRow.push(columnLabels[i])
+          merges.push({ s: { r: 0, c: colIndex }, e: { r: 1, c: colIndex } })
+          colIndex++
+          i++
+        }
+      }
+
+      // Second row: Individual column headers (fill in for Planning columns, empty for merged cells)
+      const secondRow = columnKeys.map(key => {
+        if (['outcomes', 'interventions', 'rationale'].includes(key)) {
+          return columnLabels[columnKeys.indexOf(key)]
+        }
+        return '' // Empty for merged cells
+      })
+
+      return { firstRow, secondRow, merges }
+    }
+
+    const { firstRow, secondRow, merges } = createExcelTwoTierHeaders(columns)
+
     const ncpWorksheetData = [
-      columns,
+      firstRow,
+      secondRow,
       Object.values(ncpData).map(value => processTextForExcel(value)),
     ]
 
     const ncpWorksheet = XLSX.utils.aoa_to_sheet(ncpWorksheetData)
+
+    // Apply merges
+    ncpWorksheet['!merges'] = merges
 
     const columnWidths = columns.map(() => ({ wch: 40 }))
     ncpWorksheet['!cols'] = columnWidths
@@ -975,18 +1177,20 @@ export const exportUtils = {
 
     const headerRange = XLSX.utils.decode_range(ncpWorksheet['!ref'])
 
-    // Style header row (row 0)
-    for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
-      const cellAddress = XLSX.utils.encode_cell({ r: 0, c: col })
-      if (!ncpWorksheet[cellAddress]) continue
+    // Style header rows (row 0 and row 1)
+    for (let row = 0; row <= 1; row++) {
+      for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
+        if (!ncpWorksheet[cellAddress]) continue
 
-      // Ensure cell is marked as string type
-      ncpWorksheet[cellAddress].t = 's'
-      ncpWorksheet[cellAddress].s = { ...headerStyle }
+        // Ensure cell is marked as string type
+        ncpWorksheet[cellAddress].t = 's'
+        ncpWorksheet[cellAddress].s = { ...headerStyle }
+      }
     }
 
-    // Style content rows (row 1 and below) with alternating colors
-    for (let row = 1; row <= headerRange.e.r; row++) {
+    // Style content rows (row 2 and below) with alternating colors
+    for (let row = 2; row <= headerRange.e.r; row++) {
       for (let col = headerRange.s.c; col <= headerRange.e.c; col++) {
         const cellAddress = XLSX.utils.encode_cell({ r: row, c: col })
         if (!ncpWorksheet[cellAddress]) continue
@@ -1009,9 +1213,9 @@ export const exportUtils = {
     // Calculate and set row heights more precisely
     const rowHeights = []
     for (let i = 0; i <= headerRange.e.r; i++) {
-      if (i === 0) {
-        // Header row height
-        rowHeights.push({ hpx: 50 })
+      if (i === 0 || i === 1) {
+        // Header row heights
+        rowHeights.push({ hpx: 40 })
       } else {
         // Calculate height based on content with better estimation
         const rowContent = Object.values(ncpData).map(value =>
@@ -1379,6 +1583,7 @@ export const exportUtils = {
         WidthType,
         AlignmentType,
         HeadingLevel,
+        VerticalAlign,
       } = await import('docx')
 
       // Get user details for accountability
@@ -1443,18 +1648,36 @@ export const exportUtils = {
         )
       }
 
-      // Create table rows
-      const tableRows = [
-        // Header row
-        new TableRow({
-          children: columns.map(
-            col =>
+      // Helper function to create two-tier header for Word
+      const createWordTwoTierHeaders = columnLabels => {
+        // Map column labels to their keys
+        const labelToKey = {
+          Assessment: 'assessment',
+          Diagnosis: 'diagnosis',
+          Objectives: 'outcomes',
+          Interventions: 'interventions',
+          Rationale: 'rationale',
+          Implementation: 'implementation',
+          Evaluation: 'evaluation',
+        }
+
+        const columnKeys = columnLabels.map(
+          label => labelToKey[label] || label.toLowerCase()
+        )
+
+        // First row: Main section headers
+        const firstRowCells = []
+        let i = 0
+        while (i < columnKeys.length) {
+          const key = columnKeys[i]
+          if (key === 'assessment') {
+            firstRowCells.push(
               new TableCell({
                 children: [
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: col,
+                        text: 'Assessment',
                         bold: true,
                         color: 'ffffff',
                       }),
@@ -1462,12 +1685,169 @@ export const exportUtils = {
                     alignment: AlignmentType.CENTER,
                   }),
                 ],
-                shading: {
-                  fill: '1e293b',
-                },
+                shading: { fill: '1e293b' },
+                rowSpan: 2,
+                verticalAlign: VerticalAlign.CENTER,
               })
-          ),
-        }),
+            )
+            i++
+          } else if (key === 'diagnosis') {
+            firstRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Diagnosis',
+                        bold: true,
+                        color: 'ffffff',
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+                rowSpan: 2,
+                verticalAlign: VerticalAlign.CENTER,
+              })
+            )
+            i++
+          } else if (
+            key === 'outcomes' ||
+            key === 'interventions' ||
+            key === 'rationale'
+          ) {
+            // Count planning columns
+            let planningCount = 0
+            let tempI = i
+            while (
+              tempI < columnKeys.length &&
+              ['outcomes', 'interventions', 'rationale'].includes(
+                columnKeys[tempI]
+              )
+            ) {
+              planningCount++
+              tempI++
+            }
+            firstRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Planning',
+                        bold: true,
+                        color: 'ffffff',
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+                columnSpan: planningCount,
+              })
+            )
+            i = tempI
+          } else if (key === 'implementation') {
+            firstRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Implementation',
+                        bold: true,
+                        color: 'ffffff',
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+                rowSpan: 2,
+                verticalAlign: VerticalAlign.CENTER,
+              })
+            )
+            i++
+          } else if (key === 'evaluation') {
+            firstRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: 'Evaluation',
+                        bold: true,
+                        color: 'ffffff',
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+                rowSpan: 2,
+                verticalAlign: VerticalAlign.CENTER,
+              })
+            )
+            i++
+          } else {
+            firstRowCells.push(
+              new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: columnLabels[i],
+                        bold: true,
+                        color: 'ffffff',
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+                rowSpan: 2,
+                verticalAlign: VerticalAlign.CENTER,
+              })
+            )
+            i++
+          }
+        }
+
+        // Second row: Individual column headers (only for Planning columns)
+        const secondRowCells = columnKeys
+          .map((key, idx) => {
+            if (['outcomes', 'interventions', 'rationale'].includes(key)) {
+              return new TableCell({
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: columnLabels[idx],
+                        bold: true,
+                        color: 'ffffff',
+                      }),
+                    ],
+                    alignment: AlignmentType.CENTER,
+                  }),
+                ],
+                shading: { fill: '1e293b' },
+              })
+            }
+            return null
+          })
+          .filter(cell => cell !== null)
+
+        return [
+          new TableRow({ children: firstRowCells }),
+          new TableRow({ children: secondRowCells }),
+        ]
+      }
+
+      // Create table rows
+      const headerRows = createWordTwoTierHeaders(columns)
+      const tableRows = [
+        ...headerRows,
         // Data row
         new TableRow({
           children: Object.values(ncpData).map(
@@ -1701,6 +2081,74 @@ export const exportUtils = {
       }
     }
 
+    // Helper function to create two-tier headers for HTML
+    const createHTMLTwoTierHeaders = columnLabels => {
+      const labelToKey = {
+        Assessment: 'assessment',
+        Diagnosis: 'diagnosis',
+        Objectives: 'outcomes',
+        Interventions: 'interventions',
+        Rationale: 'rationale',
+        Implementation: 'implementation',
+        Evaluation: 'evaluation',
+      }
+
+      const columnKeys = columnLabels.map(
+        label => labelToKey[label] || label.toLowerCase()
+      )
+
+      // First row: Main section headers
+      let firstRow = ''
+      let i = 0
+      while (i < columnKeys.length) {
+        const key = columnKeys[i]
+        if (key === 'assessment') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Assessment</th>`
+          i++
+        } else if (key === 'diagnosis') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Diagnosis</th>`
+          i++
+        } else if (
+          key === 'outcomes' ||
+          key === 'interventions' ||
+          key === 'rationale'
+        ) {
+          let planningCount = 0
+          let tempI = i
+          while (
+            tempI < columnKeys.length &&
+            ['outcomes', 'interventions', 'rationale'].includes(
+              columnKeys[tempI]
+            )
+          ) {
+            planningCount++
+            tempI++
+          }
+          firstRow += `<th colspan="${planningCount}" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif;">Planning</th>`
+          i = tempI
+        } else if (key === 'implementation') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Implementation</th>`
+          i++
+        } else if (key === 'evaluation') {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">Evaluation</th>`
+          i++
+        } else {
+          firstRow += `<th rowspan="2" style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif; vertical-align: middle;">${columnLabels[i]}</th>`
+          i++
+        }
+      }
+
+      // Second row: Individual column headers (only for Planning columns)
+      let secondRow = ''
+      columnKeys.forEach((key, idx) => {
+        if (['outcomes', 'interventions', 'rationale'].includes(key)) {
+          secondRow += `<th style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: center; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif;">${columnLabels[idx]}</th>`
+        }
+      })
+
+      return `<tr>${firstRow}</tr><tr>${secondRow}</tr>`
+    }
+
     // Generate table rows
     const tableData = Object.values(ncpData).map(value => processText(value))
 
@@ -1713,9 +2161,7 @@ export const exportUtils = {
         
         <table style="width: 100%; border-collapse: collapse; border: 2px solid #1e293b;">
           <thead>
-            <tr>
-              ${columns.map(col => `<th style="background-color: #1e293b; color: #ffffff; padding: 16px 12px; text-align: left; font-weight: bold; font-size: 14px; border: 1px solid #1e293b; font-family: Arial, sans-serif;">${col}</th>`).join('')}
-            </tr>
+            ${createHTMLTwoTierHeaders(columns)}
           </thead>
           <tbody>
             <tr>
