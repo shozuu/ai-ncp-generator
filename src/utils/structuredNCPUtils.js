@@ -1218,19 +1218,30 @@ export const prepareExportData = (ncp, columns, formattedNCP) => {
 const convertFormattedToRawText = formattedItems => {
   if (!Array.isArray(formattedItems)) return ''
 
+  // Track numbering for numbered and rationale items
+  let numberCounter = 0
+
   return formattedItems
     .map(item => {
       switch (item.type) {
         case 'subheading':
         case 'status':
         case 'timeframe':
+          // Reset counter after subheadings
+          numberCounter = 0
           return `\n${item.content}\n`
         case 'bullet':
           return `• ${item.content}`
         case 'numbered':
-          return `${formattedItems.filter(i => i.type === 'numbered').indexOf(item) + 1}. ${item.content}`
+          numberCounter++
+          return `${numberCounter}. ${item.content}`
         case 'rationale':
-          return `${item.intervention}\nRationale: ${item.rationale}\nEvidence: ${item.evidence}`
+          // Number rationale items and only export rationale and evidence, not the intervention
+          numberCounter++
+          if (item.evidence) {
+            return `${numberCounter}. ${item.rationale}\n${item.evidence}`
+          }
+          return `${numberCounter}. ${item.rationale}`
         case 'text':
         default:
           return item.content

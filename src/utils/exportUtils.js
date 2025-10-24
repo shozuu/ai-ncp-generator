@@ -1584,6 +1584,7 @@ export const exportUtils = {
         AlignmentType,
         HeadingLevel,
         VerticalAlign,
+        VerticalMerge,
       } = await import('docx')
 
       // Get user details for accountability
@@ -1665,70 +1666,68 @@ export const exportUtils = {
           label => labelToKey[label] || label.toLowerCase()
         )
 
-        // First row: Main section headers
+        // Build first row
         const firstRowCells = []
-        let i = 0
-        while (i < columnKeys.length) {
-          const key = columnKeys[i]
-          if (key === 'assessment') {
+        let colIdx = 0
+
+        while (colIdx < columnKeys.length) {
+          const key = columnKeys[colIdx]
+
+          if (
+            key === 'assessment' ||
+            key === 'diagnosis' ||
+            key === 'implementation' ||
+            key === 'evaluation'
+          ) {
+            // Single column headers that span both rows
+            const label =
+              key === 'assessment'
+                ? 'Assessment'
+                : key === 'diagnosis'
+                  ? 'Diagnosis'
+                  : key === 'implementation'
+                    ? 'Implementation'
+                    : 'Evaluation'
+
             firstRowCells.push(
               new TableCell({
                 children: [
                   new Paragraph({
                     children: [
                       new TextRun({
-                        text: 'Assessment',
+                        text: label,
                         bold: true,
                         color: 'ffffff',
+                        size: 24,
                       }),
                     ],
                     alignment: AlignmentType.CENTER,
                   }),
                 ],
                 shading: { fill: '1e293b' },
-                rowSpan: 2,
-                verticalAlign: VerticalAlign.CENTER,
+                verticalMerge: VerticalMerge.RESTART,
               })
             )
-            i++
-          } else if (key === 'diagnosis') {
-            firstRowCells.push(
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: 'Diagnosis',
-                        bold: true,
-                        color: 'ffffff',
-                      }),
-                    ],
-                    alignment: AlignmentType.CENTER,
-                  }),
-                ],
-                shading: { fill: '1e293b' },
-                rowSpan: 2,
-                verticalAlign: VerticalAlign.CENTER,
-              })
-            )
-            i++
+            colIdx++
           } else if (
             key === 'outcomes' ||
             key === 'interventions' ||
             key === 'rationale'
           ) {
-            // Count planning columns
+            // Planning section - count how many planning columns
             let planningCount = 0
-            let tempI = i
+            let tempIdx = colIdx
             while (
-              tempI < columnKeys.length &&
+              tempIdx < columnKeys.length &&
               ['outcomes', 'interventions', 'rationale'].includes(
-                columnKeys[tempI]
+                columnKeys[tempIdx]
               )
             ) {
               planningCount++
-              tempI++
+              tempIdx++
             }
+
+            // Add Planning header with horizontal merge
             firstRowCells.push(
               new TableCell({
                 children: [
@@ -1738,6 +1737,7 @@ export const exportUtils = {
                         text: 'Planning',
                         bold: true,
                         color: 'ffffff',
+                        size: 24,
                       }),
                     ],
                     alignment: AlignmentType.CENTER,
@@ -1747,51 +1747,38 @@ export const exportUtils = {
                 columnSpan: planningCount,
               })
             )
-            i = tempI
-          } else if (key === 'implementation') {
-            firstRowCells.push(
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: 'Implementation',
-                        bold: true,
-                        color: 'ffffff',
-                      }),
-                    ],
-                    alignment: AlignmentType.CENTER,
-                  }),
-                ],
-                shading: { fill: '1e293b' },
-                rowSpan: 2,
-                verticalAlign: VerticalAlign.CENTER,
-              })
-            )
-            i++
-          } else if (key === 'evaluation') {
-            firstRowCells.push(
-              new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: 'Evaluation',
-                        bold: true,
-                        color: 'ffffff',
-                      }),
-                    ],
-                    alignment: AlignmentType.CENTER,
-                  }),
-                ],
-                shading: { fill: '1e293b' },
-                rowSpan: 2,
-                verticalAlign: VerticalAlign.CENTER,
-              })
-            )
-            i++
+            colIdx = tempIdx
           } else {
-            firstRowCells.push(
+            colIdx++
+          }
+        }
+
+        // Build second row
+        const secondRowCells = []
+        for (let i = 0; i < columnKeys.length; i++) {
+          const key = columnKeys[i]
+
+          if (
+            key === 'assessment' ||
+            key === 'diagnosis' ||
+            key === 'implementation' ||
+            key === 'evaluation'
+          ) {
+            // These are merged from row 1, add continuation cell
+            secondRowCells.push(
+              new TableCell({
+                children: [new Paragraph('')],
+                shading: { fill: '1e293b' },
+                verticalMerge: VerticalMerge.CONTINUE,
+              })
+            )
+          } else if (
+            key === 'outcomes' ||
+            key === 'interventions' ||
+            key === 'rationale'
+          ) {
+            // Planning sub-columns
+            secondRowCells.push(
               new TableCell({
                 children: [
                   new Paragraph({
@@ -1800,43 +1787,17 @@ export const exportUtils = {
                         text: columnLabels[i],
                         bold: true,
                         color: 'ffffff',
+                        size: 22,
                       }),
                     ],
                     alignment: AlignmentType.CENTER,
                   }),
                 ],
                 shading: { fill: '1e293b' },
-                rowSpan: 2,
-                verticalAlign: VerticalAlign.CENTER,
               })
             )
-            i++
           }
         }
-
-        // Second row: Individual column headers (only for Planning columns)
-        const secondRowCells = columnKeys
-          .map((key, idx) => {
-            if (['outcomes', 'interventions', 'rationale'].includes(key)) {
-              return new TableCell({
-                children: [
-                  new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: columnLabels[idx],
-                        bold: true,
-                        color: 'ffffff',
-                      }),
-                    ],
-                    alignment: AlignmentType.CENTER,
-                  }),
-                ],
-                shading: { fill: '1e293b' },
-              })
-            }
-            return null
-          })
-          .filter(cell => cell !== null)
 
         return [
           new TableRow({ children: firstRowCells }),
