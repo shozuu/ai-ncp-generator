@@ -374,19 +374,65 @@ onMounted(() => {
           />
         </colgroup>
         <thead class="bg-muted sticky top-0 z-10 min-w-[200px]">
+          <!-- First row: Main section headers -->
           <tr class="border-b">
+            <!-- Assessment column (single column) -->
             <th
-              v-for="column in columns"
-              :key="column.key"
-              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-left border min-w-[200px] h-auto"
+              v-if="columns.some(col => col.key === 'assessment')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
             >
-              {{ column.label }}
-              <span
-                v-if="column.key === 'assessment'"
-                class="text-xs text-muted-foreground ml-1"
-              >
+              Assessment
+              <span class="text-xs text-muted-foreground ml-1 block mt-1">
                 (Read-only)
               </span>
+            </th>
+            
+            <!-- Diagnosis column (single column) -->
+            <th
+              v-if="columns.some(col => col.key === 'diagnosis')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
+            >
+              Diagnosis
+            </th>
+            
+            <!-- Planning section (spans 3 columns: Objectives, Interventions, Rationale) -->
+            <th
+              v-if="columns.some(col => ['outcomes', 'interventions', 'rationale'].includes(col.key))"
+              :colspan="columns.filter(col => ['outcomes', 'interventions', 'rationale'].includes(col.key)).length"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto"
+            >
+              Planning
+            </th>
+            
+            <!-- Implementation column (single column) -->
+            <th
+              v-if="columns.some(col => col.key === 'implementation')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
+            >
+              Implementation
+            </th>
+            
+            <!-- Evaluation column (single column) -->
+            <th
+              v-if="columns.some(col => col.key === 'evaluation')"
+              rowspan="2"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto align-middle"
+            >
+              Evaluation
+            </th>
+          </tr>
+          
+          <!-- Second row: Individual column headers (only for Planning columns) -->
+          <tr class="border-b">
+            <th
+              v-for="column in columns.filter(col => ['outcomes', 'interventions', 'rationale'].includes(col.key))"
+              :key="column.key"
+              class="border-primary/10 bg-primary/10 p-4 text-sm font-semibold text-center border min-w-[200px] h-auto"
+            >
+              {{ column.label }}
             </th>
           </tr>
         </thead>
