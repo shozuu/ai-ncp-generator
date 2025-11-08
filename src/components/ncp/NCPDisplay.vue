@@ -57,6 +57,7 @@ const props = defineProps({
 const router = useRouter()
 const selectedFormat = ref(props.format)
 const isAlertCollapsed = ref(false)
+const isReasoningCollapsed = ref(false)
 const alertContainer = ref(null)
 const elementWidth = ref(0)
 
@@ -302,23 +303,36 @@ onMounted(() => {
     </div>
 
     <!-- Alert Container -->
-    <Alert class="flex flex-col space-y-3" ref="alertContainer" v-auto-animate>
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <Info class="shrink-0 text-primary w-5 h-5" />
-          <AlertTitle class="mb-0">Important Note</AlertTitle>
+    <Alert class="flex flex-col p-3" ref="alertContainer" v-auto-animate>
+      <div
+        class="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity"
+        @click="isAlertCollapsed = !isAlertCollapsed"
+        role="button"
+        :aria-expanded="!isAlertCollapsed"
+        aria-controls="important-note-content"
+      >
+        <div class="flex items-center space-x-2 flex-1">
+          <Info class="shrink-0 text-primary w-4 h-4" />
+          <AlertTitle class="mb-0 font-semibold">Important Note</AlertTitle>
         </div>
-        <button
-          class="text-primary hover:underline flex items-center text-sm font-medium"
-          @click="isAlertCollapsed = !isAlertCollapsed"
+        <div
+          class="flex items-center gap-1 text-primary text-xs sm:text-sm font-medium flex-shrink-0 ml-2"
         >
-          <span v-if="isAlertCollapsed">Show</span>
-          <span v-else>Hide</span>
-          <ChevronDown v-if="isAlertCollapsed" class="w-4 h-4 ml-1" />
-          <ChevronUp v-else class="w-4 h-4 ml-1" />
-        </button>
+          <span class="hidden sm:inline">{{
+            isAlertCollapsed ? 'Show' : 'Hide'
+          }}</span>
+          <ChevronDown
+            v-if="isAlertCollapsed"
+            class="w-4 h-4 transition-transform"
+          />
+          <ChevronUp v-else class="w-4 h-4 transition-transform" />
+        </div>
       </div>
-      <AlertDescription v-if="!isAlertCollapsed">
+      <AlertDescription
+        v-if="!isAlertCollapsed"
+        id="important-note-content"
+        class="mt-3"
+      >
         The generated Nursing Care Plan (NCP) is based on the assessment data
         you provided and the reference book
         <Button
@@ -350,50 +364,69 @@ onMounted(() => {
     <div
       v-if="ncp.reasoning"
       class="mt-4 rounded-lg border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 overflow-hidden"
+      v-auto-animate
     >
-      <div class="p-3 sm:p-4 space-y-3">
-        <div
-          class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3"
-        >
-          <div class="flex items-center gap-2">
-            <Info
-              class="w-4 h-4 text-blue-600 dark:text-blue-300 flex-shrink-0"
-            />
-            <span
-              class="font-medium text-sm text-blue-900 dark:text-blue-100"
-              >Diagnosis Reasoning</span
-            >
-          </div>
-          <Button
-            size="sm"
-            variant="outline"
-            @click="router.push(`/explain/${ncp.id}`)"
-            class="flex items-center gap-1.5 bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm flex-shrink-0 w-full sm:w-auto text-xs sm:text-sm"
+      <div
+        class="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity p-3 sm:p-4"
+        @click="isReasoningCollapsed = !isReasoningCollapsed"
+        role="button"
+        :aria-expanded="!isReasoningCollapsed"
+        aria-controls="reasoning-content"
+      >
+        <div class="flex items-center gap-2 flex-1">
+          <Info
+            class="w-4 h-4 text-blue-600 dark:text-blue-300 flex-shrink-0"
+          />
+          <span class="font-semibold text-sm text-blue-700 dark:text-blue-300"
+            >Diagnosis Reasoning</span
           >
-            <BookOpen class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span class="hidden sm:inline">Get Detailed Explanation</span>
-            <span class="sm:hidden">Get Detailed Explanation</span>
-          </Button>
         </div>
+        <div
+          class="flex items-center gap-1 text-blue-600 dark:text-blue-300 text-xs sm:text-sm font-medium flex-shrink-0 ml-2"
+        >
+          <span class="hidden sm:inline">{{
+            isReasoningCollapsed ? 'Show' : 'Hide'
+          }}</span>
+          <ChevronDown
+            v-if="isReasoningCollapsed"
+            class="w-4 h-4 transition-transform"
+          />
+          <ChevronUp v-else class="w-4 h-4 transition-transform" />
+        </div>
+      </div>
+      <div
+        v-if="!isReasoningCollapsed"
+        id="reasoning-content"
+        class="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3"
+      >
         <div
           class="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-line leading-relaxed"
         >
           {{ ncp.reasoning }}
         </div>
         <div
-          class="flex items-start gap-2 p-2.5 sm:p-3 rounded-md bg-blue-100/50 dark:bg-blue-900/30 border border-blue-200/50"
+          class="flex flex-col gap-3 p-2.5 sm:p-3 rounded-md bg-blue-100/50 dark:bg-blue-900/30 border border-blue-200/50"
         >
-          <Info
-            class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5"
-          />
-          <p
-            class="text-xs sm:text-sm text-blue-700 dark:text-blue-300 leading-relaxed"
+          <div class="flex items-start gap-2">
+            <Info
+              class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5"
+            />
+            <p
+              class="text-xs sm:text-sm text-blue-700 dark:text-blue-300 leading-relaxed"
+            >
+              <strong>Want more details?</strong> Generate comprehensive,
+              evidence-based explanations for each diagnosis, including clinical
+              rationale, supporting data, and nursing considerations.
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            @click="router.push(`/explain/${ncp.id}`)"
+            class="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 border-blue-400 text-blue-700 shadow-sm w-full text-xs sm:text-sm font-medium"
           >
-            <strong>Want more details?</strong> Click the "Get Detailed
-            Explanation" button to generate comprehensive, evidence-based
-            explanations for each diagnosis, including clinical rationale,
-            supporting data, and nursing considerations.
-          </p>
+            <BookOpen class="w-4 h-4" />
+            <span>Get Detailed Explanation</span>
+          </Button>
         </div>
       </div>
     </div>
