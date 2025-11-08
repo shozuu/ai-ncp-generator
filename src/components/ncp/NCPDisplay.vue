@@ -57,7 +57,6 @@ const props = defineProps({
 const router = useRouter()
 const selectedFormat = ref(props.format)
 const isAlertCollapsed = ref(false)
-const isReasoningCollapsed = ref(false)
 const alertContainer = ref(null)
 const elementWidth = ref(0)
 
@@ -360,77 +359,6 @@ onMounted(() => {
       </AlertDescription>
     </Alert>
 
-    <!-- Diagnosis Reasoning Section -->
-    <div
-      v-if="ncp.reasoning"
-      class="mt-4 rounded-lg border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 overflow-hidden"
-      v-auto-animate
-    >
-      <div
-        class="flex items-center justify-between cursor-pointer hover:opacity-80 transition-opacity p-3 sm:p-4"
-        @click="isReasoningCollapsed = !isReasoningCollapsed"
-        role="button"
-        :aria-expanded="!isReasoningCollapsed"
-        aria-controls="reasoning-content"
-      >
-        <div class="flex items-center gap-2 flex-1">
-          <Info
-            class="w-4 h-4 text-blue-600 dark:text-blue-300 flex-shrink-0"
-          />
-          <span class="font-semibold text-sm text-blue-700 dark:text-blue-300"
-            >Diagnosis Reasoning</span
-          >
-        </div>
-        <div
-          class="flex items-center gap-1 text-blue-600 dark:text-blue-300 text-xs sm:text-sm font-medium flex-shrink-0 ml-2"
-        >
-          <span class="hidden sm:inline">{{
-            isReasoningCollapsed ? 'Show' : 'Hide'
-          }}</span>
-          <ChevronDown
-            v-if="isReasoningCollapsed"
-            class="w-4 h-4 transition-transform"
-          />
-          <ChevronUp v-else class="w-4 h-4 transition-transform" />
-        </div>
-      </div>
-      <div
-        v-if="!isReasoningCollapsed"
-        id="reasoning-content"
-        class="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3"
-      >
-        <div
-          class="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-line leading-relaxed"
-        >
-          {{ ncp.reasoning }}
-        </div>
-        <div
-          class="flex flex-col gap-3 p-2.5 sm:p-3 rounded-md bg-blue-100/50 dark:bg-blue-900/30 border border-blue-200/50"
-        >
-          <div class="flex items-start gap-2">
-            <Info
-              class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5"
-            />
-            <p
-              class="text-xs sm:text-sm text-blue-700 dark:text-blue-300 leading-relaxed"
-            >
-              <strong>Want more details?</strong> Generate comprehensive,
-              evidence-based explanations for each diagnosis, including clinical
-              rationale, supporting data, and nursing considerations.
-            </p>
-          </div>
-          <Button
-            variant="outline"
-            @click="router.push(`/explain/${ncp.id}`)"
-            class="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 border-blue-400 text-blue-700 shadow-sm w-full text-xs sm:text-sm font-medium"
-          >
-            <BookOpen class="w-4 h-4" />
-            <span>Get Detailed Explanation</span>
-          </Button>
-        </div>
-      </div>
-    </div>
-
     <!-- Main NCP Table -->
     <div
       class="max-h-[70vh] overflow-x-auto border border-muted rounded-md mx-auto"
@@ -565,6 +493,49 @@ onMounted(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Diagnosis Reasoning Section -->
+    <div
+      v-if="ncp.reasoning"
+      class="mt-4 rounded-lg border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 overflow-hidden p-3 sm:p-4 space-y-3"
+    >
+      <div class="flex items-center gap-2">
+        <Info class="w-4 h-4 text-blue-600 dark:text-blue-300 flex-shrink-0" />
+        <span
+          class="font-semibold text-sm sm:text-base text-blue-900 dark:text-blue-100"
+          >Diagnosis Reasoning</span
+        >
+      </div>
+      <div
+        class="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-line leading-relaxed"
+      >
+        {{ ncp.reasoning }}
+      </div>
+      <div
+        class="flex flex-col gap-3 p-2.5 sm:p-3 rounded-md bg-blue-100/50 dark:bg-blue-900/30 border border-blue-200/50"
+      >
+        <div class="flex items-start gap-2">
+          <Info
+            class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5"
+          />
+          <p
+            class="text-xs sm:text-sm text-blue-700 dark:text-blue-300 leading-relaxed"
+          >
+            <strong>Want more details?</strong> Generate comprehensive,
+            evidence-based explanations for each diagnosis, including clinical
+            rationale, supporting data, and nursing considerations.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          @click="router.push(`/explain/${ncp.id}`)"
+          class="flex items-center justify-center gap-2 bg-white hover:bg-blue-50 border-blue-400 text-blue-700 shadow-sm w-full text-xs sm:text-sm font-medium"
+        >
+          <BookOpen class="w-4 h-4" />
+          <span>Get Detailed Explanation</span>
+        </Button>
+      </div>
     </div>
 
     <!-- Modification Status -->
