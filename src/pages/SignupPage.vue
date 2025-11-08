@@ -357,15 +357,20 @@ const handleSubmit = async () => {
                     :type="showPassword ? 'text' : 'password'"
                     placeholder="Create a strong password"
                     required
-                    class="pr-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    class="pr-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden"
                   />
                   <button
                     type="button"
                     @click="showPassword = !showPassword"
-                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
+                    :aria-label="
+                      showPassword ? 'Hide password' : 'Show password'
+                    "
                   >
-                    <Eye v-if="!showPassword" class="h-4 w-4" />
-                    <EyeOff v-else class="h-4 w-4" />
+                    <component
+                      :is="showPassword ? EyeOff : Eye"
+                      class="h-4 w-4"
+                    />
                   </button>
                 </div>
 
@@ -483,7 +488,7 @@ const handleSubmit = async () => {
                     placeholder="Confirm your password"
                     required
                     :class="[
-                      'pr-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500',
+                      'pr-10 transition-all duration-200 focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 [&::-ms-reveal]:hidden [&::-ms-clear]:hidden',
                       form.confirmPassword && !passwordsMatch
                         ? 'border-red-500 focus:border-red-500 focus:ring-red-500/20'
                         : '',
@@ -492,10 +497,15 @@ const handleSubmit = async () => {
                   <button
                     type="button"
                     @click="showConfirmPassword = !showConfirmPassword"
-                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+                    class="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors z-10"
+                    :aria-label="
+                      showConfirmPassword ? 'Hide password' : 'Show password'
+                    "
                   >
-                    <Eye v-if="!showConfirmPassword" class="h-4 w-4" />
-                    <EyeOff v-else class="h-4 w-4" />
+                    <component
+                      :is="showConfirmPassword ? EyeOff : Eye"
+                      class="h-4 w-4"
+                    />
                   </button>
                 </div>
 
@@ -532,7 +542,6 @@ const handleSubmit = async () => {
                 :disabled="loading || !isFormValid"
               >
                 <div class="flex items-center justify-center space-x-2">
-                  <Sparkles v-if="!loading" class="h-4 w-4" />
                   <span>{{ loading ? 'Creating Account...' : 'Sign Up' }}</span>
                 </div>
               </Button>
