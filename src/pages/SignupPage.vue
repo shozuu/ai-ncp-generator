@@ -22,10 +22,9 @@ import {
 import { vAutoAnimate } from '@formkit/auto-animate'
 import { Check, Eye, EyeOff, X } from 'lucide-vue-next'
 import { computed, reactive, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRouter } from 'vue-router'
 
 const router = useRouter()
-const route = useRoute()
 const { signUp } = useAuth()
 
 const form = reactive({
@@ -89,6 +88,8 @@ watch(
 const handleSubmit = async () => {
   if (!isFormValid.value) {
     error.value = 'Please fill in all required fields with valid information.'
+    // Scroll to top to show error message
+    window.scrollTo({ top: 0, behavior: 'smooth' })
     return
   }
 
@@ -106,13 +107,21 @@ const handleSubmit = async () => {
 
   if (signUpError) {
     error.value = signUpError.message
+    // Scroll to top to show error message
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   } else {
     success.value =
       'Account created successfully! Please check your email to verify your account.'
+    // Scroll to top to show success message
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+
+    // Redirect to login page with a query parameter
     setTimeout(() => {
-      const redirectTo = route.query.redirect || '/login'
-      router.push(redirectTo)
-    }, 2000)
+      router.push({
+        path: '/login',
+        query: { verified: 'pending' },
+      })
+    }, 3000)
   }
 
   loading.value = false
@@ -162,7 +171,7 @@ const handleSubmit = async () => {
             <Alert
               v-if="error"
               variant="destructive"
-              class="border-red-200 bg-red-50 dark:bg-red-900/20"
+              class="border-red-200 bg-red-50 dark:bg-red-900/20 flex items-center"
             >
               <X class="h-4 w-4" />
               <AlertDescription>{{ error }}</AlertDescription>
@@ -170,11 +179,11 @@ const handleSubmit = async () => {
 
             <Alert
               v-if="success"
-              class="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20"
+              class="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 animate-pulse"
             >
-              <Check class="h-4 w-4 text-emerald-600" />
+              <Check class="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
               <AlertDescription
-                class="text-emerald-800 dark:text-emerald-200"
+                class="text-emerald-800 dark:text-emerald-200 font-medium"
                 >{{ success }}</AlertDescription
               >
             </Alert>

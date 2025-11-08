@@ -33,12 +33,27 @@ const loading = ref(false)
 const error = ref('')
 const showPassword = ref(false)
 
+// Verification message from signup
+const verificationMessage = ref('')
+
 // Forgot password state
 const showForgotPasswordDialog = ref(false)
 const forgotPasswordEmail = ref('')
 const forgotPasswordLoading = ref(false)
 const forgotPasswordError = ref('')
 const forgotPasswordSuccess = ref(false)
+
+// Check if user is coming from signup page
+if (route.query.verified === 'pending') {
+  verificationMessage.value =
+    'Please check your email to verify your account before logging in.'
+  // Auto-hide the message after 8 seconds
+  setTimeout(() => {
+    verificationMessage.value = ''
+    // Clean up the URL query parameter
+    router.replace({ path: '/login' })
+  }, 8000)
+}
 
 const handleSubmit = async () => {
   error.value = ''
@@ -51,6 +66,8 @@ const handleSubmit = async () => {
 
   if (signInError) {
     error.value = signInError.message
+    // Scroll to top to show error message
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   } else {
     const redirectTo = route.query.redirect || '/'
     router.push(redirectTo)
@@ -131,6 +148,19 @@ const openForgotPasswordDialog = () => {
           </CardHeader>
 
           <CardContent class="space-y-6" v-auto-animate>
+            <!-- Verification Message (from signup) -->
+            <Alert
+              v-if="verificationMessage"
+              class="border-blue-200 bg-blue-50 dark:bg-blue-900/20 animate-pulse"
+            >
+              <Mail class="h-5 w-5 text-blue-600 dark:text-blue-400" />
+              <AlertDescription
+                class="text-blue-800 dark:text-blue-200 font-medium"
+              >
+                {{ verificationMessage }}
+              </AlertDescription>
+            </Alert>
+
             <!-- Success Message (from password reset) -->
             <Alert
               v-if="route.query.message"
@@ -146,7 +176,7 @@ const openForgotPasswordDialog = () => {
             <Alert
               v-if="error"
               variant="destructive"
-              class="border-red-200 bg-red-50 dark:bg-red-900/20"
+              class="border-red-200 bg-red-50 dark:bg-red-900/20 flex items-center"
             >
               <X class="h-4 w-4" />
               <AlertDescription>{{ error }}</AlertDescription>
