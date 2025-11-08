@@ -192,6 +192,20 @@ export const manualModeSchema = z.object({
       message: 'Temperature must be between 25°C and 45°C',
     })
     .transform(value => (value ? String(value) : value)),
+  pain_scale: z
+    .union([z.string(), z.number()])
+    .optional()
+    .refine(
+      value =>
+        !value ||
+        (typeof value === 'number' && Number.isInteger(value)) ||
+        /^\d+$/.test(String(value).trim()),
+      { message: 'Pain scale must be a valid number' }
+    )
+    .refine(value => !value || (Number(value) >= 0 && Number(value) <= 10), {
+      message: 'Pain scale must be between 0 and 10',
+    })
+    .transform(value => (value ? String(value) : value)),
 
   // Physical Examination Findings
   height: z

@@ -180,6 +180,7 @@ def validate_assessment_data(data: Dict):
         has_meaningful_value(data.get('respiratory_rate_min')),
         has_meaningful_value(data.get('oxygen_saturation_percent')),
         has_meaningful_value(data.get('temperature_celsius')),
+        has_meaningful_value(data.get('pain_scale')),
         has_meaningful_value(data.get('height')),
         has_meaningful_value(data.get('weight')),
         has_meaningful_value(data.get('cephalocaudal_assessment')),
@@ -442,6 +443,7 @@ def format_structured_data(structured_data) -> str:
         if structured_data.get('respiratory_rate_min'): vital_info.append(f"Respiratory Rate: {structured_data['respiratory_rate_min']}/min")
         if structured_data.get('oxygen_saturation_percent'): vital_info.append(f"SpO2: {structured_data['oxygen_saturation_percent']}%")
         if structured_data.get('temperature_celsius'): vital_info.append(f"Temperature: {structured_data['temperature_celsius']}°C")
+        if structured_data.get('pain_scale'): vital_info.append(f"Pain Scale: {structured_data['pain_scale']}/10")
         if vital_info:
             formatted_sections.append(f"Vital Signs:\n- {'; '.join(vital_info)}")
         

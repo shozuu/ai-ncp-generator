@@ -1084,6 +1084,27 @@ const exportAssessment = async () => {
                   }}</FormMessage>
                 </FormItem>
               </FormField>
+
+              <FormField
+                name="pain_scale"
+                v-slot="{ componentField, errorMessage }"
+              >
+                <FormItem v-auto-animate>
+                  <FormLabel>Pain Scale (0-10)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="e.g., 5"
+                      v-bind="componentField"
+                      type="number"
+                      min="0"
+                      max="10"
+                    />
+                  </FormControl>
+                  <FormMessage v-if="errorMessage">{{
+                    errorMessage
+                  }}</FormMessage>
+                </FormItem>
+              </FormField>
             </div>
           </CardContent>
         </CollapsibleContent>
