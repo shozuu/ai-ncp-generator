@@ -127,6 +127,19 @@ router.beforeEach(async (to, from, next) => {
   const authRequired = to.meta?.authRequired === true
   const redirectIfAuth = to.meta?.redirectIfAuth === true
 
+  // Check if this is an email confirmation redirect from Supabase
+  // Supabase adds hash params with access_token and type=signup
+  if (to.hash && to.hash.includes('access_token')) {
+    // Wait a moment for the session to be established
+    await new Promise(resolve => setTimeout(resolve, 1000))
+    await initAuth()
+
+    // After confirmation, redirect to home or generate page
+    if (user.value) {
+      return next('/generate')
+    }
+  }
+
   if (isAuthenticated && redirectIfAuth) {
     const redirectTo = to.query.redirect || '/'
     return next(redirectTo)
