@@ -85,6 +85,32 @@ watch(
   }
 )
 
+const getReadableSignupError = errorMessage => {
+  // Map technical error messages to user-friendly ones
+  const errorMap = {
+    'User already registered':
+      'An account with this email already exists. Please sign in or use a different email.',
+    'Email already exists':
+      'An account with this email already exists. Please sign in or use a different email.',
+    'Invalid email': 'Please enter a valid email address.',
+    'Password should be at least 6 characters':
+      'Your password must be at least 6 characters long.',
+    'Weak password':
+      'Please choose a stronger password with a mix of letters, numbers, and special characters.',
+    'Invalid email format': 'Please enter a valid email address.',
+  }
+
+  // Check if the error message contains any of our known patterns
+  for (const [pattern, friendlyMessage] of Object.entries(errorMap)) {
+    if (errorMessage.toLowerCase().includes(pattern.toLowerCase())) {
+      return friendlyMessage
+    }
+  }
+
+  // Default fallback for unknown errors
+  return 'Unable to create your account. Please try again or contact support if the issue persists.'
+}
+
 const handleSubmit = async () => {
   if (!isFormValid.value) {
     error.value = 'Please fill in all required fields with valid information.'
@@ -106,7 +132,7 @@ const handleSubmit = async () => {
   })
 
   if (signUpError) {
-    error.value = signUpError.message
+    error.value = getReadableSignupError(signUpError.message)
     // Scroll to top to show error message
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } else {
@@ -170,22 +196,58 @@ const handleSubmit = async () => {
             <!-- Alerts -->
             <Alert
               v-if="error"
-              variant="destructive"
-              class="border-red-200 bg-red-50 dark:bg-red-900/20 flex items-center"
+              class="border-l-4 border-l-red-500 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50"
             >
-              <X class="h-4 w-4" />
-              <AlertDescription>{{ error }}</AlertDescription>
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center"
+                  >
+                    <X class="h-3 w-3 text-red-600 dark:text-red-400" />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p
+                    class="text-sm font-medium text-red-900 dark:text-red-100 mb-1"
+                  >
+                    Sign Up Failed
+                  </p>
+                  <AlertDescription
+                    class="text-sm text-red-800 dark:text-red-200"
+                  >
+                    {{ error }}
+                  </AlertDescription>
+                </div>
+              </div>
             </Alert>
 
             <Alert
               v-if="success"
-              class="border-emerald-200 bg-emerald-50 dark:bg-emerald-900/20 animate-pulse"
+              class="border-l-4 border-l-emerald-500 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-100 dark:border-emerald-900/50"
             >
-              <Check class="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-              <AlertDescription
-                class="text-emerald-800 dark:text-emerald-200 font-medium"
-                >{{ success }}</AlertDescription
-              >
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="w-5 h-5 rounded-full bg-emerald-100 dark:bg-emerald-900/50 flex items-center justify-center"
+                  >
+                    <Check
+                      class="h-3 w-3 text-emerald-600 dark:text-emerald-400"
+                    />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p
+                    class="text-sm font-medium text-emerald-900 dark:text-emerald-100 mb-1"
+                  >
+                    Account Created Successfully!
+                  </p>
+                  <AlertDescription
+                    class="text-sm text-emerald-800 dark:text-emerald-200"
+                  >
+                    {{ success }}
+                  </AlertDescription>
+                </div>
+              </div>
             </Alert>
 
             <form @submit.prevent="handleSubmit" class="space-y-5">

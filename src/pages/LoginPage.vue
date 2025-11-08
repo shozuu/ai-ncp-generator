@@ -55,6 +55,32 @@ if (route.query.verified === 'pending') {
   }, 8000)
 }
 
+const getReadableErrorMessage = errorMessage => {
+  // Map technical error messages to user-friendly ones
+  const errorMap = {
+    'Invalid login credentials':
+      'The email or password you entered is incorrect. Please try again.',
+    'Email not confirmed':
+      'Please verify your email address before signing in. Check your inbox for the confirmation link.',
+    'User not found':
+      'No account found with this email address. Please check your email or sign up.',
+    'Invalid email or password':
+      'The email or password you entered is incorrect. Please try again.',
+    'Too many requests':
+      'Too many login attempts. Please wait a few minutes before trying again.',
+  }
+
+  // Check if the error message contains any of our known patterns
+  for (const [pattern, friendlyMessage] of Object.entries(errorMap)) {
+    if (errorMessage.toLowerCase().includes(pattern.toLowerCase())) {
+      return friendlyMessage
+    }
+  }
+
+  // Default fallback for unknown errors
+  return 'Unable to sign in. Please check your credentials and try again.'
+}
+
 const handleSubmit = async () => {
   error.value = ''
   loading.value = true
@@ -65,7 +91,7 @@ const handleSubmit = async () => {
   )
 
   if (signInError) {
-    error.value = signInError.message
+    error.value = getReadableErrorMessage(signInError.message)
     // Scroll to top to show error message
     window.scrollTo({ top: 0, behavior: 'smooth' })
   } else {
@@ -151,35 +177,80 @@ const openForgotPasswordDialog = () => {
             <!-- Verification Message (from signup) -->
             <Alert
               v-if="verificationMessage"
-              class="border-blue-200 bg-blue-50 dark:bg-blue-900/20 animate-pulse"
+              class="border-l-4 border-l-blue-500 bg-blue-50 dark:bg-blue-950/30 border-blue-100 dark:border-blue-900/50"
             >
-              <Mail class="h-5 w-5 text-blue-600 dark:text-blue-400" />
-              <AlertDescription
-                class="text-blue-800 dark:text-blue-200 font-medium"
-              >
-                {{ verificationMessage }}
-              </AlertDescription>
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="w-5 h-5 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center"
+                  >
+                    <Mail class="h-3 w-3 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p
+                    class="text-sm font-medium text-blue-900 dark:text-blue-100 mb-1"
+                  >
+                    Email Verification Required
+                  </p>
+                  <AlertDescription
+                    class="text-sm text-blue-800 dark:text-blue-200"
+                  >
+                    {{ verificationMessage }}
+                  </AlertDescription>
+                </div>
+              </div>
             </Alert>
 
             <!-- Success Message (from password reset) -->
             <Alert
               v-if="route.query.message"
-              class="border-green-200 bg-green-50 dark:bg-green-900/20"
+              class="border-l-4 border-l-green-500 bg-green-50 dark:bg-green-950/30 border-green-100 dark:border-green-900/50"
             >
-              <Mail class="h-4 w-4 text-green-600" />
-              <AlertDescription class="text-green-800 dark:text-green-200">
-                {{ route.query.message }}
-              </AlertDescription>
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="w-5 h-5 rounded-full bg-green-100 dark:bg-green-900/50 flex items-center justify-center"
+                  >
+                    <Mail class="h-3 w-3 text-green-600 dark:text-green-400" />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <AlertDescription
+                    class="text-sm text-green-800 dark:text-green-200"
+                  >
+                    {{ route.query.message }}
+                  </AlertDescription>
+                </div>
+              </div>
             </Alert>
 
             <!-- Error Alert -->
             <Alert
               v-if="error"
-              variant="destructive"
-              class="border-red-200 bg-red-50 dark:bg-red-900/20 flex items-center"
+              class="border-l-4 border-l-red-500 bg-red-50 dark:bg-red-950/30 border-red-100 dark:border-red-900/50"
             >
-              <X class="h-4 w-4" />
-              <AlertDescription>{{ error }}</AlertDescription>
+              <div class="flex items-start gap-3">
+                <div class="flex-shrink-0 mt-0.5">
+                  <div
+                    class="w-5 h-5 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center"
+                  >
+                    <X class="h-3 w-3 text-red-600 dark:text-red-400" />
+                  </div>
+                </div>
+                <div class="flex-1">
+                  <p
+                    class="text-sm font-medium text-red-900 dark:text-red-100 mb-1"
+                  >
+                    Sign In Failed
+                  </p>
+                  <AlertDescription
+                    class="text-sm text-red-800 dark:text-red-200"
+                  >
+                    {{ error }}
+                  </AlertDescription>
+                </div>
+              </div>
             </Alert>
 
             <form @submit.prevent="handleSubmit" class="space-y-5">
