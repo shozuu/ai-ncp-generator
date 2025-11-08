@@ -237,7 +237,10 @@ const exportAssessment = async () => {
 </script>
 
 <template>
-  <form @submit="onSubmit" class="space-y-4 sm:space-y-6 px-2 sm:px-0">
+  <form
+    @submit="onSubmit"
+    class="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-32 sm:pb-24"
+  >
     <!-- Enhanced Instructions Banner -->
     <div
       class="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 sm:p-6"
@@ -260,40 +263,40 @@ const exportAssessment = async () => {
               🏥 Comprehensive Nursing Assessment
             </h3>
             <p
-              class="text-sm sm:text-base text-blue-700 dark:text-blue-300 mb-4 leading-relaxed"
+              class="text-sm sm:text-base text-blue-700 dark:text-blue-300 mb-3 sm:mb-4 leading-relaxed"
             >
               Complete the relevant sections below to create a thorough patient
               assessment. Use the collapsible sections to focus on specific
               areas and maintain a clean workspace.
+            </p>
+            <p
+              class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 mb-3 sm:mb-4 leading-relaxed"
+            >
               <span class="font-semibold">💾 Tip:</span> Use the "Export
               Assessment" button at the bottom to save a copy of your filled
               form for personal reference before submission.
             </p>
-            <div
-              class="flex flex-col sm:flex-row flex-wrap gap-2 items-center sm:items-start"
-            >
-              <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  @click="expandAllSections"
-                  class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm w-full sm:w-auto"
-                >
-                  <span class="hidden sm:inline">Expand All</span>
-                  <span class="sm:hidden">Expand</span>
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  @click="collapseAllSections"
-                  class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm w-full sm:w-auto"
-                >
-                  <span class="hidden sm:inline">Collapse All</span>
-                  <span class="sm:hidden">Collapse</span>
-                </Button>
-              </div>
+            <div class="flex flex-row gap-2 sm:gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="expandAllSections"
+                class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm text-xs sm:text-sm px-3 py-1.5"
+              >
+                <span class="hidden sm:inline">Expand All</span>
+                <span class="sm:hidden">Expand</span>
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                @click="collapseAllSections"
+                class="bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm text-xs sm:text-sm px-3 py-1.5"
+              >
+                <span class="hidden sm:inline">Collapse All</span>
+                <span class="sm:hidden">Collapse</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -1097,24 +1100,30 @@ const exportAssessment = async () => {
       <Collapsible v-model:open="sectionStates.physicalExam">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Activity class="w-5 h-5 text-primary" />
-                <span>Physical Examination Findings</span>
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Activity
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Physical Examination Findings</span
+                >
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.physicalExam }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Comprehensive physical examination findings.
             </CardDescription>
           </CardHeader>
         </CollapsibleTrigger>
-        <CollapsibleContent>
+        <CollapsibleContent
+          class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        >
           <CardContent class="space-y-4 pt-0">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
               <FormField
@@ -1199,24 +1208,30 @@ const exportAssessment = async () => {
       <Collapsible v-model:open="sectionStates.labFindings">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <FlaskConical class="w-5 h-5 text-primary" />
-                <span>Laboratory Findings</span>
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <FlaskConical
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Laboratory Findings</span
+                >
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.labFindings }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Laboratory test results and diagnostic findings.
             </CardDescription>
           </CardHeader>
         </CollapsibleTrigger>
-        <CollapsibleContent>
+        <CollapsibleContent
+          class="data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0"
+        >
           <CardContent class="pt-0">
             <FormField
               name="laboratory_results"
@@ -1252,19 +1267,23 @@ const exportAssessment = async () => {
       <Collapsible v-model:open="sectionStates.subjective">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Clipboard class="w-5 h-5 text-primary" />
-                <span>Subjective Data</span>
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Clipboard
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Subjective Data</span
+                >
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.subjective }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Patient-reported symptoms and concerns.
             </CardDescription>
           </CardHeader>
@@ -1306,19 +1325,23 @@ const exportAssessment = async () => {
       <Collapsible v-model:open="sectionStates.objective">
         <CollapsibleTrigger class="w-full">
           <CardHeader
-            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg"
+            class="hover:bg-muted/30 transition-colors cursor-pointer rounded-t-lg p-4 sm:p-6"
           >
             <CardTitle class="flex items-center justify-between text-left">
-              <div class="flex items-center space-x-3">
-                <Clipboard class="w-5 h-5 text-primary" />
-                <span>Objective Data</span>
+              <div class="flex items-center space-x-2 sm:space-x-3 flex-wrap">
+                <Clipboard
+                  class="w-4 h-4 sm:w-5 sm:h-5 text-primary flex-shrink-0"
+                />
+                <span class="text-sm sm:text-base font-medium"
+                  >Objective Data</span
+                >
               </div>
               <ChevronDown
-                class="h-4 w-4 transition-transform duration-200 text-muted-foreground"
+                class="h-4 w-4 transition-transform duration-200 text-muted-foreground flex-shrink-0"
                 :class="{ 'transform rotate-180': sectionStates.objective }"
               />
             </CardTitle>
-            <CardDescription class="text-left">
+            <CardDescription class="text-left text-sm">
               Observable and measurable findings.
             </CardDescription>
           </CardHeader>
@@ -1355,10 +1378,10 @@ const exportAssessment = async () => {
 
     <!-- Enhanced Submit Section -->
     <div
-      class="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-muted p-4 sm:p-6 rounded-lg shadow-lg"
+      class="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-muted p-4 sm:p-6 rounded-lg shadow-lg z-40"
     >
       <div
-        class="flex flex-col space-y-4 sm:flex-row sm:items-center sm:justify-between sm:space-y-0"
+        class="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
       >
         <div class="flex items-center justify-center sm:justify-start">
           <div
@@ -1373,9 +1396,7 @@ const exportAssessment = async () => {
             >
           </div>
         </div>
-        <div
-          class="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto"
-        >
+        <div class="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full md:w-auto">
           <Button
             type="button"
             variant="outline"

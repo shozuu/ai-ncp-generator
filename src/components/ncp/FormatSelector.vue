@@ -48,18 +48,20 @@ const handleCardClick = value => {
     <h2 class="text-lg font-bold">Select NCP Format</h2>
     <RadioGroup
       v-model="selectedFormat"
-      class="sm:grid-cols-2 lg:grid-cols-4 grid gap-4"
+      class="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4"
       @update:model-value="updateFormat"
     >
       <!-- Radio Group Card -->
       <div
         v-for="format in formats"
         :key="format.value"
-        class="relative flex cursor-pointer rounded-lg border p-4 transition hover:border-primary"
-        :class="{
-          'bg-primary/10 border-primary': selectedFormat === format.value,
-          border: selectedFormat !== format.value,
-        }"
+        class="relative flex cursor-pointer rounded-lg border transition hover:border-primary"
+        :class="[
+          selectedFormat === format.value
+            ? 'bg-primary/10 border-primary'
+            : 'border',
+          'p-3 sm:p-4',
+        ]"
         @click="handleCardClick(format.value)"
         :aria-selected="selectedFormat === format.value"
       >
@@ -68,13 +70,13 @@ const handleCardClick = value => {
           v-if="selectedFormat === format.value"
           class="absolute top-2 right-2 text-primary"
         >
-          <Check class="w-5 h-5" />
+          <Check class="w-4 h-4 sm:w-5 sm:h-5" />
         </div>
 
         <RadioGroupItem :value="format.value" class="hidden" />
-        <div class="space-y-2">
-          <p class="font-medium">{{ format.label }}</p>
-          <p class="text-muted-foreground text-sm">
+        <div class="space-y-1.5 sm:space-y-2">
+          <p class="font-semibold text-sm sm:text-base">{{ format.label }}</p>
+          <p class="text-muted-foreground text-xs sm:text-sm leading-tight">
             {{ format.description }}
           </p>
         </div>

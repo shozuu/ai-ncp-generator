@@ -173,7 +173,7 @@ const handleSubmit = async data => {
   <!-- Main content -->
   <section class="space-y-8 w-full">
     <!-- Header Section -->
-    <div class="pb-2 border-b border-muted">
+    <div >
       <div>
 
         <!-- Active generation warning -->
