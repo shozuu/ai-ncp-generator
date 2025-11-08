@@ -237,10 +237,7 @@ const exportAssessment = async () => {
 </script>
 
 <template>
-  <form
-    @submit="onSubmit"
-    class="space-y-4 sm:space-y-6 px-2 sm:px-0 pb-32 sm:pb-24"
-  >
+  <form @submit="onSubmit" class="space-y-4 sm:space-y-6 px-2 sm:px-0">
     <!-- Enhanced Instructions Banner -->
     <div
       class="relative overflow-hidden bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-900/20 dark:via-indigo-900/20 dark:to-purple-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 sm:p-6"
@@ -573,10 +570,10 @@ const exportAssessment = async () => {
                 v-slot="{ componentField, errorMessage }"
               >
                 <FormItem v-auto-animate>
-                  <FormLabel>Severity Progression</FormLabel>
+                  <FormLabel>Severity & Progression</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g., mild to severe, constant"
+                      placeholder="e.g., Pain is 6/10, aching and throbbing, worse with movement"
                       v-bind="componentField"
                     />
                   </FormControl>
