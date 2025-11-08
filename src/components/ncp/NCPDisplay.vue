@@ -349,14 +349,52 @@ onMounted(() => {
     <!-- Diagnosis Reasoning Section -->
     <div
       v-if="ncp.reasoning"
-      class="mt-4 p-4 rounded-md border border-blue-200 bg-primary-50 text-sm"
+      class="mt-4 rounded-lg border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 overflow-hidden"
     >
-      <div class="flex items-center gap-2 mb-2">
-        <Info class="w-4 h-4 text-blue-600 dark:text-blue-300" />
-        <span class="font-semibold">Diagnosis Reasoning</span>
-      </div>
-      <div class="whitespace-pre-line">
-        {{ ncp.reasoning }}
+      <div class="p-3 sm:p-4 space-y-3">
+        <div
+          class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-3"
+        >
+          <div class="flex items-center gap-2">
+            <Info
+              class="w-4 h-4 text-blue-600 dark:text-blue-300 flex-shrink-0"
+            />
+            <span
+              class="font-medium text-sm text-blue-900 dark:text-blue-100"
+              >Diagnosis Reasoning</span
+            >
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            @click="router.push(`/explain/${ncp.id}`)"
+            class="flex items-center gap-1.5 bg-white/70 hover:bg-white border-blue-300 text-blue-700 shadow-sm flex-shrink-0 w-full sm:w-auto text-xs sm:text-sm"
+          >
+            <BookOpen class="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span class="hidden sm:inline">Get Detailed Explanation</span>
+            <span class="sm:hidden">Get Detailed Explanation</span>
+          </Button>
+        </div>
+        <div
+          class="text-sm text-blue-800 dark:text-blue-200 whitespace-pre-line leading-relaxed"
+        >
+          {{ ncp.reasoning }}
+        </div>
+        <div
+          class="flex items-start gap-2 p-2.5 sm:p-3 rounded-md bg-blue-100/50 dark:bg-blue-900/30 border border-blue-200/50"
+        >
+          <Info
+            class="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5"
+          />
+          <p
+            class="text-xs sm:text-sm text-blue-700 dark:text-blue-300 leading-relaxed"
+          >
+            <strong>Want more details?</strong> Click the "Get Detailed
+            Explanation" button to generate comprehensive, evidence-based
+            explanations for each diagnosis, including clinical rationale,
+            supporting data, and nursing considerations.
+          </p>
+        </div>
       </div>
     </div>
 
