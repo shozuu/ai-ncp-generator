@@ -20,6 +20,7 @@ import google.generativeai as genai
 from anthropic import Anthropic
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
+from admin_routes import admin_router
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -1181,6 +1182,9 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
                 raise Exception(f"NCP generation failed after all retries: {str(e)}")
     
     raise Exception("Failed to generate valid NCP after all retries")
+
+# Include admin routes
+app.include_router(admin_router)
 
 if __name__ == "__main__":
     import uvicorn

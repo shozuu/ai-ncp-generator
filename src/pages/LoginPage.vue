@@ -43,11 +43,18 @@ const forgotPasswordLoading = ref(false)
 const forgotPasswordError = ref('')
 const forgotPasswordSuccess = ref(false)
 
-// Check if user is coming from signup page
+// Check if user is coming from signup page or was suspended
 if (route.query.verified === 'pending') {
   verificationMessage.value =
     'Please check your email to verify your account before logging in.'
   // Auto-hide the message after 8 seconds
+} else if (route.query.suspended === 'true') {
+  error.value =
+    'Your account has been suspended. Please contact support for assistance.'
+}
+
+// Auto-hide the message after 8 seconds if it's a verification message
+if (route.query.verified === 'pending') {
   setTimeout(() => {
     verificationMessage.value = ''
     // Clean up the URL query parameter

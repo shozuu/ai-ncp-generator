@@ -1,3 +1,4 @@
+import { useAdmin } from '@/composables/useAdmin'
 import { useAuth } from '@/composables/useAuth'
 import ExplainPage from '@/pages/ExplainPage.vue'
 import GeneratePage from '@/pages/GeneratePage.vue'
@@ -8,6 +9,9 @@ import NCPExplanationPage from '@/pages/NCPExplanationPage.vue'
 import NCPHistoryPage from '@/pages/NCPHistoryPage.vue'
 import ResetPasswordPage from '@/pages/ResetPasswordPage.vue'
 import SignupPage from '@/pages/SignupPage.vue'
+import AdminDashboardPage from '@/pages/admin/AdminDashboardPage.vue'
+import SystemHealthPage from '@/pages/admin/SystemHealthPage.vue'
+import UserManagementPage from '@/pages/admin/UserManagementPage.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
@@ -108,6 +112,48 @@ const routes = [
       ],
     },
   },
+  // Admin Routes
+  {
+    path: '/admin',
+    name: 'AdminDashboard',
+    component: AdminDashboardPage,
+    meta: {
+      authRequired: true,
+      adminRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'Admin Dashboard', to: '/admin', isActive: true },
+      ],
+    },
+  },
+  {
+    path: '/admin/users',
+    name: 'UserManagement',
+    component: UserManagementPage,
+    meta: {
+      authRequired: true,
+      adminRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'Admin', to: '/admin' },
+        { title: 'User Management', to: '/admin/users', isActive: true },
+      ],
+    },
+  },
+  {
+    path: '/admin/health',
+    name: 'SystemHealth',
+    component: SystemHealthPage,
+    meta: {
+      authRequired: true,
+      adminRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'Admin', to: '/admin' },
+        { title: 'System Health', to: '/admin/health', isActive: true },
+      ],
+    },
+  },
 ]
 
 const router = createRouter({
@@ -118,6 +164,7 @@ const router = createRouter({
 // Global navigation guard
 router.beforeEach(async (to, from, next) => {
   const { user, loading, initAuth } = useAuth()
+  const { isAdmin, checkAdminStatus, adminCheckLoading } = useAdmin()
 
   if (loading.value) {
     await initAuth()
@@ -125,6 +172,7 @@ router.beforeEach(async (to, from, next) => {
 
   const isAuthenticated = !!user.value
   const authRequired = to.meta?.authRequired === true
+  const adminRequired = to.meta?.adminRequired === true
   const redirectIfAuth = to.meta?.redirectIfAuth === true
 
   // Check if this is an email confirmation redirect from Supabase
@@ -150,6 +198,28 @@ router.beforeEach(async (to, from, next) => {
       path: '/login',
       query: { redirect: to.fullPath },
     })
+  }
+
+  // Check admin access for admin routes
+  if (adminRequired) {
+    if (!isAuthenticated) {
+      return next({
+        path: '/login',
+        query: { redirect: to.fullPath },
+      })
+    }
+
+    // Check admin status
+    if (adminCheckLoading.value) {
+      await checkAdminStatus()
+    }
+
+    if (!isAdmin.value) {
+      return next({
+        path: '/',
+        query: { error: 'unauthorized' },
+      })
+    }
   }
 
   next()
