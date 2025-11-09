@@ -27,6 +27,23 @@ export const useAuth = () => {
       email,
       password,
     })
+
+    // Check if user is suspended
+    if (data?.user) {
+      const isSuspended = data.user.user_metadata?.is_suspended || false
+      if (isSuspended) {
+        // Sign out immediately
+        await supabase.auth.signOut()
+        return {
+          data: null,
+          error: {
+            message: 'Your account has been suspended. Please contact support.',
+            status: 403,
+          },
+        }
+      }
+    }
+
     return { data, error }
   }
 
@@ -51,11 +68,35 @@ export const useAuth = () => {
     const {
       data: { session },
     } = await supabase.auth.getSession()
+
+    // Check if user is suspended
+    if (session?.user) {
+      const isSuspended = session.user.user_metadata?.is_suspended || false
+      if (isSuspended) {
+        await supabase.auth.signOut()
+        user.value = null
+        loading.value = false
+        router.push('/login?suspended=true')
+        return
+      }
+    }
+
     user.value = session?.user ?? null
     loading.value = false
 
     // Listen for auth changes
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      // Check suspension status on any auth change
+      if (session?.user) {
+        const isSuspended = session.user.user_metadata?.is_suspended || false
+        if (isSuspended) {
+          await supabase.auth.signOut()
+          user.value = null
+          router.push('/login?suspended=true')
+          return
+        }
+      }
+
       user.value = session?.user ?? null
       loading.value = false
 
