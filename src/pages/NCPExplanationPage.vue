@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import LoadingIndicator from '@/components/ui/loading/LoadingIndicator.vue'
+import { ToastAction } from '@/components/ui/toast'
 import { useToast } from '@/components/ui/toast/use-toast'
 import { useBackgroundOperations } from '@/composables/useBackgroundOperations'
 import SidebarLayout from '@/layouts/SidebarLayout.vue'
@@ -39,7 +40,7 @@ import {
   Target,
   X,
 } from 'lucide-vue-next'
-import { computed, onMounted, ref } from 'vue'
+import { computed, h, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -116,6 +117,35 @@ onMounted(async () => {
   }
 })
 
+const showSurveyToast = () => {
+  toast({
+    title: 'Help Us Improve SmartCare',
+    description:
+      'Your experience matters! Share your feedback through our quick 2-3 minute survey to help improve the NCP generator for nursing students.',
+    duration: 20000, // 20 seconds
+    class:
+      'border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-50 to-white dark:from-blue-950/20 dark:to-background',
+    action: h(
+      ToastAction,
+      {
+        altText: 'Take Survey',
+        class:
+          'bg-blue-600 text-white hover:bg-blue-700 border-blue-600 font-semibold',
+        onClick: () => {
+          window.open(
+            'https://forms.gle/XbEt3GVrJDEJPyhB8',
+            '_blank',
+            'noopener,noreferrer'
+          )
+        },
+      },
+      {
+        default: () => 'Take Survey',
+      }
+    ),
+  })
+}
+
 const loadNCPAndExplanation = async () => {
   isLoading.value = true
   isGeneratingExplanation.value = false // Ensure only one loading state
@@ -130,6 +160,11 @@ const loadNCPAndExplanation = async () => {
 
     if (hasExplanation.value) {
       explanation.value = await explanationService.getNCPExplanation(ncpId)
+
+      // Show survey toast when viewing explanations
+      setTimeout(() => {
+        showSurveyToast()
+      }, 3000)
     }
   } catch (error) {
     console.error('Error loading NCP:', error)
