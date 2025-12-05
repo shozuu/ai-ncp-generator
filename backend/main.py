@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from typing import Dict
 import os
 import logging
@@ -20,7 +21,7 @@ import google.generativeai as genai
 from anthropic import Anthropic
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
-from admin_routes import admin_router
+from admin_routes import admin_router, supabase, check_user_suspension
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -59,6 +60,50 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Middleware to check user suspension status
+@app.middleware("http")
+async def check_suspension_middleware(request: Request, call_next):
+    """
+    Middleware to check if a user is suspended on every request.
+    Suspended users are immediately logged out.
+    """
+    # Skip suspension check for admin routes, health check, and public endpoints
+    path = request.url.path
+    if (path.startswith("/api/admin") or 
+        path in ["/", "/health", "/docs", "/openapi.json", "/redoc"] or
+        path.startswith("/static")):
+        return await call_next(request)
+    
+    # Check for authorization header
+    auth_header = request.headers.get("authorization")
+    if auth_header and auth_header.startswith("Bearer "):
+        token = auth_header.replace("Bearer ", "")
+        
+        try:
+            # Verify token and get user
+            user_response = supabase.auth.get_user(token)
+            if user_response and user_response.user:
+                user_id = user_response.user.id
+                
+                # Check if user is suspended
+                if check_user_suspension(user_id):
+                    logger.warning(f"Suspended user {user_id} attempted to access {path}")
+                    return JSONResponse(
+                        status_code=403,
+                        content={
+                            "error": "Account Suspended",
+                            "message": "Your account has been suspended. Please contact support for more information.",
+                            "code": "ACCOUNT_SUSPENDED"
+                        }
+                    )
+        except Exception as e:
+            # If token verification fails, let the request continue
+            # The specific endpoint will handle authentication
+            logger.debug(f"Token verification in middleware failed: {str(e)}")
+            pass
+    
+    return await call_next(request)
 
 # Configure Claude API
 claude_api_key = os.getenv("CLAUDE_API_KEY")

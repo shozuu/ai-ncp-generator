@@ -50,6 +50,7 @@ if (route.query.verified === 'pending') {
   // Auto-hide the message after 8 seconds
 } else if (route.query.suspended === 'true') {
   error.value =
+    route.query.message ||
     'Your account has been suspended. Please contact support for assistance.'
 }
 
