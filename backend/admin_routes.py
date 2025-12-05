@@ -790,6 +790,72 @@ async def get_system_health(admin_user = Depends(verify_admin)):
         raise HTTPException(status_code=500, detail=f"Failed to fetch system health: {str(e)}")
 
 
+@admin_router.get("/ai-provider")
+async def get_ai_provider(admin_user = Depends(verify_admin)):
+    """
+    Get current AI provider configuration
+    """
+    try:
+        logger.info(f"Admin {admin_user.email} requesting AI provider configuration")
+        from ai_provider import ai_provider
+        config = ai_provider.get_config()
+        logger.info(f"Returning AI provider config: {config}")
+        return {
+            "success": True,
+            "data": config
+        }
+    except Exception as e:
+        logger.error(f"Error fetching AI provider config: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to fetch AI provider config: {str(e)}")
+
+
+@admin_router.post("/ai-provider/switch")
+async def switch_ai_provider(
+    request_data: Dict,
+    admin_user = Depends(verify_admin)
+):
+    """
+    Switch the active AI provider
+    """
+    try:
+        logger.info(f"Admin {admin_user.email} requesting AI provider switch")
+        logger.info(f"Request data: {request_data}")
+        
+        provider = request_data.get("provider")
+        if not provider:
+            logger.error("Provider not specified in request")
+            raise HTTPException(status_code=400, detail="Provider is required")
+        
+        logger.info(f"Switching to provider: {provider}")
+        from ai_provider import ai_provider
+        
+        logger.info(f"Current provider before switch: {ai_provider.get_current_provider()}")
+        
+        # Switch provider
+        try:
+            ai_provider.set_provider(provider)
+            logger.info(f"Provider set successfully. New provider: {ai_provider.get_current_provider()}")
+        except ValueError as e:
+            logger.error(f"Invalid provider value: {str(e)}")
+            raise HTTPException(status_code=400, detail=str(e))
+        
+        logger.info(f"Admin {admin_user.email} switched AI provider to {provider}")
+        
+        config = ai_provider.get_config()
+        logger.info(f"Returning new config: {config}")
+        
+        return {
+            "success": True,
+            "message": f"AI provider switched to {provider}",
+            "data": config
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error switching AI provider: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to switch AI provider: {str(e)}")
+
+
 # Helper functions
 def format_time_ago(timestamp: str) -> str:
     """Format timestamp as 'X time ago'"""

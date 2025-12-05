@@ -19,7 +19,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from '@/components/ui/sidebar'
-import { Activity, LayoutDashboard, Shield, Users } from 'lucide-vue-next'
+import { Activity, LayoutDashboard, Shield, Users, Brain } from 'lucide-vue-next'
 import { computed } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 
@@ -50,6 +50,11 @@ const adminNavItems = [
     title: 'System Health',
     url: '/admin/health',
     icon: Activity,
+  },
+  {
+    title: 'AI Settings',
+    url: '/admin/settings',
+    icon: Brain,
   },
 ]
 </script>

@@ -1,5 +1,9 @@
 import { useAdmin } from '@/composables/useAdmin'
 import { useAuth } from '@/composables/useAuth'
+import AdminDashboardPage from '@/pages/admin/AdminDashboardPage.vue'
+import AISettingsPage from '@/pages/admin/AISettingsPage.vue'
+import SystemHealthPage from '@/pages/admin/SystemHealthPage.vue'
+import UserManagementPage from '@/pages/admin/UserManagementPage.vue'
 import ExplainPage from '@/pages/ExplainPage.vue'
 import GeneratePage from '@/pages/GeneratePage.vue'
 import HomePage from '@/pages/HomePage.vue'
@@ -9,9 +13,6 @@ import NCPExplanationPage from '@/pages/NCPExplanationPage.vue'
 import NCPHistoryPage from '@/pages/NCPHistoryPage.vue'
 import ResetPasswordPage from '@/pages/ResetPasswordPage.vue'
 import SignupPage from '@/pages/SignupPage.vue'
-import AdminDashboardPage from '@/pages/admin/AdminDashboardPage.vue'
-import SystemHealthPage from '@/pages/admin/SystemHealthPage.vue'
-import UserManagementPage from '@/pages/admin/UserManagementPage.vue'
 import { createRouter, createWebHistory } from 'vue-router'
 
 const routes = [
@@ -151,6 +152,20 @@ const routes = [
         { title: 'Home', to: '/' },
         { title: 'Admin', to: '/admin' },
         { title: 'System Health', to: '/admin/health', isActive: true },
+      ],
+    },
+  },
+  {
+    path: '/admin/settings',
+    name: 'AISettings',
+    component: AISettingsPage,
+    meta: {
+      authRequired: true,
+      adminRequired: true,
+      breadcrumbs: [
+        { title: 'Home', to: '/' },
+        { title: 'Admin', to: '/admin' },
+        { title: 'AI Settings', to: '/admin/settings', isActive: true },
       ],
     },
   },

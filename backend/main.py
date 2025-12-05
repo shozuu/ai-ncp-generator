@@ -22,6 +22,7 @@ from anthropic import Anthropic
 import uvicorn
 from diagnosis_matcher import create_vector_diagnosis_matcher
 from admin_routes import admin_router, supabase, check_user_suspension
+from ai_provider import ai_provider
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -367,21 +368,13 @@ async def generate_ncp(request: Request, assessment_data: Dict) -> Dict:
 
         """
         
-        logger.info("Calling Claude API for NCP generation...")
+        logger.info(f"Calling {ai_provider.get_current_provider().upper()} API for NCP generation...")
         
         try:
-            response = await call_claude_with_cancellation(
-                request,
-                claude_client,
-                model=CLAUDE_MODEL,
-                max_tokens=CLAUDE_MAX_TOKENS,
-                temperature=CLAUDE_TEMPERATURE,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
+            # Use unified AI provider
+            ncp_text = await asyncio.to_thread(
+                ai_provider.generate_content,
+                prompt
             )
             
         except Exception as api_error:
@@ -395,13 +388,8 @@ async def generate_ncp(request: Request, assessment_data: Dict) -> Dict:
                 }
             )
 
-        # Check for errors in the response
-        if not response or not response.content:
-            raise ValueError(f"AI model returned empty response")
-
         # Parse and validate the response
         try:
-            ncp_text = response.content[0].text
             sections = parse_ncp_response(ncp_text)
 
             if not all(sections.values()):
@@ -855,21 +843,8 @@ async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
         Each keyword should be lowercase unless it is a proper medical acronym.
         """
 
-        response = await call_claude_with_cancellation(
-            request,
-            claude_client,
-            model=CLAUDE_MODEL,
-            max_tokens=CLAUDE_MAX_TOKENS,
-            temperature=CLAUDE_TEMPERATURE,
-            messages=[
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
-        )
-        
-        keywords = response.content[0].text.strip()
+        keywords = await asyncio.to_thread(ai_provider.generate_content, prompt)
+        keywords = keywords.strip()
         
         result = {
             "original_assessment": request_data,
@@ -1167,25 +1142,13 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
         try:
             logger.info(f"Generating structured NCP - Attempt {attempt + 1}")
             
-            response = await call_claude_with_cancellation(
-                request,
-                claude_client,
-                model=CLAUDE_MODEL,
-                max_tokens=CLAUDE_MAX_TOKENS,
-                temperature=CLAUDE_TEMPERATURE,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": ncp_prompt
-                    }
-                ]
-            )
+            raw_response = await asyncio.to_thread(ai_provider.generate_content, ncp_prompt)
             
-            if not response or not response.content:
+            if not raw_response:
                 raise Exception("No response from AI model")
             
             # Parse JSON response
-            raw_response = response.content[0].text.strip()
+            raw_response = raw_response.strip()
             logger.info(f"Raw response from AI: {raw_response}")
             
             # Clean and extract JSON            

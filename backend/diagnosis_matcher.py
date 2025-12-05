@@ -1,5 +1,4 @@
 import google.generativeai as genai
-from anthropic import Anthropic
 import json
 import logging
 import re
@@ -7,6 +6,7 @@ from typing import Dict, List
 from supabase import create_client, Client
 import os
 from dotenv import load_dotenv
+from ai_provider import ai_provider
 from utils import (
     format_structured_data, 
     format_assessment_for_selection,
@@ -28,12 +28,6 @@ class VectorDiagnosisMatcher:
             raise ValueError("Supabase credentials not found in environment variables")
         
         self.client: Client = create_client(self.supabase_url, self.supabase_key)
-        self.claude_client = None
-        
-        # Claude configuration
-        self.claude_model = "claude-sonnet-4-5-20250929"
-        self.claude_max_tokens = 10000
-        self.claude_temperature = 0.3
         
         self.embedding_model = "models/text-embedding-004"
         
@@ -42,18 +36,6 @@ class VectorDiagnosisMatcher:
         if not gemini_api_key:
             raise ValueError("Gemini API key not found in environment variables")
         genai.configure(api_key=gemini_api_key)
-        
-    def _get_claude_client(self):
-        """Get the Claude client instance (lazy loading)"""
-        if self.claude_client is None:
-            claude_api_key = os.getenv("CLAUDE_API_KEY")
-            if not claude_api_key:
-                raise ValueError("Claude API key not found in environment variables")
-            self.claude_client = Anthropic(
-                api_key=claude_api_key,
-                timeout=300.0  # 5 minutes timeout
-            )
-        return self.claude_client
 
     async def embed_assessment_data(self, keywords: str) -> List[float]:
         """Convert keywords string directly to embedding."""
@@ -200,31 +182,21 @@ class VectorDiagnosisMatcher:
                 }}
             """
             
-            claude_client = self._get_claude_client()
             max_retries = 3
             
             for attempt in range(max_retries):
                 logger.info(f"AI diagnosis selection attempt {attempt + 1}/{max_retries}")
 
                 try:
-                    response = claude_client.messages.create(
-                        model=self.claude_model,
-                        max_tokens=self.claude_max_tokens,
-                        temperature=self.claude_temperature,
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": ai_prompt
-                            }
-                        ]
-                    )
+                    # Use unified AI provider
+                    raw_response = ai_provider.generate_content(ai_prompt)
                     
-                    if not response or not response.content:
+                    if not raw_response:
                         logger.warning(f"Attempt {attempt + 1}: No response from AI model")
                         continue
                     
                     # Parse AI response
-                    raw_response = response.content[0].text.strip()
+                    raw_response = raw_response.strip()
                     logger.info(f"Raw AI selection response (attempt {attempt + 1}): {raw_response}")
                     
                     # Clean and extract JSON

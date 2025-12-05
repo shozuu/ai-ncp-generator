@@ -194,4 +194,55 @@ export const adminService = {
       throw error
     }
   },
+
+  /**
+   * Get current AI provider configuration
+   */
+  async getAIProvider() {
+    try {
+      const headers = await this.getAuthHeaders()
+      console.log(
+        '[adminService] Fetching AI provider from:',
+        `${API_BASE_URL}/api/admin/ai-provider`
+      )
+      const response = await axios.get(
+        `${API_BASE_URL}/api/admin/ai-provider`,
+        {
+          headers,
+        }
+      )
+      console.log('[adminService] AI provider response:', response.data)
+      return response.data.data // Extract data from nested structure
+    } catch (error) {
+      console.error('[adminService] Error fetching AI provider:', error)
+      console.error('[adminService] Error response:', error.response?.data)
+      throw error
+    }
+  },
+
+  /**
+   * Switch AI provider (Claude or Gemini)
+   */
+  async switchAIProvider(provider) {
+    try {
+      const headers = await this.getAuthHeaders()
+      console.log('[adminService] Switching AI provider to:', provider)
+      console.log(
+        '[adminService] API endpoint:',
+        `${API_BASE_URL}/api/admin/ai-provider/switch`
+      )
+      const response = await axios.post(
+        `${API_BASE_URL}/api/admin/ai-provider/switch`,
+        { provider },
+        { headers }
+      )
+      console.log('[adminService] Switch response:', response.data)
+      return response.data.data // Extract data from nested structure
+    } catch (error) {
+      console.error('[adminService] Error switching AI provider:', error)
+      console.error('[adminService] Error response:', error.response?.data)
+      console.error('[adminService] Error status:', error.response?.status)
+      throw error
+    }
+  },
 }
