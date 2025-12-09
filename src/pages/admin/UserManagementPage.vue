@@ -1007,22 +1007,25 @@ const filteredUsers = computed(() => {
   }
 
   // Sort
-  const [field, order] = sortBy.value.split('_')
-  const isDesc = order === 'desc'
+  const sortValue = sortBy.value
+  // Extract order (last part after last underscore)
+  const isDesc = sortValue.endsWith('_desc')
+  // Extract field (everything before _asc or _desc)
+  const field = sortValue.replace(/_(?:asc|desc)$/, '')
 
   result.sort((a, b) => {
     let aVal, bVal
 
     switch (field) {
-      case 'created':
+      case 'created_at':
         aVal = new Date(a.created_at || 0).getTime()
         bVal = new Date(b.created_at || 0).getTime()
         break
-      case 'last':
+      case 'last_sign_in':
         aVal = new Date(a.last_sign_in_at || 0).getTime()
         bVal = new Date(b.last_sign_in_at || 0).getTime()
         break
-      case 'ncp':
+      case 'ncp_count':
         aVal = a.ncp_count || 0
         bVal = b.ncp_count || 0
         break
