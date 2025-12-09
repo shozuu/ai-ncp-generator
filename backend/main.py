@@ -273,8 +273,11 @@ async def generate_ncp(request: Request, assessment_data: Dict) -> Dict:
             ---
 
             **Assessment:**
-            - Provide a concise, structured summary of key findings.
+            - Preserve the user's original input data as closely as possible.
+            - Do NOT add obvious or redundant inferences that can already be deduced from the context (e.g., do not add "woman" as objective data for obstetric/gynecologic cases, or "adult" for adult patients).
+            - Only include clinically relevant findings that were explicitly provided or are essential for the nursing diagnosis.
             - Clearly separate subjective and objective data.
+            - Avoid embellishing or adding information that the user did not provide unless it is critical for clinical accuracy.
 
             **Diagnosis:**
             - State the NANDA-I nursing diagnosis in the format: [Diagnosis] related to [Etiology] as evidenced by [Defining Characteristics].
@@ -977,11 +980,18 @@ async def generate_structured_ncp(request: Request, assessment_data: Dict, selec
         **RATIONALE GUIDELINES:**
         When providing rationales, include general academic references (e.g., NANDA-I 2021–2023, NANDA-I 2024–2026, Ackley 2022 Nursing Diagnosis Handbook 13th Ed, Doenges et al., 2021; NIC/NOC textbooks; CDC/WHO guidelines). Avoid citing page numbers or overly specific details—keep citations broad but verifiable.
 
+        **ASSESSMENT DATA GUIDELINES:**
+        - Preserve the user's original input data as closely as possible in the assessment section.
+        - Do NOT add obvious or redundant inferences that can already be deduced from the context (e.g., do not add "woman" or "female" as objective data for obstetric/gynecologic/maternal cases, or "adult" for adult patients).
+        - Only include clinically relevant findings that were explicitly provided in the patient assessment data.
+        - Avoid embellishing or adding information that was not provided unless it is critical for clinical accuracy.
+        - The assessment should reflect what the user actually documented, not what can be assumed.
+
         **OUTPUT FORMAT (JSON ONLY):**
         {{
             "assessment": {{
-                "subjective": ["List of subjective findings from assessment data"],
-                "objective": ["List of objective findings from assessment data"]
+                "subjective": ["List of subjective findings directly from the provided assessment data"],
+                "objective": ["List of objective findings directly from the provided assessment data"]
             }},
             "diagnosis": {{
                 "statement": "State in PES format: [Problem] related to [Etiology] as evidenced by [Defining Characteristics]"
