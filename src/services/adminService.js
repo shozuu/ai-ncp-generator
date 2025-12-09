@@ -245,4 +245,51 @@ export const adminService = {
       throw error
     }
   },
+
+  /**
+   * Get NCPs for a specific user with pagination and sorting
+   */
+  async getUserNCPs(userId, params = {}) {
+    try {
+      const headers = await this.getAuthHeaders()
+      const {
+        page = 1,
+        limit = 10,
+        sortBy = 'created_at',
+        sortOrder = 'desc',
+      } = params
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: limit.toString(),
+        sort_by: sortBy,
+        sort_order: sortOrder,
+      }).toString()
+
+      const response = await axios.get(
+        `${API_BASE_URL}/api/admin/users/${userId}/ncps?${queryParams}`,
+        { headers }
+      )
+      return response.data
+    } catch (error) {
+      console.error('Error fetching user NCPs:', error)
+      throw error
+    }
+  },
+
+  /**
+   * Get full details of a specific NCP
+   */
+  async getUserNCPDetails(userId, ncpId) {
+    try {
+      const headers = await this.getAuthHeaders()
+      const response = await axios.get(
+        `${API_BASE_URL}/api/admin/users/${userId}/ncps/${ncpId}`,
+        { headers }
+      )
+      return response.data
+    } catch (error) {
+      console.error('Error fetching NCP details:', error)
+      throw error
+    }
+  },
 }

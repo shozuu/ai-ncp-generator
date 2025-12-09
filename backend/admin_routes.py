@@ -666,6 +666,99 @@ async def delete_user(user_id: str, admin_user = Depends(verify_admin)):
         raise HTTPException(status_code=500, detail=f"Failed to delete user: {str(e)}")
 
 
+@admin_router.get("/users/{user_id}/ncps")
+async def get_user_ncps(
+    user_id: str,
+    page: int = 1,
+    limit: int = 10,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    admin_user = Depends(verify_admin)
+):
+    """
+    Get all NCPs for a specific user with pagination and sorting.
+    """
+    try:
+        # Validate sort parameters
+        valid_sort_fields = ["created_at", "updated_at", "title"]
+        if sort_by not in valid_sort_fields:
+            sort_by = "created_at"
+        
+        # Calculate offset
+        offset = (page - 1) * limit
+        
+        # Get total count
+        count_result = supabase.table("ncps").select("id", count="exact").eq("user_id", user_id).execute()
+        total_count = count_result.count if count_result else 0
+        
+        # Get NCPs with pagination and sorting
+        query = supabase.table("ncps").select(
+            "id, title, created_at, updated_at, diagnosis, assessment"
+        ).eq("user_id", user_id)
+        
+        # Apply sorting
+        query = query.order(sort_by, desc=(sort_order == "desc"))
+        
+        # Apply pagination
+        query = query.range(offset, offset + limit - 1)
+        
+        result = query.execute()
+        
+        ncps = []
+        if result.data:
+            for ncp in result.data:
+                # Extract diagnosis statement for preview
+                diagnosis_preview = ""
+                if ncp.get("diagnosis"):
+                    diagnosis = ncp["diagnosis"]
+                    if isinstance(diagnosis, dict):
+                        diagnosis_preview = diagnosis.get("statement", "")[:100]
+                    elif isinstance(diagnosis, str):
+                        diagnosis_preview = diagnosis[:100]
+                
+                ncps.append({
+                    "id": ncp["id"],
+                    "title": ncp.get("title", "Untitled NCP"),
+                    "created_at": ncp["created_at"],
+                    "updated_at": ncp.get("updated_at"),
+                    "diagnosis_preview": diagnosis_preview + "..." if len(diagnosis_preview) == 100 else diagnosis_preview
+                })
+        
+        return {
+            "ncps": ncps,
+            "total": total_count,
+            "page": page,
+            "limit": limit,
+            "total_pages": (total_count + limit - 1) // limit if total_count > 0 else 0
+        }
+    except Exception as e:
+        logger.error(f"Error fetching user NCPs: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch user NCPs: {str(e)}")
+
+
+@admin_router.get("/users/{user_id}/ncps/{ncp_id}")
+async def get_user_ncp_details(
+    user_id: str,
+    ncp_id: str,
+    admin_user = Depends(verify_admin)
+):
+    """
+    Get full details of a specific NCP for a user.
+    """
+    try:
+        result = supabase.table("ncps").select("*").eq("id", ncp_id).eq("user_id", user_id).single().execute()
+        
+        if not result.data:
+            raise HTTPException(status_code=404, detail="NCP not found")
+        
+        return result.data
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching NCP details: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to fetch NCP details: {str(e)}")
+
+
 @admin_router.patch("/users/{user_id}/admin-role")
 async def update_admin_role(
     user_id: str,
