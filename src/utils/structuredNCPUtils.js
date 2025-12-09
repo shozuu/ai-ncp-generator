@@ -1041,19 +1041,28 @@ const formatEvaluationSection = evaluation => {
           className: `font-semibold text-xs mb-2 ${items.length > 0 ? 'mt-4' : ''}`,
         })
 
-        const statuses = ['Met', 'Partially Met', 'Not Met']
+        const knownStatuses = ['Met', 'Partially Met', 'Not Met', 'Ongoing']
         const statusColors = {
           Met: 'text-green-700 dark:text-green-300',
           'Partially Met': 'text-yellow-700 dark:text-yellow-300',
           'Not Met': 'text-red-700 dark:text-red-300',
+          Ongoing: 'text-blue-700 dark:text-blue-300',
         }
+        const defaultStatusColor = 'text-muted-foreground'
 
-        statuses.forEach(status => {
+        // Get all statuses from the data, prioritizing known ones first
+        const dataStatuses = Object.keys(periodData)
+        const orderedStatuses = [
+          ...knownStatuses.filter(s => dataStatuses.includes(s)),
+          ...dataStatuses.filter(s => !knownStatuses.includes(s)),
+        ]
+
+        orderedStatuses.forEach(status => {
           if (periodData[status]) {
             items.push({
               type: 'status',
               content: status,
-              className: `font-medium text-xs ${statusColors[status]} mt-3 mb-1`,
+              className: `font-medium text-xs ${statusColors[status] || defaultStatusColor} mt-3 mb-1`,
             })
 
             Object.entries(periodData[status]).forEach(

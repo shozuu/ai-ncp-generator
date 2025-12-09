@@ -127,7 +127,8 @@ Within 48 hours of nursing interventions:
   Status: Met
   Details: Participating in ADLs with minimal pain complaints
 
-✅ Status options: Met, Partially Met, Not Met
+✅ Status options: Met, Partially Met, Not Met, Ongoing
+✅ Use 'Ongoing' when evaluation is still in progress or pending
 ✅ Include specific details about patient progress`,
       }
     default:

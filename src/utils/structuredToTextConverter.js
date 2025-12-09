@@ -757,9 +757,16 @@ function convertEvaluationToText(evaluation) {
       if (hasContent) {
         text += `${timePeriodLabels[period]}:\n\n`
 
-        const statuses = ['Met', 'Partially Met', 'Not Met']
+        const knownStatuses = ['Met', 'Partially Met', 'Not Met', 'Ongoing']
 
-        statuses.forEach(status => {
+        // Get all statuses from the data, prioritizing known ones first
+        const dataStatuses = Object.keys(periodData)
+        const orderedStatuses = [
+          ...knownStatuses.filter(s => dataStatuses.includes(s)),
+          ...dataStatuses.filter(s => !knownStatuses.includes(s)),
+        ]
+
+        orderedStatuses.forEach(status => {
           if (periodData[status]) {
             text += `Status: ${status}\n`
 
