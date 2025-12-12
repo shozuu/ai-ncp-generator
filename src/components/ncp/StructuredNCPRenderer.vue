@@ -147,6 +147,21 @@ const getNumberForItem = (item, items) => {
         </span>
       </div>
 
+      <!-- Diagnosis statement with clickable diagnosis name link -->
+      <div
+        v-else-if="item.type === 'diagnosis-statement'"
+        class="flex-1"
+        :class="item.className || ''"
+      >
+        <a
+          :href="item.diagnosisUrl"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="text-primary font-medium hover:underline"
+          >{{ item.diagnosisName }}</a
+        >{{ item.fullStatement.substring(item.diagnosisName.length) }}
+      </div>
+
       <!-- Regular text -->
       <div v-else class="flex-1" :class="item.className || ''">
         {{ item.content }}

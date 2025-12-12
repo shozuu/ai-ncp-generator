@@ -99,6 +99,48 @@ export const hasContent = (ncp, section) => {
 }
 
 /**
+ * Extract just the diagnosis name from a full PES format statement
+ * PES format: [Problem] related to [Etiology] as evidenced by [Signs/Symptoms]
+ * @param {string|Object} diagnosis - The diagnosis statement string or diagnosis object
+ * @returns {string} Just the diagnosis name (e.g., "Acute Pain")
+ */
+export const getDiagnosisName = diagnosis => {
+  if (!diagnosis) return ''
+
+  // Get the statement string from the diagnosis object or use it directly if it's a string
+  const statement =
+    typeof diagnosis === 'object' ? diagnosis.statement || '' : diagnosis
+
+  if (!statement || typeof statement !== 'string') return ''
+
+  // Split on "related to" (case-insensitive) to get just the diagnosis name
+  const parts = statement.split(/\s+related\s+to\s+/i)
+  const diagnosisName = parts[0].trim()
+
+  // Also handle case where it might just have "as evidenced by" without "related to"
+  const evidenceSplit = diagnosisName.split(/\s+as\s+evidenced\s+by\s+/i)
+
+  return evidenceSplit[0].trim()
+}
+
+/**
+ * Convert a diagnosis name to a URL-friendly slug format
+ * @param {string|Object} diagnosis - The diagnosis statement string or diagnosis object
+ * @returns {string} Slug format (e.g., "acute-pain")
+ */
+export const getDiagnosisSlug = diagnosis => {
+  const name = getDiagnosisName(diagnosis)
+  if (!name) return ''
+
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '') // Remove special characters
+    .replace(/\s+/g, '-') // Replace spaces with hyphens
+    .replace(/-+/g, '-') // Replace multiple hyphens with single
+    .replace(/^-|-$/g, '') // Remove leading/trailing hyphens
+}
+
+/**
  * Check if a section has valid explanation content
  * @param {Object} explanation - The explanation object
  * @param {string} section - The section to check
@@ -415,12 +457,33 @@ const formatAssessmentSection = assessment => {
 
 /**
  * Format Diagnosis section
+ * Makes the diagnosis name a clickable link to the nursing diagnosis database
  */
 const formatDiagnosisSection = diagnosis => {
+  const statement = diagnosis.statement || ''
+  const diagnosisName = getDiagnosisName(diagnosis)
+  const diagnosisSlug = getDiagnosisSlug(diagnosis)
+
+  // If we can extract the diagnosis name, make it a link
+  if (diagnosisName && diagnosisSlug) {
+    const diagnosisUrl = `https://shozuu.github.io/nursing-diagnosis-database/#${diagnosisSlug}`
+
+    return [
+      {
+        type: 'diagnosis-statement',
+        diagnosisName: diagnosisName,
+        diagnosisUrl: diagnosisUrl,
+        fullStatement: statement,
+        className: 'font-normal',
+      },
+    ]
+  }
+
+  // Fallback to plain text if we can't extract the diagnosis name
   return [
     {
       type: 'text',
-      content: diagnosis.statement,
+      content: statement,
       className: 'font-normal',
     },
   ]
