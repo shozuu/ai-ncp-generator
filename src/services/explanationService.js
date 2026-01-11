@@ -17,11 +17,12 @@ export const explanationService = {
   },
 
   async generateExplanation(ncpId, abortSignal = null) {
-    // First get the NCP data
+    // First get the NCP data (only if not deleted)
     const { data: ncp, error: ncpError } = await supabase
       .from('ncps')
       .select('*')
       .eq('id', ncpId)
+      .eq('is_deleted', false)
       .single()
 
     if (ncpError) throw ncpError

@@ -165,6 +165,7 @@ export const ncpService = {
       .from('ncps')
       .select('*')
       .eq('user_id', user.id)
+      .eq('is_deleted', false)
       .order('created_at', { ascending: false })
 
     if (error) throw error
@@ -176,6 +177,7 @@ export const ncpService = {
       .from('ncps')
       .select('*')
       .eq('id', ncpId)
+      .eq('is_deleted', false)
       .single()
     if (error) throw error
     return data
