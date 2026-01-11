@@ -703,29 +703,37 @@ async def generate_explanation(request: Request, request_data: Dict) -> Dict:
             understand how to replicate this systematic approach in their own clinical practice.
         """
 
-        # Generate explanation using Gemini 2.5 Pro
-        logger.info("Calling Gemini API for enhanced explanation generation")
+        # Generate explanation using unified AI provider (same as NCP generation)
+        logger.info(f"Calling {ai_provider.get_current_provider().upper()} API for explanation generation...")
         
-        # Configure Gemini model
-        generation_config = {
-            "temperature": 0.3,
-            "top_p": 1,
-            "top_k": 1,
-            "max_output_tokens": 10000,
-        }
-
-        model = genai.GenerativeModel(
-            model_name="gemini-2.5-pro",
-            generation_config=generation_config
-        )
-
-        response = await call_gemini_with_cancellation(request, model, explanation_prompt)
+        try:
+            ai_response = await asyncio.to_thread(
+                ai_provider.generate_content,
+                explanation_prompt
+            )
+        except Exception as api_error:
+            logger.error(f"API error during explanation generation: {str(api_error)}")
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": "AI service is currently unavailable",
+                    "error_type": "api_error",
+                    "suggestion": "Please try again in a few moments. If the problem persists, contact support."
+                }
+            )
                 
-        if not response or not response.text:
-            raise Exception("No response from AI model")
+        if not ai_response:
+            raise HTTPException(
+                status_code=500,
+                detail={
+                    "message": "No response from AI model",
+                    "error_type": "empty_response",
+                    "suggestion": "Please try again."
+                }
+            )
 
         # Parse the AI response as JSON
-        ai_explanation = response.text.strip()
+        ai_explanation = ai_response.strip()
         logger.info(f"Received AI explanation length: {len(ai_explanation)} characters")
         
         # Clean the response - remove markdown code blocks if present
@@ -793,7 +801,10 @@ async def generate_explanation(request: Request, request_data: Dict) -> Dict:
 
     except Exception as e:
         logger.error(f"Error generating explanation: {str(e)}", exc_info=True)
-        raise Exception(f"Failed to generate explanation: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to generate explanation: {str(e)}"
+        )
 
 @app.post("/api/parse-manual-assessment")
 async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
