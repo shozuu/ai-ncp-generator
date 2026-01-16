@@ -45,7 +45,7 @@ import {
   Users,
 } from 'lucide-vue-next'
 import { useForm } from 'vee-validate'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import Textarea from '../ui/textarea/Textarea.vue'
 
 const emit = defineEmits(['submit'])
@@ -66,6 +66,55 @@ const form = useForm({
     family_history: [],
     cephalocaudal_assessment: {},
   },
+})
+
+// Computed property to check if minimum clinical data is provided
+const hasMinimumClinicalData = computed(() => {
+  const values = form.values
+  
+  const hasGeneralCondition = values.general_condition?.trim()?.length > 0
+  const hasSubjective = values.subjective?.trim()?.length > 0
+  const hasObjective = values.objective?.trim()?.length > 0
+  const hasVitalSigns = !!(
+    values.heart_rate_bpm ||
+    values.blood_pressure_mmhg?.trim() ||
+    values.respiratory_rate_min ||
+    values.oxygen_saturation_percent ||
+    values.temperature_celsius ||
+    values.pain_scale
+  )
+  const hasHistory = !!(
+    values.onset_duration?.trim() ||
+    values.severity_progression?.trim() ||
+    values.medical_impression?.trim() ||
+    (values.associated_symptoms && values.associated_symptoms.length > 0) ||
+    values.other_symptoms?.trim()
+  )
+  const hasMedicalHistory = !!(
+    (values.medical_history && values.medical_history.length > 0) ||
+    values.other_medical_history?.trim()
+  )
+  const hasPhysicalExam = !!(
+    values.height ||
+    values.weight ||
+    values.laboratory_results?.trim() ||
+    (values.cephalocaudal_assessment && Object.values(values.cephalocaudal_assessment).some(v => v?.trim?.()))
+  )
+
+  return (
+    hasGeneralCondition ||
+    hasSubjective ||
+    hasObjective ||
+    hasVitalSigns ||
+    hasHistory ||
+    hasMedicalHistory ||
+    hasPhysicalExam
+  )
+})
+
+// Computed property for submit button disabled state
+const isSubmitDisabled = computed(() => {
+  return props.disabled || !hasMinimumClinicalData.value
 })
 
 // Collapsible section state management
@@ -265,6 +314,11 @@ const exportAssessment = async () => {
               Complete the relevant sections below to create a thorough patient
               assessment. Use the collapsible sections to focus on specific
               areas and maintain a clean workspace.
+            </p>
+            <p
+              class="text-xs sm:text-sm text-amber-700 dark:text-amber-400 mb-3 sm:mb-4 leading-relaxed"
+            >
+              <span class="font-semibold">⚠️ Required:</span> Please fill in at least one of the following: Chief Complaint, Subjective Data, Objective Data, Vital Signs, History, Medical History, or Physical Exam. Fields marked with <span class="text-destructive font-bold">*</span> indicate options that satisfy this requirement.
             </p>
             <p
               class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 mb-3 sm:mb-4 leading-relaxed"
@@ -497,7 +551,7 @@ const exportAssessment = async () => {
               v-slot="{ componentField, errorMessage }"
             >
               <FormItem v-auto-animate>
-                <FormLabel>General Condition</FormLabel>
+                <FormLabel>General Condition <span class="text-destructive">*</span></FormLabel>
                 <FormControl>
                   <Input
                     placeholder="Enter patient's chief complaint"
@@ -1315,7 +1369,7 @@ const exportAssessment = async () => {
               v-slot="{ componentField, errorMessage }"
             >
               <FormItem v-auto-animate>
-                <FormLabel>Subjective Data</FormLabel>
+                <FormLabel>Subjective Data <span class="text-destructive">*</span></FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Enter subjective data (one per line)"
@@ -1373,7 +1427,7 @@ const exportAssessment = async () => {
               v-slot="{ componentField, errorMessage }"
             >
               <FormItem v-auto-animate>
-                <FormLabel>Objective Data</FormLabel>
+                <FormLabel>Objective Data <span class="text-destructive">*</span></FormLabel>
                 <FormControl>
                   <Textarea
                     placeholder="Enter objective data (one per line)"
@@ -1398,6 +1452,15 @@ const exportAssessment = async () => {
     <div
       class="sticky bottom-0 bg-background/95 backdrop-blur-sm border-t border-muted p-4 sm:p-6 rounded-lg shadow-lg z-40"
     >
+      <!-- Warning when no clinical data -->
+      <div
+        v-if="!hasMinimumClinicalData"
+        class="mb-3 p-2 sm:p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
+      >
+        <p class="text-amber-800 dark:text-amber-200 text-xs sm:text-sm text-center">
+          ⚠️ Please fill in at least one clinical data field (Chief Complaint, Subjective/Objective Data, Vital Signs, History, or Physical Exam) to submit.
+        </p>
+      </div>
       <div
         class="flex flex-col space-y-3 sm:space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0"
       >
@@ -1435,8 +1498,9 @@ const exportAssessment = async () => {
           </Button>
           <Button
             type="submit"
-            :disabled="props.disabled"
+            :disabled="isSubmitDisabled"
             class="px-6 sm:px-8 py-3 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
+            :title="!hasMinimumClinicalData ? 'Please fill in at least one clinical data field' : ''"
           >
             <span
               v-if="props.disabled"
