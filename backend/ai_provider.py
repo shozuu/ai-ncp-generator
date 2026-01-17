@@ -21,8 +21,23 @@ load_dotenv(BACKEND_DIR / '.env')
 # Settings key for database storage
 SETTINGS_KEY = "ai_provider"
 
+# ============================================================================
+# AI PROVIDER CLASS (CORE AI ABSTRACTION LAYER) - START
+# ============================================================================
 class AIProvider:
-    """Unified interface for AI providers (Claude and Gemini)"""
+    """
+    Unified interface for AI providers (Claude and Gemini)
+    
+    This class provides a seamless abstraction layer over multiple AI providers,
+    allowing the application to switch between Claude and Gemini without code changes.
+    Provider settings persist across application restarts via database storage.
+    
+    Key Features:
+    - Transparent API switching between Claude and Gemini
+    - Database persistence for provider preference
+    - Automatic fallback handling
+    - Unified response format regardless of provider
+    """
     
     def __init__(self):
         # Initialize Supabase for persistence
@@ -145,7 +160,22 @@ class AIProvider:
     def generate_content(self, prompt: str, system_prompt: Optional[str] = None) -> str:
         """
         Generate content using the current provider.
-        Returns the generated text.
+        
+        This method intelligently routes requests to the active AI provider,
+        handling API-specific differences transparently.
+        
+        Args:
+            prompt: The main user prompt to send to the AI
+            system_prompt: Optional system instructions (context/role definition)
+        
+        Returns:
+            str: The generated text response from the AI
+        
+        Workflow:
+        1. Check which provider is currently active (Claude or Gemini)
+        2. Route to the appropriate provider-specific method
+        3. Handle API differences (e.g., system prompt placement)
+        4. Return normalized response text
         """
         if self.current_provider == "claude":
             return self._generate_with_claude(prompt, system_prompt)
@@ -153,11 +183,30 @@ class AIProvider:
             return self._generate_with_gemini(prompt, system_prompt)
     
     def _generate_with_claude(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate content using Claude API"""
+        """
+        Generate content using Claude API
+        
+        Claude uses a structured message format with separate system prompts.
+        This method formats the request according to Anthropic's API specifications.
+        
+        Args:
+            prompt: User message content
+            system_prompt: Separate system instruction parameter
+        
+        Returns:
+            str: Generated text from Claude
+        
+        API Structure:
+        - Messages: Array of role/content pairs
+        - System: Separate parameter for system instructions
+        - Response: Nested in content[0].text
+        """
         config = self.configs["claude"]
         
+        # Format as message structure required by Claude
         messages = [{"role": "user", "content": prompt}]
         
+        # Build request parameters with model configuration
         kwargs = {
             "model": config["model"],
             "max_tokens": config["max_tokens"],
@@ -165,25 +214,47 @@ class AIProvider:
             "messages": messages
         }
         
+        # Claude accepts system prompt as a separate parameter
         if system_prompt:
             kwargs["system"] = system_prompt
         
+        # Make API call to Claude
         response = self.claude_client.messages.create(**kwargs)
         
         if not response or not response.content:
             raise ValueError("Claude API returned empty response")
         
+        # Extract text from nested response structure
         return response.content[0].text
     
     def _generate_with_gemini(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """Generate content using Gemini API"""
+        """
+        Generate content using Gemini API
+        
+        Gemini uses a combined prompt approach where system instructions
+        are prepended to the user message rather than sent separately.
+        
+        Args:
+            prompt: User message content
+            system_prompt: System instructions to prepend
+        
+        Returns:
+            str: Generated text from Gemini
+        
+        API Difference Handling:
+        - Gemini doesn't have separate system parameter
+        - System prompt is concatenated with user prompt
+        - Model initialization includes generation config
+        """
         config = self.configs["gemini"]
         
-        # Combine system prompt and user prompt for Gemini
+        # Combine system prompt and user prompt (Gemini requirement)
+        # Unlike Claude, Gemini doesn't support separate system instructions
         full_prompt = prompt
         if system_prompt:
             full_prompt = f"{system_prompt}\n\n{prompt}"
         
+        # Initialize model with generation parameters
         model = genai.GenerativeModel(
             model_name=config["model"],
             generation_config={
@@ -192,12 +263,17 @@ class AIProvider:
             }
         )
         
+        # Make API call to Gemini
         response = model.generate_content(full_prompt)
         
         if not response or not response.text:
             raise ValueError("Gemini API returned empty response")
         
+        # Gemini provides direct text access (simpler than Claude)
         return response.text
+# ============================================================================
+# AI PROVIDER CLASS (CORE AI ABSTRACTION LAYER) - END
+# ============================================================================
     
     def get_config(self) -> Dict:
         """Get current provider configuration"""

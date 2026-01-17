@@ -98,26 +98,51 @@ export const hasContent = (ncp, section) => {
   )
 }
 
+// ============================================================================
+// NCP DATA UTILITIES (PARSING & VALIDATION HELPERS) - START
+// ============================================================================
+
 /**
  * Extract just the diagnosis name from a full PES format statement
- * PES format: [Problem] related to [Etiology] as evidenced by [Signs/Symptoms]
- * @param {string|Object} diagnosis - The diagnosis statement string or diagnosis object
- * @returns {string} Just the diagnosis name (e.g., "Acute Pain")
+ *
+ * PES Format (Problem-Etiology-Signs/Symptoms):
+ * "[Problem] related to [Etiology] as evidenced by [Signs/Symptoms]"
+ *
+ * This function isolates the Problem portion for display and routing purposes.
+ *
+ * @param {string|Object} diagnosis - Full diagnosis statement or diagnosis object
+ * @returns {string} Clean diagnosis name (e.g., "Acute Pain")
+ *
+ * Examples:
+ * Input:  "Acute Pain related to surgical incision as evidenced by pain rating 8/10"
+ * Output: "Acute Pain"
+ *
+ * Input:  "Ineffective Airway Clearance as evidenced by crackles"
+ * Output: "Ineffective Airway Clearance"
+ *
+ * Algorithm:
+ * 1. Extract statement string from object or use directly
+ * 2. Split on "related to" (case-insensitive regex)
+ * 3. Take first part (the Problem)
+ * 4. Handle edge case of only "as evidenced by" without "related to"
+ * 5. Clean whitespace and return
  */
 export const getDiagnosisName = diagnosis => {
   if (!diagnosis) return ''
 
-  // Get the statement string from the diagnosis object or use it directly if it's a string
+  // Handle both object format {statement: "..."} and raw string
   const statement =
     typeof diagnosis === 'object' ? diagnosis.statement || '' : diagnosis
 
   if (!statement || typeof statement !== 'string') return ''
 
-  // Split on "related to" (case-insensitive) to get just the diagnosis name
+  // Split on "related to" using case-insensitive regex
+  // \s+ matches one or more whitespace characters
   const parts = statement.split(/\s+related\s+to\s+/i)
   const diagnosisName = parts[0].trim()
 
   // Also handle case where it might just have "as evidenced by" without "related to"
+  // This ensures we get just the diagnosis name in all PES format variations
   const evidenceSplit = diagnosisName.split(/\s+as\s+evidenced\s+by\s+/i)
 
   return evidenceSplit[0].trim()
@@ -142,43 +167,72 @@ export const getDiagnosisSlug = diagnosis => {
 
 /**
  * Check if a section has valid explanation content
- * @param {Object} explanation - The explanation object
- * @param {string} section - The section to check
- * @returns {boolean} Whether the section has valid explanations
+ *
+ * Explanations use a three-tiered structure:
+ * - Clinical Reasoning: Why this clinical decision was made
+ * - Evidence-Based Support: Research and guidelines backing the approach
+ * - Student Guidance: Step-by-step learning guidance for nursing students
+ *
+ * Each tier has summary and detailed content.
+ *
+ * @param {Object} explanation - The complete explanation object
+ * @param {string} section - Section to check (assessment, diagnosis, outcomes, etc.)
+ * @returns {boolean} True if section has meaningful explanation content
+ *
+ * Validation Criteria:
+ * 1. Explanation object exists and section exists
+ * 2. Section is properly structured (object, not string)
+ * 3. At least one required level exists (clinical_reasoning, evidence, or guidance)
+ * 4. Level content has either summary (>10 chars) or detailed (>20 chars)
+ *
+ * Why This Matters:
+ * - Prevents displaying empty or placeholder explanations
+ * - Ensures educational value for nursing students
+ * - Validates AI-generated content quality
  */
 export const hasValidSectionExplanation = (explanation, section) => {
+  // Check explanation structure exists
   if (!explanation?.explanation?.[section]) {
     return false
   }
 
   const sectionExplanation = explanation.explanation[section]
 
-  // Check if it's a properly structured explanation object
+  // Verify it's a properly structured object (not a string or null)
   if (typeof sectionExplanation !== 'object' || sectionExplanation === null) {
     return false
   }
 
-  // Check if it has at least one of the required levels with meaningful content
+  // Define the three required explanation tiers
   const requiredKeys = [
-    'clinical_reasoning',
-    'evidence_based_support',
-    'student_guidance',
+    'clinical_reasoning', // Why this clinical decision
+    'evidence_based_support', // Research and guidelines
+    'student_guidance', // Learning guidance
   ]
 
+  // Check if at least one tier has meaningful content
   return requiredKeys.some(key => {
     const levelContent = sectionExplanation[key]
+
+    // Level must be an object
     if (!levelContent || typeof levelContent !== 'object') return false
 
-    // Check if it has summary and detailed structure
+    // Extract summary and detailed portions
     const summary = levelContent.summary
     const detailed = levelContent.detailed
 
+    // Validate content length (prevents empty or trivial content)
+    // Summary: minimum 10 characters
+    // Detailed: minimum 20 characters
     return (
       (summary && typeof summary === 'string' && summary.trim().length > 10) ||
       (detailed && typeof detailed === 'string' && detailed.trim().length > 20)
     )
   })
 }
+// ============================================================================
+// NCP DATA UTILITIES (PARSING & VALIDATION HELPERS) - END
+// ============================================================================
 
 /**
  * Get formatted explanation content for a specific section and level

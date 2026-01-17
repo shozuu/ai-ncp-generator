@@ -5,7 +5,32 @@ import { generateDefaultNCPTitle } from '@/utils/structuredNCPUtils'
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
+// ============================================================================
+// FRONTEND NCP GENERATION SERVICE (ORCHESTRATES API CALLS) - START
+// ============================================================================
 export const ncpService = {
+  /**
+   * Generate a comprehensive Nursing Care Plan (NCP) with diagnosis selection
+   *
+   * This is the main entry point for NCP generation. It orchestrates the entire
+   * process from assessment data to saved NCP.
+   *
+   * @param {Object} assessmentData - Structured patient assessment data
+   * @param {AbortSignal} abortSignal - Optional signal to cancel the request
+   * @returns {Promise<Object>} Object containing diagnosis, NCP, and saved ID
+   *
+   * Workflow:
+   * 1. Send assessment data to backend API endpoint
+   * 2. Backend performs vector search for diagnosis candidates
+   * 3. AI selects best diagnosis and generates complete NCP
+   * 4. Frontend automatically saves NCP to Supabase database
+   * 5. Returns diagnosis result, NCP structure, and database ID
+   *
+   * Error Handling:
+   * - Validates response structure
+   * - Extracts detailed error messages from API
+   * - Provides user-friendly suggestions for failures
+   */
   async generateComprehensiveNCP(assessmentData, abortSignal = null) {
     try {
       console.log(
@@ -17,11 +42,12 @@ export const ncpService = {
         headers: { 'Content-Type': 'application/json' },
       }
 
-      // Add abort signal if provided
+      // Add abort signal if provided (allows user to cancel long-running requests)
       if (abortSignal) {
         config.signal = abortSignal
       }
 
+      // Send POST request to backend diagnosis + NCP generation endpoint
       const response = await axios.post(
         `${API_BASE_URL}/api/suggest-diagnoses`,
         assessmentData,
@@ -31,28 +57,33 @@ export const ncpService = {
       const result = response.data
       console.log('Received comprehensive result:', result)
 
+      // Check if complete NCP was generated (not just diagnosis)
       if (result.ncp) {
-        // Save the original structured JSON to Supabase
+        // Get currently authenticated user for database operations
         const {
           data: { user },
         } = await supabase.auth.getUser()
 
         let savedNCP = null
+
+        // Only save if user is authenticated
         if (user) {
+          // Automatically save the generated NCP to database
           savedNCP = await this.saveStructuredNCP(
-            result.ncp,
-            result,
-            assessmentData
+            result.ncp, // Generated NCP structure
+            result, // Full diagnosis result
+            assessmentData // Original assessment for reference
           )
         }
 
+        // Return comprehensive result object
         return {
-          diagnosis: result,
-          ncp: result.ncp,
-          savedNCPId: savedNCP?.id,
+          diagnosis: result, // Diagnosis selection details
+          ncp: result.ncp, // Complete NCP structure
+          savedNCPId: savedNCP?.id, // Database ID for future reference
         }
       } else {
-        // Only diagnosis was generated
+        // Only diagnosis was generated (NCP generation failed or wasn't requested)
         return {
           diagnosis: result,
           ncp: null,
@@ -64,10 +95,12 @@ export const ncpService = {
         error.response?.data || error
       )
 
+      // Extract detailed error information from API response
       const errorDetail = error.response?.data?.detail
       let errorMessage = 'Failed to generate diagnosis and NCP'
       let suggestion = ''
 
+      // Parse error structure (can be string or object)
       if (errorDetail) {
         if (typeof errorDetail === 'string') {
           errorMessage = errorDetail
@@ -79,14 +112,19 @@ export const ncpService = {
         }
       }
 
+      // Combine error message with actionable suggestion
       let finalMessage = errorMessage
       if (suggestion) {
         finalMessage += ` ${suggestion}`
       }
 
+      // Throw user-friendly error for UI display
       throw new Error(finalMessage)
     }
   },
+  // ============================================================================
+  // FRONTEND NCP GENERATION SERVICE (ORCHESTRATES API CALLS) - END
+  // ============================================================================
 
   async saveStructuredNCP(
     ncpData,

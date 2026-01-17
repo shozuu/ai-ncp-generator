@@ -426,10 +426,41 @@ async def generate_ncp(request: Request, assessment_data: Dict) -> Dict:
             }
         )
 
+# ============================================================================
+# MODULE 6: EXPLANATION GENERATION - START
+# ============================================================================
 @app.post("/api/generate-explanation")
 async def generate_explanation(request: Request, request_data: Dict) -> Dict:
     """
-    Generate explanations for each component of an NCP using AI.
+    Generate educational explanations for each component of an NCP using AI.
+    
+    This is STEP 6 in the pipeline - executed AFTER the NCP is created and saved.
+    It provides three levels of explanation for each NCP section:
+    
+    1. CLINICAL REASONING
+       - Explains the systematic decision-making process
+       - Shows how prioritization frameworks were applied
+       - Demonstrates why specific choices were made over alternatives
+    
+    2. EVIDENCE-BASED SUPPORT
+       - Connects decisions to nursing standards (NANDA-I, NIC, NOC)
+       - References authoritative sources (Ackley 2022, Doenges 2021)
+       - Explains theoretical foundations
+    
+    3. STUDENT GUIDANCE
+       - Provides step-by-step learning guidance
+       - Teaches students to replicate the reasoning process
+       - Includes practice exercises and common pitfalls to avoid
+    
+    Pipeline Position: Step 6 of 6 (Post-NCP Generation)
+    Input: Saved NCP data from database
+    Output: Structured explanation object for each NCP section
+    
+    Args:
+        request_data: Dict containing the complete NCP to explain
+        
+    Returns:
+        Dict: Structured explanations for all NCP sections with 3 levels each
     """
     try:
         ncp = request_data.get('ncp')
@@ -438,9 +469,11 @@ async def generate_explanation(request: Request, request_data: Dict) -> Dict:
 
         logger.info(f"Generating explanation for NCP: {ncp.get('title', 'Unknown')}")
 
+        # Define all sections that can have explanations generated
         all_sections = ['diagnosis', 'outcomes', 'interventions', 'rationale', 'implementation', 'evaluation']
         
         # Filter out sections that don't have content (empty or None)
+        # Only generate explanations for sections with meaningful content
         available_sections = []
         for section in all_sections:
             section_value = ncp.get(section)
@@ -455,18 +488,20 @@ async def generate_explanation(request: Request, request_data: Dict) -> Dict:
 
         logger.info(f"Generating explanations for sections: {available_sections}")
 
-        # Extract additional context for explanation generation
+        # Extract additional context to provide richer explanations
         assessment_context = ""
         diagnosis_reasoning = ""
         
         # Include assessment data context if available
+        # This helps AI understand the clinical basis for NCP decisions
         if ncp.get('assessment'):
             assessment_context = f"""
             **ORIGINAL PATIENT ASSESSMENT DATA THAT GUIDED THIS NCP:**
             {ncp.get('assessment')}
             """
         
-        # Include diagnosis reasoning if available  
+        # Include diagnosis reasoning if available
+        # This was generated during the AI diagnosis selection step
         if ncp.get('reasoning'):
             diagnosis_reasoning = f"""
             **DIAGNOSIS SELECTION REASONING:**
@@ -805,23 +840,55 @@ async def generate_explanation(request: Request, request_data: Dict) -> Dict:
             status_code=500,
             detail=f"Failed to generate explanation: {str(e)}"
         )
+# ============================================================================
+# MODULE 6: EXPLANATION GENERATION - END
+# ============================================================================
 
+# ============================================================================
+# MODULE 1 & 2: ASSESSMENT PROCESSING & KEYWORD EXTRACTION - START
+# ============================================================================
 @app.post("/api/parse-manual-assessment")
 async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
     """
-    Generate detailed, database-aligned keywords from comprehensive manual assessment data.
+    Parse and process assessment form data, then extract embedding keywords.
+    
+    This is the FIRST STEP in the NCP generation pipeline. It receives raw
+    assessment data from the frontend form and converts it into:
+    1. A validated and formatted assessment structure
+    2. Clinical keywords optimized for vector similarity search
+    
+    The keyword extraction uses AI to normalize clinical terminology to match
+    NANDA-I database entries, enabling semantic search for diagnoses.
+    
+    Pipeline Position: Step 1 of 6
+    Input: Raw form data (vitals, symptoms, history, physical exam)
+    Output: Original assessment + embedding keywords for vector search
+    
+    Args:
+        request_data: Dictionary containing assessment form fields
+        
+    Returns:
+        Dict containing:
+        - original_assessment: Validated form data for NCP generation
+        - embedding_keywords: AI-extracted clinical terms for diagnosis matching
     """
     try:
-        # Validate the comprehensive form data
+        # STEP 1A: Validate the comprehensive form data
+        # Ensures required clinical information is present before processing
         if not validate_assessment_data(request_data):
             raise HTTPException(
                 status_code=400,
                 detail="Invalid assessment data format. Please ensure all required fields are provided."
             )
         
+        # STEP 1B: Format raw form data into structured clinical text
+        # Organizes demographics, vitals, symptoms, and findings into readable format
         logger.info("Processing comprehensive form format for manual assessment parsing")
         formatted_assessment = format_structured_data(request_data)
         
+        # STEP 2: AI-POWERED KEYWORD EXTRACTION
+        # This prompt instructs the AI to extract NANDA-I aligned clinical keywords
+        # that will be used for vector similarity search in the diagnosis database
         prompt = f"""
         You are a clinical expert specializing in NANDA-I nursing diagnosis matching with deep knowledge of nursing diagnosis terminology, defining characteristics, related factors, risk factors, associated conditions, and at risk populations.
 
@@ -878,12 +945,50 @@ async def parse_manual_assessment(request: Request, request_data: Dict) -> Dict:
                 "suggestion": "Please check your assessment data format and try again."
             }
         )
+# ============================================================================
+# MODULE 1 & 2: ASSESSMENT PROCESSING & KEYWORD EXTRACTION - END
+# ============================================================================
 
+# ============================================================================
+# MODULE 3, 4, 5: DIAGNOSIS MATCHING & NCP GENERATION - START
+# ============================================================================
 @app.post("/api/suggest-diagnoses")
 async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
-    """Use original assessment + keywords for diagnosis matching."""
+    """
+    Main orchestrator for diagnosis selection and NCP generation.
+    
+    This endpoint executes the core NCP generation pipeline:
+    
+    STEP 3: VECTOR SIMILARITY SEARCH
+    - Uses embedding keywords to search the NANDA-I diagnosis database
+    - Returns top 10 candidate diagnoses ranked by semantic similarity
+    - Employs cosine similarity on 768-dimensional embeddings
+    
+    STEP 4: AI DIAGNOSIS SELECTION  
+    - AI evaluates candidates using nursing prioritization frameworks:
+      * ABC (Airway, Breathing, Circulation) for life-threatening conditions
+      * Maslow's Hierarchy of Needs
+      * Actual problems over risk problems
+      * Acute conditions over chronic
+    - Selects the single most appropriate diagnosis with clinical reasoning
+    
+    STEP 5: NCP GENERATION
+    - Generates complete 7-column Nursing Care Plan
+    - Uses selected diagnosis + original assessment data
+    - Produces structured JSON output for frontend display
+    
+    Pipeline Position: Steps 3-5 of 6
+    Input: embedding_keywords + original_assessment from Step 1-2
+    Output: Selected diagnosis + complete structured NCP
+    
+    Args:
+        assessment_data: Dict containing embedding_keywords and original_assessment
+        
+    Returns:
+        Dict containing selected diagnosis info, reasoning, and complete NCP
+    """
     try:
-        # Extract the keywords and original data
+        # Extract the keywords (for vector search) and original data (for NCP generation)
         embedding_keywords = assessment_data.get('embedding_keywords')
         original_assessment = assessment_data.get('original_assessment')
         
@@ -910,17 +1015,34 @@ async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
         logger.info(f"Using keywords for diagnosis matching: {embedding_keywords}")
         logger.info(f"Original assessment: {original_assessment}")
         
-        # Find diagnosis using keywords (this step doesn't use AI, so no token tracking)
+        # ----------------------------------------------------------------
+        # STEP 3: VECTOR SIMILARITY SEARCH
+        # Creates VectorDiagnosisMatcher instance and performs semantic search
+        # Uses pgvector extension for efficient cosine similarity computation
+        # Returns top 10 diagnosis candidates ranked by similarity score
+        # ----------------------------------------------------------------
         matcher = await create_vector_diagnosis_matcher()
         candidates = await matcher.find_candidate_diagnoses(embedding_keywords)
         
-        # AI diagnosis selection
+        # ----------------------------------------------------------------
+        # STEP 4: AI-POWERED DIAGNOSIS SELECTION
+        # AI applies clinical prioritization frameworks to choose best diagnosis:
+        # - ABC prioritization for life-threatening conditions
+        # - Maslow's hierarchy of needs
+        # - Actual problems over risk problems
+        # - Acute conditions over chronic
+        # Returns selected diagnosis with clinical reasoning explanation
+        # ----------------------------------------------------------------
         selected_diagnosis = await matcher.select_best_diagnosis(original_assessment, candidates)
         
-        # Generate NCP using ORIGINAL assessment data
+        # ----------------------------------------------------------------
+        # STEP 5: STRUCTURED NCP GENERATION
+        # Uses original assessment data + selected diagnosis to generate
+        # complete 7-column NCP with JSON structure for frontend display
+        # ----------------------------------------------------------------
         ncp_data = await generate_structured_ncp(request, original_assessment, selected_diagnosis)
         
-        # Return the result
+        # Return the combined result: diagnosis info + complete NCP
         final_result = {**selected_diagnosis, "ncp": ncp_data}
         
         return final_result
@@ -937,13 +1059,40 @@ async def suggest_diagnoses(request: Request, assessment_data: Dict) -> Dict:
                 "suggestion": "Please try again with different assessment data."
             }
         )
+# ============================================================================
+# MODULE 3, 4, 5: DIAGNOSIS MATCHING & NCP GENERATION - END
+# ============================================================================
 
 async def generate_structured_ncp(request: Request, assessment_data: Dict, selected_diagnosis: Dict, max_retries: int = 3) -> Dict:
     """
     Generate a structured NCP in JSON format with validation and retry logic.
+    
+    This function creates a complete 7-column Nursing Care Plan by:
+    1. Formatting the assessment data for AI consumption
+    2. Sending a detailed prompt with the selected diagnosis context
+    3. Parsing and validating the AI-generated JSON response
+    4. Retrying up to 3 times if validation fails
+    
+    The generated NCP includes:
+    - Assessment: Subjective and objective patient data
+    - Diagnosis: NANDA-I diagnosis in PES format
+    - Outcomes: SMART goals with short-term and long-term objectives
+    - Interventions: Independent, dependent, and collaborative actions
+    - Rationale: Evidence-based justification for each intervention
+    - Implementation: Actions performed (past tense)
+    - Evaluation: Outcome achievement status
+    
+    Args:
+        request: FastAPI request object
+        assessment_data: Original patient assessment data
+        selected_diagnosis: Diagnosis selected by AI with reasoning
+        max_retries: Maximum retry attempts for JSON validation
+        
+    Returns:
+        Dict: Structured NCP in JSON format ready for frontend display
     """
     
-    # Use the new formatter from utils
+    # Format assessment data specifically for NCP generation prompt
     formatted_assessment = format_assessment_for_ncp(assessment_data)
     logger.info("Formatted assessment data for ncp creation: " + str(formatted_assessment))
     logger.info("Chosen diagnosis: " + str(selected_diagnosis))

@@ -3,68 +3,109 @@
  * and back to structured format for saving
  */
 
+// ============================================================================
+// NCP EDITOR: STRUCTURED TO TEXT CONVERTER (BIDIRECTIONAL) - START
+// ============================================================================
+
 /**
- * Convert structured data to plain text for editing
- * @param {Object} structuredData - The structured data object
- * @param {string} columnKey - The column being edited (diagnosis, outcomes, etc.)
- * @returns {string} Plain text representation
+ * Convert structured NCP data to plain text for editing
+ *
+ * This function enables users to edit complex structured JSON data
+ * as simple, readable text. It provides a bidirectional conversion
+ * system for user-friendly editing.
+ *
+ * @param {Object} structuredData - The structured data object from database
+ * @param {string} columnKey - The NCP column being edited (diagnosis, outcomes, etc.)
+ * @returns {string} Plain text representation suitable for textarea editing
+ *
+ * Purpose:
+ * - Converts JSON structures to human-readable text
+ * - Maintains formatting and organization
+ * - Allows non-technical users to edit NCPs
+ * - Preserves structure during round-trip conversion
+ *
+ * Supported Formats:
+ * - diagnosis: PES statement format
+ * - outcomes: Short-term and long-term goals with timeframes
+ * - interventions: Independent, dependent, and collaborative interventions
+ * - rationale: Intervention rationales with evidence
+ * - implementation: Completed actions with timestamps
+ * - evaluation: Progress notes and objective measurements
  */
 export function convertStructuredToText(structuredData, columnKey) {
-  // Handle null, undefined, or non-object data
+  // Handle edge cases: null, undefined, or missing data
   if (!structuredData) {
     return getEmptyPlaceholder(columnKey)
   }
 
+  // If already a string, return it (allows partial migration)
   if (typeof structuredData === 'string') {
     return structuredData || getEmptyPlaceholder(columnKey)
   }
 
+  // Ensure we're working with an object
   if (typeof structuredData !== 'object') {
     return getEmptyPlaceholder(columnKey)
   }
 
   try {
     let result = ''
+
+    // Route to appropriate converter based on column type
     switch (columnKey) {
       case 'diagnosis':
+        // Convert diagnosis object to PES format statement
         result = convertDiagnosisToText(structuredData)
         break
       case 'outcomes':
+        // Convert outcomes object to short-term and long-term goal lists
         result = convertOutcomesToText(structuredData)
         break
       case 'interventions':
+        // Convert interventions to categorized lists (Independent/Dependent/Collaborative)
         result = convertInterventionsToText(structuredData)
         break
       case 'rationale':
+        // Convert rationale object to intervention-rationale mappings
         result = convertRationaleToText(structuredData)
         break
       case 'implementation':
+        // Convert implementation object to completed action lists
         result = convertImplementationToText(structuredData)
         break
       case 'evaluation':
+        // Convert evaluation object to progress notes and measurements
         result = convertEvaluationToText(structuredData)
         break
       default:
+        // Fallback: JSON string for unknown formats
         result = JSON.stringify(structuredData, null, 2)
     }
 
-    // If result is empty or just whitespace, return placeholder
+    // If conversion resulted in empty/whitespace, return helpful placeholder
     return result && result.trim() ? result : getEmptyPlaceholder(columnKey)
   } catch {
+    // Catch any parsing errors and return placeholder
     return getEmptyPlaceholder(columnKey)
   }
 }
 
 /**
  * Get placeholder text for empty sections
+ *
+ * Provides template text to guide users when creating new content.
+ * Each placeholder includes the expected format and structure,
+ * helping users understand how to properly format their input.
+ *
  * @param {string} columnKey - The column type
- * @returns {string} Placeholder text
+ * @returns {string} Instructional placeholder text with formatting examples
  */
 function getEmptyPlaceholder(columnKey) {
   switch (columnKey) {
     case 'diagnosis':
       return 'Enter the nursing diagnosis statement here...'
     case 'outcomes':
+      // Template showing expected structure with timeframes
       return `SHORT-TERM OBJECTIVES:
 
 Within [timeframe]:
@@ -120,6 +161,9 @@ Within [timeframe]:
       return ''
   }
 }
+// ============================================================================
+// NCP EDITOR: STRUCTURED TO TEXT CONVERTER (BIDIRECTIONAL) - END
+// ============================================================================
 
 /**
  * Convert plain text back to structured format

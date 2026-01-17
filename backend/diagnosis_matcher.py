@@ -16,9 +16,28 @@ from utils import (
 
 logger = logging.getLogger(__name__)
 
+# ============================================================================
+# MODULE 3: VECTOR DIAGNOSIS MATCHER (STEPS 3 & 4 OF PIPELINE) - START
+# ============================================================================
 class VectorDiagnosisMatcher:
+    """
+    Intelligent nursing diagnosis matcher using vector embeddings and semantic search.
+    
+    This class implements a sophisticated two-stage diagnosis selection process:
+    1. Vector similarity search to find candidate diagnoses from database
+    2. AI-powered clinical reasoning to select the most appropriate diagnosis
+    
+    The system uses semantic embeddings to understand the clinical meaning of
+    assessment data, not just keyword matching. This enables finding diagnoses
+    that are conceptually similar even if they use different terminology.
+    
+    Technical Stack:
+    - Google Gemini for text embeddings (768-dimensional vectors)
+    - PostgreSQL with pgvector extension for similarity search
+    - Supabase as the database backend
+    """
     def __init__(self):
-        """Initialize with Supabase client."""
+        """Initialize with Supabase client and configure embedding model."""
         load_dotenv()
         
         self.supabase_url = os.getenv("SUPABASE_URL")
@@ -38,8 +57,31 @@ class VectorDiagnosisMatcher:
         genai.configure(api_key=gemini_api_key)
 
     async def embed_assessment_data(self, keywords: str) -> List[float]:
-        """Convert keywords string directly to embedding."""
+        """
+        Convert clinical keywords into a high-dimensional vector embedding.
+        
+        Vector embeddings capture semantic meaning, allowing the system to find
+        diagnoses that are conceptually similar even if they use different words.
+        
+        Args:
+            keywords: Clinical assessment keywords and symptoms
+        
+        Returns:
+            List[float]: 768-dimensional embedding vector representing clinical meaning
+        
+        Process:
+        1. Send keywords to Gemini's text-embedding-004 model
+        2. Model returns a 768-dimensional vector
+        3. Each dimension captures different semantic aspects
+        4. Similar clinical scenarios produce similar vectors
+        
+        Example:
+            "shortness of breath, chest pain" →
+            [0.234, -0.891, 0.445, ...] (768 numbers)
+        """
         try:
+            # Generate embedding using Gemini's embedding model
+            # task_type="retrieval_query" optimizes for searching
             result = genai.embed_content(
                 model=self.embedding_model,
                 content=keywords,
@@ -56,12 +98,37 @@ class VectorDiagnosisMatcher:
         top_n: int = 10, 
         similarity_threshold: float = 0.3
     ) -> List[Dict]:
-        """Find candidates using keywords string."""
+        """
+        Find candidate diagnoses using vector similarity search.
+        
+        This implements semantic search across the diagnosis database
+        using cosine similarity between embedding vectors.
+        
+        Args:
+            keywords: Patient assessment keywords
+            top_n: Maximum number of candidates to return
+            similarity_threshold: Minimum similarity score (0.0 to 1.0)
+        
+        Returns:
+            List[Dict]: Top matching diagnoses with complete information
+        
+        Algorithm:
+        1. Convert keywords to embedding vector (768 dimensions)
+        2. Compare vector to all diagnosis vectors using cosine similarity
+        3. Database function 'match_diagnoses' performs efficient vector search
+        4. Return top N diagnoses above similarity threshold
+        
+        Mathematical Foundation:
+        - Cosine Similarity = (A · B) / (||A|| × ||B||)
+        - Ranges from 0 (completely different) to 1 (identical)
+        - Threshold of 0.3 filters out clinically irrelevant matches
+        """
         try:
-            # Generate embedding for the keywords
+            # Step 1: Generate embedding for the assessment keywords
             embedding = await self.embed_assessment_data(keywords)
             
-            # Search for similar diagnoses
+            # Step 2: Search database using PostgreSQL pgvector extension
+            # The 'match_diagnoses' RPC performs efficient cosine similarity search
             response = self.client.rpc(
                 'match_diagnoses',
                 {
@@ -73,6 +140,8 @@ class VectorDiagnosisMatcher:
             
             if response.data:
                 candidates = []
+                
+                # Step 3: Format results into structured candidate objects
                 for row in response.data:
                     candidate = {
                         "id": str(row['id']),
@@ -86,7 +155,7 @@ class VectorDiagnosisMatcher:
                     }
                     candidates.append(candidate)
                 
-                # Simple diagnosis + similarity logging
+                # Step 4: Log results for debugging and monitoring
                 logger.info(f"Found {len(candidates)} candidates:")
                 for i, (candidate, row) in enumerate(zip(candidates, response.data), 1):
                     similarity = float(row['similarity'])
@@ -106,9 +175,34 @@ class VectorDiagnosisMatcher:
         assessment_data: Dict, 
         candidates: List[Dict]
     ) -> Dict:
-        """Use AI to select the best diagnosis from candidates."""
+        """
+        Use AI to select the best diagnosis from candidates.
+        
+        This method applies clinical reasoning using AI to select the most
+        appropriate nursing diagnosis based on:
+        - ABC prioritization (Airway, Breathing, Circulation)
+        - Maslow's hierarchy of needs
+        - Actual problems over risk problems
+        - Acute conditions over chronic ones
+        
+        Args:
+            assessment_data: Complete patient assessment information
+            candidates: List of candidate diagnoses from vector search
+        
+        Returns:
+            Dict: Selected diagnosis with reasoning explanation
+        
+        Algorithm:
+        1. Format assessment data for AI consumption
+        2. Present candidates without similarity scores (pure clinical judgment)
+        3. AI applies nursing prioritization frameworks
+        4. Validate AI selected from provided candidates
+        5. Retry up to 3 times if AI selects invalid diagnosis
+        6. Fallback to highest-similarity candidate if all retries fail
+        """
         
         try:
+            # Handle empty candidates case
             if not candidates:
                 return {
                     "diagnosis": None,
@@ -254,6 +348,10 @@ class VectorDiagnosisMatcher:
             logger.error(f"Error in AI diagnosis selection: {str(e)}")
             raise
 
+
+# ============================================================================
+# MODULE 3: VECTOR DIAGNOSIS MATCHER (STEPS 3 & 4 OF PIPELINE) - END
+# ============================================================================
 
 # Factory function
 async def create_vector_diagnosis_matcher() -> VectorDiagnosisMatcher:
