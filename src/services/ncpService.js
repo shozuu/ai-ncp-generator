@@ -33,11 +33,6 @@ export const ncpService = {
    */
   async generateComprehensiveNCP(assessmentData, abortSignal = null) {
     try {
-      console.log(
-        'Generating comprehensive NCP with structured data:',
-        assessmentData
-      )
-
       const config = {
         headers: { 'Content-Type': 'application/json' },
       }
@@ -55,7 +50,6 @@ export const ncpService = {
       )
 
       const result = response.data
-      console.log('Received comprehensive result:', result)
 
       // Check if complete NCP was generated (not just diagnosis)
       if (result.ncp) {
@@ -236,8 +230,6 @@ export const ncpService = {
 
   async parseManualAssessment(manualData, abortSignal = null) {
     try {
-      console.log('Parsing manual assessment data:', manualData)
-
       const config = {
         headers: { 'Content-Type': 'application/json' },
       }

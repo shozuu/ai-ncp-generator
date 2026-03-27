@@ -25,8 +25,6 @@ export function useBackgroundOperations() {
       onComplete: options.onComplete || null,
       onError: options.onError || null,
     })
-
-    console.log(`Started background operation: ${type} (${id})`)
   }
 
   /**

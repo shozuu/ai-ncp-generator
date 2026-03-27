@@ -1562,7 +1562,6 @@ export const exportUtils = {
       console.error('Enhanced PNG export failed:', error)
 
       // Fallback to original PNG method
-      console.log('Falling back to original PNG method...')
       return this.toPNG(ncp, columnLabels, isFormatted)
     }
   },
@@ -1909,7 +1908,6 @@ export const exportUtils = {
       console.error('Enhanced Word export failed:', error)
 
       // Fallback to original Word method
-      console.log('Falling back to original Word method...')
       return this.toWord(ncp, columnLabels, isFormatted)
     }
   },

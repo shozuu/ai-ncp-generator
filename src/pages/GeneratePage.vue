@@ -21,10 +21,6 @@ const handleAssessmentSubmit = async formData => {
   isLoading.value = true
   try {
     if (formData.generatedNCP && formData.savedNCPId) {
-      console.log(
-        'Complete NCP generated, redirecting to:',
-        formData.savedNCPId
-      )
       handleSuccess('complete')
       router.push(`/ncps/${formData.savedNCPId}`)
       return
@@ -32,7 +28,6 @@ const handleAssessmentSubmit = async formData => {
 
     if (formData.diagnosis && !formData.generatedNCP) {
       // only diagnosis was generated - show partial success
-      console.log('Only diagnosis was generated, handling fallback')
       handleSuccess('partial', formData.diagnosis.diagnosis)
       return
     }

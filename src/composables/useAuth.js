@@ -99,12 +99,6 @@ export const useAuth = () => {
 
       user.value = session?.user ?? null
       loading.value = false
-
-      // Handle successful email confirmation
-      if (event === 'SIGNED_IN' && session) {
-        // User is now signed in after email confirmation
-        console.log('User signed in via email confirmation')
-      }
     })
   }
 

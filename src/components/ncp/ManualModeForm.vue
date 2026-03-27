@@ -71,7 +71,7 @@ const form = useForm({
 // Computed property to check if minimum clinical data is provided
 const hasMinimumClinicalData = computed(() => {
   const values = form.values
-  
+
   const hasGeneralCondition = values.general_condition?.trim()?.length > 0
   const hasSubjective = values.subjective?.trim()?.length > 0
   const hasObjective = values.objective?.trim()?.length > 0
@@ -98,7 +98,8 @@ const hasMinimumClinicalData = computed(() => {
     values.height ||
     values.weight ||
     values.laboratory_results?.trim() ||
-    (values.cephalocaudal_assessment && Object.values(values.cephalocaudal_assessment).some(v => v?.trim?.()))
+    (values.cephalocaudal_assessment &&
+      Object.values(values.cephalocaudal_assessment).some(v => v?.trim?.()))
   )
 
   return (
@@ -276,7 +277,6 @@ const onSubmit = form.handleSubmit(values => {
     objective: values.objective ? cleanText(values.objective) : [],
   }
 
-  console.log('Formatted data being emitted:', formattedData) // Debug log
   emit('submit', formattedData)
 })
 
@@ -318,7 +318,12 @@ const exportAssessment = async () => {
             <p
               class="text-xs sm:text-sm text-amber-700 dark:text-amber-400 mb-3 sm:mb-4 leading-relaxed"
             >
-              <span class="font-semibold">⚠️ Required:</span> Please fill in at least one of the following: Chief Complaint, Subjective Data, Objective Data, Vital Signs, History, Medical History, or Physical Exam. Fields marked with <span class="text-destructive font-bold">*</span> indicate options that satisfy this requirement.
+              <span class="font-semibold">⚠️ Required:</span> Please fill in at
+              least one of the following: Chief Complaint, Subjective Data,
+              Objective Data, Vital Signs, History, Medical History, or Physical
+              Exam. Fields marked with
+              <span class="text-destructive font-bold">*</span> indicate options
+              that satisfy this requirement.
             </p>
             <p
               class="text-xs sm:text-sm text-blue-600 dark:text-blue-400 mb-3 sm:mb-4 leading-relaxed"
@@ -551,7 +556,10 @@ const exportAssessment = async () => {
               v-slot="{ componentField, errorMessage }"
             >
               <FormItem v-auto-animate>
-                <FormLabel>General Condition <span class="text-destructive">*</span></FormLabel>
+                <FormLabel
+                  >General Condition
+                  <span class="text-destructive">*</span></FormLabel
+                >
                 <FormControl>
                   <Input
                     placeholder="Enter patient's chief complaint"
@@ -1369,7 +1377,10 @@ const exportAssessment = async () => {
               v-slot="{ componentField, errorMessage }"
             >
               <FormItem v-auto-animate>
-                <FormLabel>Subjective Data <span class="text-destructive">*</span></FormLabel>
+                <FormLabel
+                  >Subjective Data
+                  <span class="text-destructive">*</span></FormLabel
+                >
                 <FormControl>
                   <Textarea
                     placeholder="Enter subjective data (one per line)"
@@ -1427,7 +1438,10 @@ const exportAssessment = async () => {
               v-slot="{ componentField, errorMessage }"
             >
               <FormItem v-auto-animate>
-                <FormLabel>Objective Data <span class="text-destructive">*</span></FormLabel>
+                <FormLabel
+                  >Objective Data
+                  <span class="text-destructive">*</span></FormLabel
+                >
                 <FormControl>
                   <Textarea
                     placeholder="Enter objective data (one per line)"
@@ -1457,8 +1471,12 @@ const exportAssessment = async () => {
         v-if="!hasMinimumClinicalData"
         class="mb-3 p-2 sm:p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg"
       >
-        <p class="text-amber-800 dark:text-amber-200 text-xs sm:text-sm text-center">
-          ⚠️ Please fill in at least one clinical data field (Chief Complaint, Subjective/Objective Data, Vital Signs, History, or Physical Exam) to submit.
+        <p
+          class="text-amber-800 dark:text-amber-200 text-xs sm:text-sm text-center"
+        >
+          ⚠️ Please fill in at least one clinical data field (Chief Complaint,
+          Subjective/Objective Data, Vital Signs, History, or Physical Exam) to
+          submit.
         </p>
       </div>
       <div
@@ -1500,7 +1518,11 @@ const exportAssessment = async () => {
             type="submit"
             :disabled="isSubmitDisabled"
             class="px-6 sm:px-8 py-3 bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary/80 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 w-full sm:w-auto"
-            :title="!hasMinimumClinicalData ? 'Please fill in at least one clinical data field' : ''"
+            :title="
+              !hasMinimumClinicalData
+                ? 'Please fill in at least one clinical data field'
+                : ''
+            "
           >
             <span
               v-if="props.disabled"
